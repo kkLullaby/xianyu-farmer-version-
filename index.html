@@ -3,39 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <title>新会陈皮产业看板 - 数字化管理系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* --- 基础设置 --- */
-        body { 
-            font-family: "Segoe UI", Roboto, "Helvetica Neue", "Microsoft YaHei", sans-serif; 
-            margin: 0; 
-            background-color: #f4f7f6; 
-            color: #333;
+        /* --- 柑橘·陈皮·环保 主题配置 (Citrus Eco Theme) --- */
+        :root {
+            --primary-green: #2E7D32;    /* 深绿：成熟柑叶 */
+            --primary-light: #66BB6A;    /* 浅绿：嫩叶 */
+            --citrus-orange: #EF6C00;    /* 陈皮橙：晒干的陈皮 */
+            --citrus-gold: #FFB300;      /* 金黄：新鲜柑果 */
+            --bg-cream: #FAFAF5;         /* 米白：温暖背景 */
+            --text-dark: #1B3A24;        /* 深墨绿：正文文字 */
+            --text-medium: #45664E;      /* 中绿：次要文字 */
+            --glass-bg: rgba(255, 255, 255, 0.85); /* 磨砂玻璃背景 */
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --shadow-soft: 0 10px 40px rgba(46, 125, 50, 0.08);
+            --shadow-hover: 0 15px 50px rgba(239, 108, 0, 0.15);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --nav-height: 80px;
         }
 
-        /* --- 顶部导航栏 (参照 Biomket 设计) --- */
+        /* --- 基础设置 --- */
+        body { 
+            font-family: "Noto Sans SC", "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            background-color: var(--bg-cream); 
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 249, 196, 0.4) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(200, 230, 201, 0.4) 0%, transparent 40%);
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- 顶部导航栏 --- */
         .top-navbar {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 70px;
-            background-color: #ffffff;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            max-width: 1400px;
+            height: var(--nav-height);
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
             display: flex;
             align-items: center;
-            justify-content: space-between; /* 标题居左，菜单居右 */
-            padding: 0 40px;
+            justify-content: space-between;
+            padding: 0 30px;
             box-sizing: border-box;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            z-index: 1100; /* 高于侧边栏 */
+            box-shadow: var(--shadow-soft);
+            z-index: 1100;
+            transition: all 0.3s ease;
         }
 
         .logo-area {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2c3e50;
+            font-family: "ZCOOL XiaoWei", serif;
+            font-size: 28px;
+            color: var(--primary-green);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            letter-spacing: 1px;
+        }
+        
+        .logo-area span:first-child {
+            position: relative;
+        }
+        
+        .logo-area span:first-child::after {
+            content: '🍊';
+            font-size: 20px;
+            position: absolute;
+            top: -10px;
+            right: -15px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
 
         .nav-menu {
@@ -46,14 +91,26 @@
 
         .nav-item {
             text-decoration: none;
-            color: #666;
-            font-size: 14px;
+            color: var(--text-medium);
+            font-size: 15px;
             font-weight: 500;
             transition: color 0.3s;
-            text-transform: uppercase;
+            position: relative;
         }
 
-        .nav-item:hover { color: #1abc9c; }
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--citrus-orange);
+            transition: width 0.3s;
+        }
+
+        .nav-item:hover { color: var(--citrus-orange); }
+        .nav-item:hover::after { width: 100%; }
 
         /* 登录注册按钮样式 */
         .auth-buttons {
@@ -63,85 +120,209 @@
         }
 
         .btn {
-            padding: 8px 20px;
-            border-radius: 6px;
+            padding: 10px 24px;
+            border-radius: 50px;
             font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
             text-decoration: none;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: none;
+            letter-spacing: 0.5px;
         }
 
         .btn-login {
-            color: #1abc9c;
-            border: 1px solid #1abc9c;
+            color: var(--primary-green);
+            background: transparent;
+            border: 2px solid var(--primary-green);
         }
-        .btn-login:hover { background: rgba(26, 188, 156, 0.05); }
+        .btn-login:hover { 
+            background: rgba(46, 125, 50, 0.08); 
+            transform: translateY(-2px);
+        }
 
         .btn-signup {
-            background-color: #2c3e50;
+            background: linear-gradient(135deg, var(--citrus-orange), var(--citrus-gold));
             color: white;
-            border: 1px solid #2c3e50;
+            box-shadow: 0 4px 15px rgba(239, 108, 0, 0.3);
         }
-        .btn-signup:hover { background-color: #34495e; }
+        .btn-signup:hover { 
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(239, 108, 0, 0.4);
+        }
 
-        /* --- 侧边栏 (保持之前的悬浮美化逻辑) --- */
+        /* --- 侧边栏 --- */
         .sidebar {
             position: fixed;
-            left: -260px;
-            width: 260px;
-            height: 85vh; /* 调整高度避免顶住底 */
-            top: 90px; /* 留出顶部导航栏的空间 */
-            background: rgba(44, 62, 80, 0.95);
-            backdrop-filter: blur(10px);
-            color: white;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            left: -280px;
+            width: 280px;
+            height: calc(100vh - 140px);
+            top: 120px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid white;
+            color: var(--text-dark);
+            transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
             z-index: 1000;
-            padding: 20px 0;
-            border-radius: 0 20px 20px 0;
-            box-shadow: 10px 0 30px rgba(0,0,0,0.2);
+            padding: 30px 20px;
+            border-radius: 0 24px 24px 0;
+            box-shadow: 20px 0 40px rgba(0,0,0,0.05);
         }
 
         .sidebar:hover { left: 0; }
 
         .toggle-btn {
             position: absolute;
-            right: -55px;
-            top: 20px;
-            width: 55px;
+            right: -60px;
+            top: 0px;
+            width: 60px;
             height: 60px;
-            background: #2c3e50;
-            color: #1abc9c;
+            background: white;
+            color: var(--primary-green);
             cursor: pointer;
-            border-radius: 0 12px 12px 0;
+            border-radius: 0 16px 16px 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+            box-shadow: 5px 0 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        
+        .sidebar:hover .toggle-btn {
+            transform: scale(0.9);
+            color: var(--citrus-orange);
         }
 
-        .nav-list { list-style: none; padding: 0 10px; margin-top: 30px; opacity: 0; transition: opacity 0.3s; }
+        .nav-list { list-style: none; padding: 0; margin-top: 30px; opacity: 0; transition: opacity 0.3s 0.2s; }
         .sidebar:hover .nav-list { opacity: 1; }
-        .nav-list a { display: block; padding: 12px 15px; color: rgba(236,240,241,0.8); text-decoration: none; border-radius: 10px; }
-        .nav-list li:hover { background-color: rgba(26,188,156,0.15); transform: translateX(8px); transition: 0.3s; }
+        .nav-list a { 
+            display: block; 
+            padding: 16px 20px; 
+            color: var(--text-medium); 
+            text-decoration: none; 
+            border-radius: 12px; 
+            margin-bottom: 8px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .nav-list li a:hover { 
+            background: linear-gradient(90deg, rgba(255, 243, 224, 0.6), transparent);
+            color: var(--citrus-orange); 
+            transform: translateX(5px); 
+            transition: all 0.3s; 
+        }
 
         /* --- 内容展示区 --- */
         #content-area {
-            padding: 120px 50px 50px 80px; /* 顶部留出 120px (70px导航+50px间距) */
+            padding: 140px 50px 50px 80px;
             min-height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        /* 装饰背景元素 */
+        #content-area::before {
+            content: '';
+            position: fixed;
+            right: -100px;
+            bottom: -100px;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--citrus-gold) 0%, transparent 70%);
+            opacity: 0.1;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* 通用卡片样式 (Glass Card) */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            transition: all 0.4s ease;
+        }
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.06);
+            background: rgba(255, 255, 255, 0.9);
+            border-color: var(--primary-light);
+        }
+        
+        /* 仪表板Grid布局 */
+        .dashboard-grid {
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 25px; 
+            margin-top: 30px;
+        }
+        
+        /* 标题样式 */
+        h1, h2, h3 { font-family: "Noto Sans SC", sans-serif; font-weight: 700; }
+        .page-title {
+            color: var(--text-dark);
+            border-bottom: none !important;
+            position: relative;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .page-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 60px;
+            height: 6px;
+            background: linear-gradient(90deg, var(--primary-green), var(--citrus-orange));
+            border-radius: 3px;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* --- 弹窗样式优化 --- */
+        #login-modal > div {
+            border: 1px solid white !important;
+            backdrop-filter: blur(20px) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+            border-radius: 24px !important;
+        }
+        
+        input[type="text"], input[type="password"], input[type="date"], input[type="number"], select, textarea {
+            background: #F5F7F5 !important;
+            border: 1px solid #E0E0E0 !important;
+            border-radius: 12px !important;
+            padding: 14px 16px !important;
+            transition: all 0.3s !important;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            background: white !important;
+            border-color: var(--primary-green) !important;
+            box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.1) !important;
+            outline: none;
+        }
+        
+        .tab-active {
+            color: var(--primary-green) !important;
+            border-bottom-color: var(--primary-green) !important;
+        }
+
     </style>
 </head>
 <body>
 
     <header class="top-navbar">
         <div class="logo-area">
-            <span>农废宝</span> <span style="font-size: 12px; color: #999; font-weight: normal; margin-top: 5px;">A WASTE TRADING COMPANY</span>
+            <span>农废宝</span> <span style="font-family: 'Noto Sans SC', sans-serif; font-size: 13px; color: var(--text-medium); font-weight: normal; margin-top: 6px; margin-left: 8px; letter-spacing: 0;">柑橘果肉废物回收平台</span>
         </div>
 
         <nav class="nav-menu">
@@ -149,101 +330,105 @@
             <a href="#" class="nav-item">联系我们</a>
             
             <div class="auth-buttons">
-                <a href="#" onclick="try { authSystem.openLoginModal(); } catch(e) { alert('Error: ' + e.message); } return false;" class="btn btn-login">登录</a>
-                <a href="#" onclick="try { authSystem.openLoginModal(); authSystem.switchTab('register'); } catch(e) { alert('Error: ' + e.message); } return false;" class="btn btn-signup">注册</a>
+                <a href="#" class="btn btn-login">登录</a>
+                <a href="#" class="btn btn-signup">注册</a>
             </div>
         </nav>
     </header>
 
     <nav class="sidebar" id="sidebar">
         <div class="toggle-btn">
-            <div style="font-size: 20px;">☰</div>
-            <div style="font-size: 12px; font-weight: bold;">功能</div>
+            <div style="font-size: 24px;">☰</div>
         </div>
         
-        <div style="padding: 0 20px;"><h2 style="color: #1abc9c; font-size: 18px;">管理面板</h2></div>
+        <div style="padding: 0 20px;">
+            <h2 style="color: var(--primary-green); font-size: 18px; margin-bottom: 5px;">功能菜单</h2>
+            <div style="width: 40px; height: 3px; background: var(--citrus-orange); border-radius: 2px;"></div>
+        </div>
         <ul class="nav-list">
             <li><a href="#">🏠 请登录之后继续</a></li>
-            <!-- <li><a href="#">🗺️ 种植地块管理</a></li> 
-            <li><a href="#">♻️ 柑肉处理申报</a></li><p style="text-align: center; color: #666; font-size: 18px;">新会陈皮产业数字化管理系统</p>
-            <li><a href="#">📜 陈皮溯源查询</a></li>
-            <li><a href="#">⚙️ 系统设置</a></li> -->
         </ul>
     </nav>
 
     <div id="content-area">
-        <div style="animation: fadeIn 0.6s ease;">
-            <h1 style="font-size: 48px; color: #2c3e50; text-align: center; margin-bottom: 10px;">WELCOME<br>请登录之后继续</h1>
-            <p style="text-align: center; color: #666; font-size: 18px;">新会陈皮产业数字化管理系统</p>
+        <div style="animation: fadeIn 0.6s ease; text-align: center; padding-top: 50px;">
+            <div style="font-size: 80px; margin-bottom: 20px;">🍊</div>
+            <h1 style="font-family: 'Noto Sans SC', sans-serif; font-size: 48px; color: var(--text-dark); margin-bottom: 10px; font-weight: 700;">WELCOME<br>请登录之后继续</h1>
+            <p style="color: var(--text-medium); font-size: 20px; letter-spacing: 1px;">新会陈皮产业数字化管理系统</p>
             
-            <div style="width: 100px; height: 3px; background: #1abc9c; margin: 30px auto;"></div>
+            <div style="width: 80px; height: 4px; background: linear-gradient(90deg, var(--primary-green), var(--citrus-orange)); margin: 40px auto; border-radius: 2px;"></div>
         </div>
     </div>
 
 
     <!-- 登录/注册弹窗 -->
-    <div id="login-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center;">
-        <div style="background: white; padding: 0; border-radius: 15px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); position: relative; overflow: hidden;">
+    <div id="login-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+        <div style="width: 420px; position: relative; overflow: hidden;">
             <!-- 关闭按钮 -->
-            <span onclick="authSystem.closeLoginModal()" style="position: absolute; right: 20px; top: 15px; cursor: pointer; font-size: 24px; z-index: 10;">×</span>
+            <span onclick="authSystem.closeLoginModal()" style="position: absolute; right: 20px; top: 15px; cursor: pointer; font-size: 24px; z-index: 10; color: #999; transition: color 0.3s; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #f5f5f5;">×</span>
             
             <!-- 标签页 -->
-            <div style="display: flex; border-bottom: 2px solid #f0f0f0;">
-                <div id="login-tab" onclick="authSystem.switchTab('login')" style="flex: 1; padding: 15px; text-align: center; cursor: pointer; border-bottom: 3px solid #1abc9c; font-weight: bold; color: #1abc9c;">
+            <div style="display: flex; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                <div id="login-tab" onclick="authSystem.switchTab('login')" class="tab-active" style="flex: 1; padding: 20px; text-align: center; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 700; font-size: 16px; transition: all 0.3s;">
                     登录
                 </div>
-                <div id="register-tab" onclick="authSystem.switchTab('register')" style="flex: 1; padding: 15px; text-align: center; cursor: pointer; border-bottom: 1px solid #ddd; color: #999; font-weight: bold;">
+                <div id="register-tab" onclick="authSystem.switchTab('register')" style="flex: 1; padding: 20px; text-align: center; cursor: pointer; border-bottom: 3px solid transparent; color: #999; font-weight: 700; font-size: 16px; transition: all 0.3s;">
                     注册
                 </div>
             </div>
             
             <!-- 登录表单 -->
-            <div id="login-form" style="padding: 30px;">
-                <h3 style="text-align: center; color: #2c3e50; margin-bottom: 20px;">欢迎登录农业废品回收平台</h3>
+            <div id="login-form" style="padding: 30px 40px 40px;">
+                <h3 style="text-align: center; color: var(--text-dark); margin-bottom: 25px; font-weight: 700;">欢迎回来，请登录</h3>
                 
-                <div style="background: #f0f9ff; border-left: 4px solid #3498db; padding: 10px; margin-bottom: 20px; border-radius: 4px; font-size: 12px; color: #555;">
-                    <p style="margin: 0;"><strong>测试账号：</strong></p>
-                    <p style="margin: 5px 0;">👨‍💼 管理员: admin001 / admin123</p>
-                    <p style="margin: 5px 0;">🌾 农户: farmer001 / farmer123</p>
-                    <p style="margin: 5px 0;">♻️ 回收商: recycler001 / recycler123</p>
+                <div style="background: rgba(239, 108, 0, 0.08); border-left: 4px solid var(--citrus-orange); padding: 12px 16px; margin-bottom: 25px; border-radius: 8px; font-size: 13px; color: #5D4037;">
+                    <p style="margin: 0 0 5px 0;"><strong>🛠️ 测试账号：</strong></p>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 4px;">
+                        <span>👨‍💼 管理员: admin001 / admin123</span>
+                        <span>🌾 农户: farmer001 / farmer123</span>
+                        <span>♻️ 回收商: recycler001 / recycler123</span>
+                        <span>🏭 处理商: processor001 / processor123</span>
+                    </div>
                 </div>
                 
-                <input type="text" id="username" placeholder="手机号 / 用户名" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
-                <input type="password" id="password" placeholder="密码" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
+                <input type="text" id="username" placeholder="手机号 / 用户名" style="width: 100%; margin-bottom: 16px; box-sizing: border-box;">
+                <input type="password" id="password" placeholder="密码" style="width: 100%; margin-bottom: 24px; box-sizing: border-box;">
                 
-                <button onclick="authSystem.handleLogin()" style="width: 100%; padding: 12px; background: #1abc9c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 16px; transition: all 0.3s;">立即登录</button>
+                <button onclick="authSystem.handleLogin()" style="width: 100%; padding: 14px; background: var(--primary-green); color: white; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; font-size: 16px; transition: all 0.3s; box-shadow: 0 4px 15px rgba(46, 125, 50, 0.3);">立即登录</button>
             </div>
             
             <!-- 注册表单 -->
-            <div id="register-form" style="padding: 30px; display: none;">
-                <h3 style="text-align: center; color: #2c3e50; margin-bottom: 20px;">手机验证码注册</h3>
+            <div id="register-form" style="padding: 30px 40px 40px; display: none;">
+                <h3 style="text-align: center; color: var(--text-dark); margin-bottom: 20px;">手机验证码注册</h3>
 
-                <input type="text" id="reg-phone" placeholder="手机号（用于登录）" style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
+                <input type="text" id="reg-phone" placeholder="手机号（用于登录）" style="width: 100%; margin-bottom: 12px; box-sizing: border-box;">
                 <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                    <input type="text" id="reg-otp" placeholder="短信验证码" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
-                    <button id="btn-send-otp" style="width: 140px; padding: 12px; background: #1abc9c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px; transition: all 0.3s;">发送验证码</button>
+                    <input type="text" id="reg-otp" placeholder="短信验证码" style="flex: 1; margin-bottom: 0; box-sizing: border-box;">
+                    <button id="btn-send-otp" style="width: 120px; background: var(--citrus-orange); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; transition: all 0.3s;">发送验证码</button>
                 </div>
 
                 <div style="margin-bottom: 12px;">
-                    <div id="slider-track" style="position: relative; height: 42px; background: #f0f0f0; border-radius: 6px; user-select: none;">
-                        <div id="slider-text" style="position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: #666; font-size: 13px;">按住滑块拖动验证</div>
-                        <div id="slider-knob" style="position: absolute; left: 0; top: 0; width: 60px; height: 42px; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer;">⇆</div>
+                    <div id="slider-track" style="position: relative; height: 44px; background: #f0f0f0; border-radius: 12px; user-select: none; overflow: hidden;">
+                        <div id="slider-text" style="position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px;">按住滑块拖动验证</div>
+                        <div id="slider-knob" style="position: absolute; left: 0; top: 2px; width: 44px; height: 40px; background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 2px; color: var(--primary-green); font-weight: bold;">➜</div>
                     </div>
                 </div>
 
-                <input type="text" id="reg-name" placeholder="真实姓名" style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
-                <select id="reg-role" style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
+                <input type="text" id="reg-name" placeholder="真实姓名" style="width: 100%; margin-bottom: 12px; box-sizing: border-box;">
+                <select id="reg-role" style="width: 100%; margin-bottom: 12px; box-sizing: border-box; appearance: none; -webkit-appearance: none;">
                     <option value="">-- 选择身份 --</option>
                     <option value="farmer">🌾 农户</option>
                     <option value="recycler">♻️ 回收商</option>
+                    <option value="processor">🏭 果肉处理商</option>
                 </select>
 
-                <input type="password" id="reg-password" placeholder="密码（8-16位，含字母和数字）" style="width: 100%; padding: 12px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
-                <input type="password" id="reg-confirm-password" placeholder="确认密码" style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 12px;">密码必须 8-16 位，且同时包含数字和字母。</div>
+                <input type="password" id="reg-password" placeholder="密码（8-16位，含字母和数字）" style="width: 100%; margin-bottom: 8px; box-sizing: border-box;">
+                <input type="password" id="reg-confirm-password" placeholder="确认密码" style="width: 100%; margin-bottom: 12px; box-sizing: border-box;">
+                <div style="font-size: 11px; color: #888; margin-bottom: 12px; padding-left: 4px;">密码必须 8-16 位，且同时包含数字和字母。</div>
 
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; margin-bottom: 15px;">
-                    <input type="checkbox" id="reg-agree"> 我已阅读并同意 <a href="#" id="privacy-link" style="color: #1abc9c; text-decoration: none;">《隐私政策》</a> 和 <a href="#" id="service-link" style="color: #1abc9c; text-decoration: none;">《服务协议》</a>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; margin-bottom: 20px; cursor: pointer;">
+                    <input type="checkbox" id="reg-agree" style="width: auto !important; margin: 0;"> 
+                    <span>我已阅读并同意 <a href="#" id="privacy-link" style="color: var(--primary-green); text-decoration: none; font-weight: 600;">《隐私政策》</a> 和 <a href="#" id="service-link" style="color: var(--primary-green); text-decoration: none; font-weight: 600;">《服务协议》</a></span>
                     <!-- 内容弹窗 -->
                     <div id="policy-modal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.45); z-index:3000; align-items:center; justify-content:center;">
                         <div style="background:#fff; border-radius:10px; max-width:500px; width:90vw; max-height:80vh; overflow:auto; padding:32px 24px 24px 24px; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
@@ -288,14 +473,12 @@
     <script>
     // 初始化认证系统和隐私政策/服务协议弹窗
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('=== DOMContentLoaded Event ===');
-        console.log('authSystem:', authSystem);
-        console.log('authSystem.openLoginModal:', authSystem.openLoginModal);
+        console.log('=== Page Initialized ===');
         
         // 初始化认证系统（处理登录/注册按钮等）
-        if (authSystem && authSystem.init) {
+        if (typeof authSystem !== 'undefined' && authSystem.init) {
             authSystem.init();
-            console.log('authSystem.init() called successfully');
+            console.log('authSystem initialized successfully');
         } else {
             console.error('authSystem not found or init method missing');
         }

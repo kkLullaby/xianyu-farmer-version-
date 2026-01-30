@@ -53,7 +53,8 @@ async function initDb() {
             const roles = [
                 ['admin', '系统管理员'],
                 ['farmer', '农户'],
-                ['recycler', '回收商']
+                ['recycler', '回收商'],
+                ['processor', '果肉处理商']
             ];
             let i = 0;
             roles.forEach(r => {
@@ -96,7 +97,8 @@ async function initDb() {
         const users = [
             { username: 'admin001', password: 'admin123', role: 'admin', full_name: '系统管理员' },
             { username: 'farmer001', password: 'farmer123', role: 'farmer', full_name: '李农户' },
-            { username: 'recycler001', password: 'recycler123', role: 'recycler', full_name: '王回收商' }
+            { username: 'recycler001', password: 'recycler123', role: 'recycler', full_name: '王回收商' },
+            { username: 'processor001', password: 'processor123', role: 'processor', full_name: '赵处理商' }
         ];
 
         for (const u of users) {
@@ -153,7 +155,8 @@ async function initDb() {
 // --------- Express API ---------
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 // 提供静态文件（HTML、CSS、JS等）
 app.use(express.static(path.join(__dirname)));
@@ -422,6 +425,146 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
+
+// ========== Farmer Reports API ==========
+
+// Create or update farmer report (支持草稿和发布)
+app.post('/api/farmer-reports', (req, res) => {
+    const { farmer_id, pickup_date, weight_kg, location_address, location_lat, location_lng,
+            citrus_variety, contact_name, contact_phone, grade, photo_urls, status, notes, id } = req.body;
+    
+    if (!farmer_id) return res.status(400).json({ error: '缺少农户ID' });
+    
+    const db = openDb();
+    
+    if (id) {
+        // Update existing report
+        db.run(`UPDATE farmer_reports SET 
+            pickup_date = ?, weight_kg = ?, location_address = ?, location_lat = ?, location_lng = ?,
+            citrus_variety = ?, contact_name = ?, contact_phone = ?, grade = ?, photo_urls = ?,
+            status = ?, notes = ?, updated_at = datetime('now')
+            WHERE id = ? AND farmer_id = ?`,
+            [pickup_date, weight_kg, location_address, location_lat, location_lng,
+             citrus_variety, contact_name, contact_phone, grade || 'grade2', 
+             JSON.stringify(photo_urls || []), status || 'draft', notes, id, farmer_id],
+            function(err) {
+                db.close();
+                if (err) return res.status(500).json({ error: err.message });
+                if (this.changes === 0) return res.status(404).json({ error: '申报不存在或无权修改' });
+                res.json({ id, updated: true });
+            });
+    } else {
+        // Create new report
+        const reportNo = 'RPT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+        db.run(`INSERT INTO farmer_reports (report_no, farmer_id, pickup_date, weight_kg, location_address,
+            location_lat, location_lng, citrus_variety, contact_name, contact_phone, grade, photo_urls, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [reportNo, farmer_id, pickup_date, weight_kg, location_address, location_lat, location_lng,
+             citrus_variety, contact_name, contact_phone, grade || 'grade2',
+             JSON.stringify(photo_urls || []), status || 'draft', notes],
+            function(err) {
+                db.close();
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id: this.lastID, report_no: reportNo });
+            });
+    }
+});
+
+// Get farmer's own reports
+app.get('/api/farmer-reports', (req, res) => {
+    const { farmer_id, status } = req.query;
+    if (!farmer_id) return res.status(400).json({ error: '缺少农户ID' });
+    
+    const db = openDb();
+    let q = `SELECT * FROM farmer_reports WHERE farmer_id = ?`;
+    const params = [farmer_id];
+    
+    if (status && status !== 'all') {
+        q += ` AND status = ?`;
+        params.push(status);
+    }
+    q += ` ORDER BY created_at DESC`;
+    
+    db.all(q, params, (err, rows) => {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows.map(r => ({ ...r, photo_urls: JSON.parse(r.photo_urls || '[]') })));
+    });
+});
+
+// Get single report by ID
+app.get('/api/farmer-reports/:id', (req, res) => {
+    const db = openDb();
+    db.get(`SELECT * FROM farmer_reports WHERE id = ?`, [req.params.id], (err, row) => {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: '申报不存在' });
+        res.json({ ...row, photo_urls: JSON.parse(row.photo_urls || '[]') });
+    });
+});
+
+// Get all published reports for recyclers (农户供应列表)
+app.get('/api/farmer-supplies', (req, res) => {
+    const { sort_by, recycler_lat, recycler_lng } = req.query;
+    const db = openDb();
+    
+    db.all(`SELECT fr.*, u.full_name as farmer_name, u.phone as farmer_phone
+            FROM farmer_reports fr
+            JOIN users u ON fr.farmer_id = u.id
+            WHERE fr.status = 'pending'
+            ORDER BY fr.created_at DESC`, [], (err, rows) => {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        
+        let results = rows.map(r => ({
+            ...r,
+            photo_urls: JSON.parse(r.photo_urls || '[]'),
+            distance: (recycler_lat && recycler_lng && r.location_lat && r.location_lng) 
+                ? calculateDistance(parseFloat(recycler_lat), parseFloat(recycler_lng), r.location_lat, r.location_lng)
+                : null
+        }));
+        
+        // Sort based on sort_by parameter
+        if (sort_by === 'distance' && recycler_lat && recycler_lng) {
+            results.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+        } else if (sort_by === 'weight') {
+            results.sort((a, b) => b.weight_kg - a.weight_kg);
+        } else {
+            // Default: sort by time (newest first)
+            results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        }
+        
+        res.json(results);
+    });
+});
+
+// Update report status (for recycler accepting orders)
+app.patch('/api/farmer-reports/:id/status', (req, res) => {
+    const { status, recycler_id } = req.body;
+    const db = openDb();
+    
+    db.run(`UPDATE farmer_reports SET status = ?, recycler_id = ?, updated_at = datetime('now') WHERE id = ?`,
+        [status, recycler_id || null, req.params.id], function(err) {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: '申报不存在' });
+            res.json({ success: true });
+        });
+});
+
+// Delete report (only drafts can be deleted)
+app.delete('/api/farmer-reports/:id', (req, res) => {
+    const { farmer_id } = req.query;
+    const db = openDb();
+    
+    db.run(`DELETE FROM farmer_reports WHERE id = ? AND farmer_id = ? AND status = 'draft'`,
+        [req.params.id, farmer_id], function(err) {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(400).json({ error: '无法删除：申报不存在或已提交' });
+            res.json({ success: true });
+        });
+});
 
 // Start server
 const PORT = process.env.PORT || 4000;
