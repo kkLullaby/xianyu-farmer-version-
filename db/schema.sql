@@ -112,3 +112,102 @@ CREATE TABLE IF NOT EXISTS farmer_reports (
 CREATE INDEX IF NOT EXISTS idx_farmer_reports_farmer ON farmer_reports(farmer_id);
 CREATE INDEX IF NOT EXISTS idx_farmer_reports_status ON farmer_reports(status);
 CREATE INDEX IF NOT EXISTS idx_farmer_reports_date ON farmer_reports(pickup_date);
+
+-- Chat messages table
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_id INTEGER NOT NULL,            -- Associated report (context)
+    sender_id INTEGER NOT NULL,            -- User ID who sent the message
+    receiver_id INTEGER NOT NULL,          -- User ID who receives the message
+    content TEXT NOT NULL,                 -- Message text
+    is_read BOOLEAN DEFAULT 0,             -- Read status
+    created_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY(report_id) REFERENCES farmer_reports(id) ON DELETE CASCADE,
+    FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(receiver_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_report ON chat_messages(report_id);
+CREATE INDEX IF NOT EXISTS idx_chat_sender ON chat_messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_chat_receiver ON chat_messages(receiver_id);
+
+-- Recycler purchase requests table: 回收商求购信息
+CREATE TABLE IF NOT EXISTS recycler_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_no TEXT NOT NULL UNIQUE,
+    recycler_id INTEGER NOT NULL,
+    grade TEXT NOT NULL,                    -- 要回收的品级: grade1, grade2, grade3, offgrade, any
+    contact_name TEXT NOT NULL,             -- 联系人
+    contact_phone TEXT NOT NULL,            -- 联系电话
+    notes TEXT,                             -- 备注
+    valid_until DATE,                       -- 有效期截止日期，NULL表示长期有效
+    status TEXT DEFAULT 'draft',            -- draft, active, expired, cancelled
+    created_at DATETIME DEFAULT (datetime('now')),
+    updated_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY(recycler_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_recycler_requests_recycler ON recycler_requests(recycler_id);
+CREATE INDEX IF NOT EXISTS idx_recycler_requests_status ON recycler_requests(status);
+CREATE INDEX IF NOT EXISTS idx_recycler_requests_grade ON recycler_requests(grade);
+
+-- Chat messages for purchase requests
+CREATE TABLE IF NOT EXISTS request_chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL,           -- Associated purchase request
+    sender_id INTEGER NOT NULL,            -- User ID who sent the message
+    receiver_id INTEGER NOT NULL,          -- User ID who receives the message
+    content TEXT NOT NULL,                 -- Message text
+    is_read BOOLEAN DEFAULT 0,             -- Read status
+    created_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY(request_id) REFERENCES recycler_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(receiver_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_request_chat_request ON request_chat_messages(request_id);
+CREATE INDEX IF NOT EXISTS idx_request_chat_sender ON request_chat_messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_request_chat_receiver ON request_chat_messages(receiver_id);
+
+-- Processor purchase requests table: 处理商求购信息
+CREATE TABLE IF NOT EXISTS processor_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_no TEXT NOT NULL UNIQUE,
+    processor_id INTEGER NOT NULL,
+    weight_kg REAL NOT NULL,                -- 需求重量（斤）
+    grade TEXT NOT NULL,                    -- 品级: grade1, grade2, grade3, offgrade, any
+    citrus_type TEXT NOT NULL,              -- 柑肉种类: mandarin, orange, pomelo, tangerine, any
+    location_address TEXT NOT NULL,         -- 收货地址
+    contact_name TEXT NOT NULL,             -- 联系人
+    contact_phone TEXT NOT NULL,            -- 联系电话
+    has_transport BOOLEAN DEFAULT 0,        -- 是否具备运输能力（1=是，向农户和回收商推送；0=否，仅向回收商推送）
+    notes TEXT,                             -- 备注
+    valid_until DATE,                       -- 有效期截止日期，NULL表示长期有效
+    status TEXT DEFAULT 'draft',            -- draft, active, expired, cancelled
+    created_at DATETIME DEFAULT (datetime('now')),
+    updated_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY(processor_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_processor_requests_processor ON processor_requests(processor_id);
+CREATE INDEX IF NOT EXISTS idx_processor_requests_status ON processor_requests(status);
+CREATE INDEX IF NOT EXISTS idx_processor_requests_transport ON processor_requests(has_transport);
+
+-- Chat messages for processor purchase requests
+CREATE TABLE IF NOT EXISTS processor_chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL,           -- Associated processor request
+    sender_id INTEGER NOT NULL,            -- User ID who sent the message
+    receiver_id INTEGER NOT NULL,          -- User ID who receives the message
+    content TEXT NOT NULL,                 -- Message text
+    content_type TEXT DEFAULT 'text',      -- text, system
+    is_read BOOLEAN DEFAULT 0,             -- Read status
+    created_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY(request_id) REFERENCES processor_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(receiver_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_processor_chat_request ON processor_chat_messages(request_id);
+CREATE INDEX IF NOT EXISTS idx_processor_chat_sender ON processor_chat_messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_processor_chat_receiver ON processor_chat_messages(receiver_id);
