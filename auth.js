@@ -624,10 +624,10 @@ const authSystem = {
                         </div>
                     </div>
 
-                    <!-- 回收商供应卡片 (连接回收商) -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('recycler-supplies')" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
-                        <h3 style="color: var(--primary-light); margin: 0 0 10px 0;">♻️ 回收商供应</h3>
-                        <p style="color: var(--text-medium); font-size: 14px;">查看回收商发布的供应信息，批量采购原料</p>
+                    <!-- 货源供应卡片 (农户+回收商) -->
+                    <div class="glass-card" onclick="authSystem.navigateTo('supply-sources')" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
+                        <h3 style="color: var(--primary-light); margin: 0 0 10px 0;">🌾 货源供应</h3>
+                        <p style="color: var(--text-medium); font-size: 14px;">查看农户和回收商发布的货源信息，批量采购原料</p>
                         <button style="background: var(--primary-light); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">寻找货源</button>
                     </div>
 
@@ -732,7 +732,7 @@ const authSystem = {
                 <li><a href="#" onclick="authSystem.navigateTo('dashboard')">🏠 我的首页</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('publish-demand')">📢 发布求购</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('my-orders')">📦 订单管理</a></li>
-                <li><a href="#" onclick="authSystem.navigateTo('recycler-supplies')">♻️ 回收商供应</a></li>
+                <li><a href="#" onclick="authSystem.navigateTo('supply-sources')">🌾 货源供应</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('my-account')">👤 我的账户</a></li>
                 <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
             `;
@@ -799,6 +799,9 @@ const authSystem = {
             },
             'recycler-supplies': () => {
                 container.innerHTML = '<h2>♻️ 回收商供应</h2><p>回收商供应列表将显示在这里...（正在开发中）</p>';
+            },
+            'supply-sources': () => {
+                this.showSupplySources();
             },
             'farmer-supplies': () => {
                 this.showFarmerSupplies();
@@ -1068,6 +1071,149 @@ const authSystem = {
             };
         });
         loadReports('all');
+    },
+
+    // 处理商查看货源供应（农户+回收商）
+    async showSupplySources() {
+        const container = document.getElementById('content-area');
+        container.innerHTML = `
+            <div style="animation:fadeIn 0.5s;">
+                <h1 class="page-title">🌾 货源供应</h1>
+                <p style="color: var(--text-medium); margin-bottom: 20px;">同时查看农户和回收商发布的货源信息</p>
+                
+                <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button class="supply-source-tab active" data-source="all" style="padding:10px 20px;border:none;border-radius:20px;cursor:pointer;font-weight:bold;background:var(--primary-green);color:white;">全部货源</button>
+                    <button class="supply-source-tab" data-source="farmer" style="padding:10px 20px;border:2px solid var(--citrus-orange);border-radius:20px;cursor:pointer;font-weight:bold;background:white;color:var(--citrus-orange);">🌾 农户货源</button>
+                    <button class="supply-source-tab" data-source="recycler" style="padding:10px 20px;border:2px solid var(--primary-light);border-radius:20px;cursor:pointer;font-weight:bold;background:white;color:var(--primary-light);">♻️ 回收商货源</button>
+                </div>
+                
+                <div id="supply-sources-list"></div>
+            </div>
+        `;
+
+        const loadSources = async (source = 'all') => {
+            const listDiv = document.getElementById('supply-sources-list');
+            listDiv.innerHTML = '<p style="color:#888;">加载中...</p>';
+            
+            try {
+                let allItems = [];
+                
+                // 获取农户供应
+                if (source === 'all' || source === 'farmer') {
+                    const farmerResp = await fetch(`${this.API_BASE}/api/farmer-supplies`);
+                    const farmerData = await farmerResp.json();
+                    if (farmerResp.ok && farmerData.length) {
+                        allItems = allItems.concat(farmerData.map(r => ({...r, source_type: 'farmer'})));
+                    }
+                }
+                
+                // 获取回收商供应（这里需要有对应的API）
+                if (source === 'all' || source === 'recycler') {
+                    const recyclerResp = await fetch(`${this.API_BASE}/api/recycler-supplies`);
+                    if (recyclerResp.ok) {
+                        const recyclerData = await recyclerResp.json();
+                        if (recyclerData.length) {
+                            allItems = allItems.concat(recyclerData.map(r => ({...r, source_type: 'recycler'})));
+                        }
+                    }
+                }
+                
+                if (!allItems.length) {
+                    listDiv.innerHTML = '<p style="color:#888;text-align:center;padding:40px;">暂无货源信息</p>';
+                    return;
+                }
+                
+                // 按时间排序（最新优先）
+                allItems.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                
+                listDiv.innerHTML = allItems.map(r => {
+                    const isFarmer = r.source_type === 'farmer';
+                    const borderColor = isFarmer ? 'var(--citrus-orange)' : 'var(--primary-light)';
+                    const sourceLabel = isFarmer ? '🌾 农户' : '♻️ 回收商';
+                    const sourceBg = isFarmer ? '#fff3e0' : '#e8f5e9';
+                    
+                    return `
+                        <div class="glass-card" style="padding:18px;margin-bottom:16px;border-left:4px solid ${borderColor};">
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                                <div>
+                                    <span style="background:${sourceBg};color:${borderColor};padding:4px 10px;border-radius:12px;font-size:12px;font-weight:bold;">${sourceLabel}</span>
+                                    <strong style="margin-left:8px;">${isFarmer ? (r.farmer_name || '农户') : (r.recycler_name || '回收商')}</strong>
+                                    <span style="margin-left:8px;font-size:12px;color:#888;">${r.report_no || r.supply_no || ''}</span>
+                                </div>
+                                <div style="font-size:12px;color:#888;">${r.created_at}</div>
+                            </div>
+                            <div style="margin-top:12px;background:#f9f9f9;padding:12px;border-radius:8px;">
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;font-size:14px;color:#555;">
+                                    ${isFarmer ? `
+                                        <div>📅 回收日期：${r.pickup_date}</div>
+                                        <div>⚖️ 重量：<strong style="color:var(--citrus-orange);">${r.weight_kg} 斤</strong></div>
+                                        <div>🍊 品种：${r.citrus_variety}</div>
+                                    ` : `
+                                        <div>🏷️ 品级：${this.getGradeLabel(r.grade)}</div>
+                                        <div>⚖️ 库存：<strong style="color:var(--primary-light);">${r.stock_weight} 斤</strong></div>
+                                    `}
+                                    <div>📍 地址：${r.location_address || r.address || '未填写'}</div>
+                                </div>
+                                ${r.notes ? `<div style="margin-top:8px;font-size:13px;color:#888;">备注：${r.notes}</div>` : ''}
+                            </div>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+                                <button data-source-action="chat" data-id="${r.id}" data-uid="${isFarmer ? r.farmer_id : r.recycler_id}" data-type="${r.source_type}" style="background:${borderColor};color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">💬 联系${isFarmer ? '农户' : '回收商'}</button>
+                                <a href="tel:${isFarmer ? r.farmer_phone : r.contact_phone}" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;text-decoration:none;">📞 电话</a>
+                                ${isFarmer && r.status === 'pending' ? `<button data-source-action="accept" data-id="${r.id}" data-type="farmer" style="background:#2ecc71;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">✅ 接单</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // 绑定按钮事件
+                document.querySelectorAll('[data-source-action]').forEach(btn => {
+                    btn.onclick = async () => {
+                        const action = btn.dataset.sourceAction;
+                        const id = btn.dataset.id;
+                        const type = btn.dataset.type;
+                        const uid = btn.dataset.uid;
+                        
+                        if (action === 'chat') {
+                            this.openChat(id, uid);
+                        } else if (action === 'accept' && type === 'farmer') {
+                            if (!confirm('确认接单该货源？')) return;
+                            try {
+                                const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${id}/accept`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ processor_id: this.currentUser.id })
+                                });
+                                if (!resp.ok) throw new Error('接单失败');
+                                this.showAlert('🎉 接单成功！', 'success');
+                                loadSources(source);
+                            } catch (err) {
+                                this.showAlert(err.message, 'error');
+                            }
+                        }
+                    };
+                });
+                
+            } catch (err) {
+                listDiv.innerHTML = `<p style="color:#e74c3c;">${err.message}</p>`;
+            }
+        };
+        
+        // 绑定Tab切换
+        document.querySelectorAll('.supply-source-tab').forEach(tab => {
+            tab.onclick = () => {
+                document.querySelectorAll('.supply-source-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.style.background = 'white';
+                    t.style.color = t.dataset.source === 'farmer' ? 'var(--citrus-orange)' : (t.dataset.source === 'recycler' ? 'var(--primary-light)' : 'var(--primary-green)');
+                });
+                tab.classList.add('active');
+                tab.style.background = tab.dataset.source === 'farmer' ? 'var(--citrus-orange)' : (tab.dataset.source === 'recycler' ? 'var(--primary-light)' : 'var(--primary-green)');
+                tab.style.color = 'white';
+                loadSources(tab.dataset.source);
+            };
+        });
+        
+        loadSources('all');
     },
 
     // 回收商查看农户供应列表
@@ -1712,6 +1858,19 @@ const authSystem = {
         return `${distance.toFixed(2)} 公里`;
     },
     
+    // 获取品级标签
+    getGradeLabel(grade) {
+        const labels = {
+            'grade1': '一级品',
+            'grade2': '二级品',
+            'grade3': '三级品',
+            'offgrade': '等外级',
+            'mixed': '混合品级',
+            'any': '不限品级'
+        };
+        return labels[grade] || grade || '未知';
+    },
+    
     // 切换登录/注册标签
     switchTab(tab) {
         const loginTab = document.getElementById('login-tab');
@@ -2329,12 +2488,34 @@ const authSystem = {
             if (permanentCheckbox.checked) dateInput.disabled = true;
             
         } else {
-            // 回收商求购表单（原有逻辑）
+            // 回收商求购表单 - 增加面向农户/处理商选择
             container.innerHTML = `
                 <div style="animation: fadeIn 0.5s; max-width: 800px; margin: 0 auto;">
-                    <h1 class="page-title">📝 ${isEdit ? '编辑' : '新建'}求购信息</h1>
+                    <h1 class="page-title">📝 ${isEdit ? '编辑' : '新建'}求购/供应信息</h1>
                     
-                    <form id="demand-form" class="glass-card" style="padding: 30px;">
+                    <!-- 选择面向对象 -->
+                    <div class="glass-card" style="padding: 20px; margin-bottom: 20px;">
+                        <label style="font-weight: bold; color: #333; margin-bottom: 15px; display: block;">📌 选择发布类型</label>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <label style="flex: 1; min-width: 200px; padding: 15px; border: 2px solid var(--citrus-orange); border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.3s;" id="target-farmer-label">
+                                <input type="radio" name="target-type" value="farmer" checked style="width: 20px; height: 20px;">
+                                <div>
+                                    <strong style="color: var(--citrus-orange);">🌾 面向农户求购</strong>
+                                    <p style="margin: 5px 0 0; font-size: 12px; color: #888;">发布求购需求，向农户收购柑肉</p>
+                                </div>
+                            </label>
+                            <label style="flex: 1; min-width: 200px; padding: 15px; border: 2px solid #9b59b6; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.3s;" id="target-processor-label">
+                                <input type="radio" name="target-type" value="processor" style="width: 20px; height: 20px;">
+                                <div>
+                                    <strong style="color: #9b59b6;">🏭 面向处理商供应</strong>
+                                    <p style="margin: 5px 0 0; font-size: 12px; color: #888;">发布供应信息，向处理商出售库存</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 面向农户的求购表单 -->
+                    <form id="demand-form-farmer" class="glass-card" style="padding: 30px;">
                         <div class="form-group">
                             <label>要回收的品级 <span style="color: red;">*</span></label>
                             <select id="demand-grade" required>
@@ -2392,16 +2573,119 @@ const authSystem = {
                             </button>
                         </div>
                     </form>
+                    
+                    <!-- 面向处理商的供应表单 -->
+                    <form id="demand-form-processor" class="glass-card" style="padding: 30px; display: none;">
+                        <div class="form-group">
+                            <label>能提供的品级 <span style="color: red;">*</span></label>
+                            <select id="supply-grade" required>
+                                <option value="">-- 请选择品级 --</option>
+                                <option value="grade1">一级品柑</option>
+                                <option value="grade2">二级品柑</option>
+                                <option value="grade3">三级品柑</option>
+                                <option value="offgrade">等外柑</option>
+                                <option value="mixed">混合品级</option>
+                            </select>
+                            <span class="hint-text">ℹ️ 请选择您能提供的柑肉品级</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>库存重量(斤) <span style="color: red;">*</span></label>
+                            <input type="number" id="supply-weight" placeholder="如：5000" min="1" required>
+                            <span class="hint-text">ℹ️ 请输入您目前的库存重量</span>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>联系人 <span style="color: red;">*</span></label>
+                                <input type="text" id="supply-contact-name" placeholder="如：王回收商" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>联系电话 <span style="color: red;">*</span></label>
+                                <input type="tel" id="supply-contact-phone" placeholder="如：13800138000" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>所在地址</label>
+                            <input type="text" id="supply-address" placeholder="如：广东省江门市新会区XX镇">
+                        </div>
+
+                        <div class="form-group">
+                            <label>有效期截止至</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="date" id="supply-valid-until" style="flex: 1;">
+                                <label style="display: flex; align-items: center; gap: 6px; margin: 0;">
+                                    <input type="checkbox" id="supply-permanent" checked>
+                                    <span>长期有效</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>备注说明</label>
+                            <textarea id="supply-notes" rows="3" placeholder="可输入更详细的信息，如：价格、品质描述等"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>照片上传（可选）</label>
+                            <input type="file" id="supply-photos" accept="image/*" multiple style="padding: 10px; border: 2px dashed #ddd; border-radius: 8px; width: 100%;">
+                            <span class="hint-text">💡 可上传库存照片，最多5张</span>
+                            <div id="supply-photo-preview" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;"></div>
+                        </div>
+
+                        <div style="display: flex; gap: 15px; margin-top: 30px;">
+                            <button type="button" onclick="authSystem.saveRecyclerSupply('draft')" style="flex: 1; padding: 14px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                                💾 存为草稿
+                            </button>
+                            <button type="submit" style="flex: 2; padding: 14px; background: #9b59b6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                                📢 发布供应
+                            </button>
+                        </div>
+                    </form>
                 </div>
             `;
 
-            // 绑定表单提交事件
-            document.getElementById('demand-form').onsubmit = async (e) => {
+            // 切换表单显示
+            const targetRadios = document.querySelectorAll('input[name="target-type"]');
+            const farmerForm = document.getElementById('demand-form-farmer');
+            const processorForm = document.getElementById('demand-form-processor');
+            const farmerLabel = document.getElementById('target-farmer-label');
+            const processorLabel = document.getElementById('target-processor-label');
+            
+            targetRadios.forEach(radio => {
+                radio.onchange = () => {
+                    if (radio.value === 'farmer') {
+                        farmerForm.style.display = 'block';
+                        processorForm.style.display = 'none';
+                        farmerLabel.style.background = '#fff3e0';
+                        processorLabel.style.background = 'white';
+                    } else {
+                        farmerForm.style.display = 'none';
+                        processorForm.style.display = 'block';
+                        farmerLabel.style.background = 'white';
+                        processorLabel.style.background = '#f3e5f5';
+                    }
+                };
+            });
+            
+            // 初始化样式
+            farmerLabel.style.background = '#fff3e0';
+
+            // 绑定农户表单提交事件
+            document.getElementById('demand-form-farmer').onsubmit = async (e) => {
                 e.preventDefault();
                 await this.saveDemand('active', editData?.id);
             };
+            
+            // 绑定处理商表单提交事件
+            document.getElementById('demand-form-processor').onsubmit = async (e) => {
+                e.preventDefault();
+                await this.saveRecyclerSupply('active');
+            };
 
-            // 长期有效复选框逻辑
+            // 长期有效复选框逻辑（农户表单）
             const permanentCheckbox = document.getElementById('demand-permanent');
             const dateInput = document.getElementById('demand-valid-until');
             
@@ -2532,6 +2816,56 @@ const authSystem = {
             }, 1000);
         } catch (err) {
             console.error('Save demand error:', err);
+            this.showAlert(err.message || '操作失败', 'error');
+        }
+    },
+    
+    // 保存回收商供应信息（面向处理商）
+    async saveRecyclerSupply(status) {
+        const grade = document.getElementById('supply-grade').value;
+        const stock_weight = document.getElementById('supply-weight').value;
+        const contact_name = document.getElementById('supply-contact-name').value.trim();
+        const contact_phone = document.getElementById('supply-contact-phone').value.trim();
+        const address = document.getElementById('supply-address').value.trim();
+        const notes = document.getElementById('supply-notes').value.trim();
+        const permanent = document.getElementById('supply-permanent').checked;
+        const valid_until = permanent ? null : document.getElementById('supply-valid-until').value;
+
+        if (!grade || !stock_weight || !contact_name || !contact_phone) {
+            return this.showAlert('请填写所有必填项', 'warning');
+        }
+
+        if (!/^1[3-9]\d{9}$/.test(contact_phone)) {
+            return this.showAlert('请输入正确的手机号码', 'warning');
+        }
+
+        try {
+            const response = await fetch(`${this.API_BASE}/api/recycler-supplies`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recycler_id: this.currentUser.id,
+                    grade,
+                    stock_weight: parseFloat(stock_weight),
+                    contact_name,
+                    contact_phone,
+                    address,
+                    notes,
+                    valid_until,
+                    status
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || '保存失败');
+
+            this.showAlert(status === 'draft' ? '草稿已保存' : '供应信息发布成功！处理商可以看到您的货源了', 'success');
+            
+            setTimeout(() => {
+                this.navigateTo('my-orders');
+            }, 1000);
+        } catch (err) {
+            console.error('Save recycler supply error:', err);
             this.showAlert(err.message || '操作失败', 'error');
         }
     },
@@ -3251,11 +3585,18 @@ const authSystem = {
             this.displayRequestMessages(messages, requestId);
         });
         
-        // 标记消息已读
+        // 标记消息已读并清除本地红点计数
         this.socket.emit('mark_request_read', { 
             request_id: requestId, 
             user_id: this.currentUser.id 
         });
+        
+        // 清除本地未读计数并更新红点
+        const key = `request_${requestId}`;
+        if (this.unreadCounts[key]) {
+            delete this.unreadCounts[key];
+            this.updateRequestUnreadBadge();
+        }
     },
 
     // 渲染求购聊天窗口

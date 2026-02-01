@@ -558,6 +558,85 @@ app.get('/api/farmer-supplies', (req, res) => {
     });
 });
 
+// ===== Recycler Supplies API (回收商供应 - 面向处理商) =====
+
+// Get recycler supplies list
+app.get('/api/recycler-supplies', (req, res) => {
+    const { recycler_id, status } = req.query;
+    const db = openDb();
+    
+    let query = `SELECT rs.*, u.full_name as recycler_name, u.phone as recycler_phone
+                 FROM recycler_supplies rs
+                 LEFT JOIN users u ON rs.recycler_id = u.id
+                 WHERE 1=1`;
+    const params = [];
+    
+    if (recycler_id) {
+        query += ` AND rs.recycler_id = ?`;
+        params.push(recycler_id);
+    }
+    
+    if (status) {
+        query += ` AND rs.status = ?`;
+        params.push(status);
+    } else {
+        // 默认只显示激活状态
+        query += ` AND rs.status = 'active'`;
+    }
+    
+    query += ` AND (rs.valid_until IS NULL OR rs.valid_until >= date('now'))`;
+    query += ` ORDER BY rs.created_at DESC`;
+    
+    db.all(query, params, (err, rows) => {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const results = rows.map(r => ({
+            ...r,
+            photo_urls: JSON.parse(r.photo_urls || '[]')
+        }));
+        res.json(results);
+    });
+});
+
+// Create recycler supply
+app.post('/api/recycler-supplies', (req, res) => {
+    const { recycler_id, grade, stock_weight, contact_name, contact_phone, address, notes, valid_until, status } = req.body;
+    
+    if (!recycler_id || !grade || !stock_weight || !contact_name || !contact_phone) {
+        return res.status(400).json({ error: '缺少必填字段' });
+    }
+    
+    const db = openDb();
+    const supplyNo = 'RSUP-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    
+    db.run(`INSERT INTO recycler_supplies (supply_no, recycler_id, grade, stock_weight, contact_name, contact_phone, address, notes, valid_until, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [supplyNo, recycler_id, grade, stock_weight, contact_name, contact_phone, address || null, notes || null, valid_until || null, status || 'draft'],
+        function(err) {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: this.lastID, supply_no: supplyNo });
+        }
+    );
+});
+
+// Update recycler supply status
+app.patch('/api/recycler-supplies/:id/status', (req, res) => {
+    const { status } = req.body;
+    const db = openDb();
+    
+    db.run(`UPDATE recycler_supplies SET status = ?, updated_at = datetime('now') WHERE id = ?`,
+        [status, req.params.id],
+        function(err) {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: '供应信息不存在' });
+            res.json({ success: true });
+        }
+    );
+});
+
 // Update report status (for recycler accepting or completing orders)
 app.patch('/api/farmer-reports/:id/status', (req, res) => {
     const { status, recycler_id } = req.body;

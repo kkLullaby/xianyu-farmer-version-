@@ -211,3 +211,25 @@ CREATE TABLE IF NOT EXISTS processor_chat_messages (
 CREATE INDEX IF NOT EXISTS idx_processor_chat_request ON processor_chat_messages(request_id);
 CREATE INDEX IF NOT EXISTS idx_processor_chat_sender ON processor_chat_messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_processor_chat_receiver ON processor_chat_messages(receiver_id);
+
+-- Recycler supplies (回收商供应 - 面向处理商)
+CREATE TABLE IF NOT EXISTS recycler_supplies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    supply_no TEXT NOT NULL UNIQUE,         -- 供应编号
+    recycler_id INTEGER NOT NULL,           -- 回收商ID
+    grade TEXT NOT NULL,                    -- 品级: grade1, grade2, grade3, offgrade, mixed
+    stock_weight REAL NOT NULL,             -- 库存重量（斤）
+    contact_name TEXT NOT NULL,             -- 联系人
+    contact_phone TEXT NOT NULL,            -- 联系电话
+    address TEXT,                           -- 所在地址
+    notes TEXT,                             -- 备注
+    photo_urls TEXT DEFAULT '[]',           -- 照片URLs (JSON数组)
+    valid_until DATE,                       -- 有效期截止日期，NULL表示长期有效
+    status TEXT DEFAULT 'draft',            -- draft, active, cancelled
+    created_at DATETIME DEFAULT (datetime('now')),
+    updated_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY(recycler_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_recycler_supplies_recycler ON recycler_supplies(recycler_id);
+CREATE INDEX IF NOT EXISTS idx_recycler_supplies_status ON recycler_supplies(status);
