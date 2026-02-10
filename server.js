@@ -8,6 +8,7 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const { Server } = require("socket.io"); // Import socket.io
 const { sendOtpSms } = require('./smsClient');
+const multer = require('multer');
 
 const DB_PATH = path.join(__dirname, 'data', 'agri.db');
 const SCHEMA_SQL = path.join(__dirname, 'db', 'schema.sql');
@@ -163,8 +164,43 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
+// 配置文件上传
+const uploadDir = path.join(__dirname, 'uploads', 'arbitration');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = /jpeg|jpg|png|pdf|doc|docx|mp4|avi/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('只支持图片、PDF、视频和文档文件'));
+        }
+    }
+});
+
 // 提供静态文件（HTML、CSS、JS等）
 app.use(express.static(path.join(__dirname)));
+// 提供上传文件访问
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -1248,6 +1284,352 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
+    });
+});
+
+// ============ File Upload API ============
+
+// Upload files for arbitration
+app.post('/api/upload-arbitration-files', upload.array('files', 20), (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ success: false, error: '没有上传文件' });
+        }
+        
+        const fileInfos = req.files.map(file => ({
+            originalName: file.originalname,
+            filename: file.filename,
+            path: `/uploads/arbitration/${file.filename}`,
+            size: file.size,
+            mimetype: file.mimetype
+        }));
+        
+        res.json({ success: true, files: fileInfos });
+    } catch (error) {
+        console.error('File upload error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============ Arbitration APIs ============
+
+// Submit arbitration request
+app.post('/api/arbitration-requests', (req, res) => {
+    const { 
+        applicant_id, order_type, order_id, order_no, reason, description,
+        evidence_trade, evidence_material, evidence_payment, 
+        evidence_communication, evidence_other 
+    } = req.body;
+    
+    if (!applicant_id || !order_type || !order_id || !order_no || !reason || !description) {
+        return res.status(400).json({ error: '请填写所有必填项' });
+    }
+    
+    // 验证必须的证据材料
+    if (!evidence_trade || !evidence_material || !evidence_payment) {
+        return res.status(400).json({ error: '请上传必需的证据材料：平台交易凭证、废料相关证据、资金往来凭证' });
+    }
+    
+    const db = openDb();
+    const arbitrationNo = 'ARB-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    
+    db.run(`INSERT INTO arbitration_requests (
+        arbitration_no, applicant_id, order_type, order_id, order_no, reason, description,
+        evidence_trade, evidence_material, evidence_payment, evidence_communication, evidence_other
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+        arbitrationNo, applicant_id, order_type, order_id, order_no, reason, description,
+        JSON.stringify(evidence_trade || []),
+        JSON.stringify(evidence_material || []),
+        JSON.stringify(evidence_payment || []),
+        JSON.stringify(evidence_communication || []),
+        JSON.stringify(evidence_other || [])
+    ], function(err) {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: this.lastID, arbitration_no: arbitrationNo });
+    });
+});
+
+// Get arbitration requests (for applicant)
+app.get('/api/arbitration-requests', (req, res) => {
+    const { applicant_id, status } = req.query;
+    
+    if (!applicant_id) {
+        return res.status(400).json({ error: '缺少申请人ID' });
+    }
+    
+    const db = openDb();
+    let sql = `
+        SELECT ar.*, 
+               u1.full_name as applicant_name,
+               u2.full_name as respondent_name,
+               u3.full_name as decided_by_name
+        FROM arbitration_requests ar
+        LEFT JOIN users u1 ON ar.applicant_id = u1.id
+        LEFT JOIN users u2 ON ar.respondent_id = u2.id
+        LEFT JOIN users u3 ON ar.decided_by = u3.id
+        WHERE ar.applicant_id = ?
+    `;
+    
+    const params = [applicant_id];
+    
+    if (status && status !== 'all') {
+        sql += ' AND ar.status = ?';
+        params.push(status);
+    }
+    
+    sql += ' ORDER BY ar.created_at DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Parse JSON fields
+        const result = rows.map(row => ({
+            ...row,
+            evidence_trade: JSON.parse(row.evidence_trade || '[]'),
+            evidence_material: JSON.parse(row.evidence_material || '[]'),
+            evidence_payment: JSON.parse(row.evidence_payment || '[]'),
+            evidence_communication: JSON.parse(row.evidence_communication || '[]'),
+            evidence_other: JSON.parse(row.evidence_other || '[]')
+        }));
+        
+        res.json(result);
+    });
+});
+
+// Get all arbitration requests (for admin)
+app.get('/api/arbitration-requests/all', (req, res) => {
+    const { status } = req.query;
+    
+    const db = openDb();
+    let sql = `
+        SELECT ar.*, 
+               u1.full_name as applicant_name, u1.phone as applicant_phone,
+               u2.full_name as respondent_name,
+               u3.full_name as decided_by_name
+        FROM arbitration_requests ar
+        LEFT JOIN users u1 ON ar.applicant_id = u1.id
+        LEFT JOIN users u2 ON ar.respondent_id = u2.id
+        LEFT JOIN users u3 ON ar.decided_by = u3.id
+    `;
+    
+    const params = [];
+    
+    if (status && status !== 'all') {
+        sql += ' WHERE ar.status = ?';
+        params.push(status);
+    }
+    
+    sql += ' ORDER BY ar.created_at DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Parse JSON fields
+        const result = rows.map(row => ({
+            ...row,
+            evidence_trade: JSON.parse(row.evidence_trade || '[]'),
+            evidence_material: JSON.parse(row.evidence_material || '[]'),
+            evidence_payment: JSON.parse(row.evidence_payment || '[]'),
+            evidence_communication: JSON.parse(row.evidence_communication || '[]'),
+            evidence_other: JSON.parse(row.evidence_other || '[]')
+        }));
+        
+        res.json(result);
+    });
+});
+
+// Update arbitration request (for admin)
+app.patch('/api/arbitration-requests/:id', (req, res) => {
+    const { id } = req.params;
+    const { status, admin_notes, decision, decided_by, respondent_id, decided_at,
+            penalty_amount, penalty_party, penalty_reason, penalty_status, order_amount } = req.body;
+    
+    const db = openDb();
+    const updates = [];
+    const params = [];
+    
+    if (status) {
+        updates.push('status = ?');
+        params.push(status);
+    }
+    
+    if (admin_notes !== undefined) {
+        updates.push('admin_notes = ?');
+        params.push(admin_notes);
+    }
+    
+    if (decision !== undefined) {
+        updates.push('decision = ?');
+        params.push(decision);
+    }
+    
+    if (decided_by !== undefined) {
+        updates.push('decided_by = ?');
+        params.push(decided_by);
+    }
+    
+    if (decided_at !== undefined) {
+        updates.push('decided_at = ?');
+        params.push(decided_at);
+    }
+    
+    if (respondent_id !== undefined) {
+        updates.push('respondent_id = ?');
+        params.push(respondent_id);
+    }
+    
+    if (penalty_amount !== undefined) {
+        updates.push('penalty_amount = ?');
+        params.push(penalty_amount);
+    }
+    
+    if (penalty_party !== undefined) {
+        updates.push('penalty_party = ?');
+        params.push(penalty_party);
+    }
+    
+    if (penalty_reason !== undefined) {
+        updates.push('penalty_reason = ?');
+        params.push(penalty_reason);
+    }
+    
+    if (penalty_status !== undefined) {
+        updates.push('penalty_status = ?');
+        params.push(penalty_status);
+    }
+    
+    if (order_amount !== undefined) {
+        updates.push('order_amount = ?');
+        params.push(order_amount);
+    }
+    
+    updates.push('updated_at = datetime("now")');
+    params.push(id);
+    
+    const sql = `UPDATE arbitration_requests SET ${updates.join(', ')} WHERE id = ?`;
+    
+    db.run(sql, params, function(err) {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: '仲裁记录不存在' });
+        res.json({ success: true });
+    });
+});
+
+// Set penalty for arbitration (管理员设置罚款)
+app.post('/api/arbitration-requests/:id/penalty', (req, res) => {
+    const { id } = req.params;
+    const { penalty_party, penalty_amount, penalty_reason, order_amount } = req.body;
+    
+    if (!penalty_party || !penalty_amount || penalty_amount <= 0) {
+        return res.status(400).json({ error: '请提供被罚方和罚款金额' });
+    }
+    
+    if (!['applicant', 'respondent'].includes(penalty_party)) {
+        return res.status(400).json({ error: '被罚方必须是申请人或被申请人' });
+    }
+    
+    const db = openDb();
+    
+    // 如果没有提供订单金额，尝试从订单中获取
+    if (!order_amount || order_amount === 0) {
+        db.get(`SELECT order_amount FROM arbitration_requests WHERE id = ?`, [id], (err, row) => {
+            if (err || !row) {
+                db.close();
+                return res.status(500).json({ error: '获取订单信息失败' });
+            }
+            
+            const finalAmount = order_amount || row.order_amount || 0;
+            updatePenalty(db, id, penalty_party, penalty_amount, penalty_reason, finalAmount, res);
+        });
+    } else {
+        updatePenalty(db, id, penalty_party, penalty_amount, penalty_reason, order_amount, res);
+    }
+});
+
+function updatePenalty(db, id, penalty_party, penalty_amount, penalty_reason, order_amount, res) {
+    const sql = `
+        UPDATE arbitration_requests 
+        SET penalty_party = ?,
+            penalty_amount = ?,
+            penalty_reason = ?,
+            penalty_status = 'pending',
+            order_amount = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [penalty_party, penalty_amount, penalty_reason, order_amount, id], function(err) {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: '仲裁记录不存在' });
+        res.json({ success: true, message: '罚款设置成功' });
+    });
+}
+
+// Pay penalty (用户支付罚款)
+app.post('/api/arbitration-requests/:id/pay-penalty', upload.single('proof'), (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    
+    if (!user_id) {
+        return res.status(400).json({ error: '缺少用户ID' });
+    }
+    
+    const db = openDb();
+    
+    // 验证用户是否是被罚方
+    db.get(`
+        SELECT ar.*, 
+               applicant.id as applicant_id,
+               respondent.id as respondent_id
+        FROM arbitration_requests ar
+        LEFT JOIN users applicant ON ar.applicant_id = applicant.id
+        LEFT JOIN users respondent ON ar.respondent_id = respondent.id
+        WHERE ar.id = ?
+    `, [id], (err, row) => {
+        if (err || !row) {
+            db.close();
+            return res.status(500).json({ error: '获取仲裁信息失败' });
+        }
+        
+        // 检查用户是否是被罚方
+        const isPenaltyTarget = (
+            (row.penalty_party === 'applicant' && row.applicant_id == user_id) ||
+            (row.penalty_party === 'respondent' && row.respondent_id == user_id)
+        );
+        
+        if (!isPenaltyTarget) {
+            db.close();
+            return res.status(403).json({ error: '您不是被罚方，无法支付罚款' });
+        }
+        
+        if (row.penalty_status !== 'pending') {
+            db.close();
+            return res.status(400).json({ error: '该罚款不需要支付或已支付' });
+        }
+        
+        // 获取上传的凭证路径
+        const proofPath = req.file ? `/uploads/arbitration/${req.file.filename}` : null;
+        
+        const updateSql = `
+            UPDATE arbitration_requests 
+            SET penalty_status = 'paid',
+                penalty_paid_at = datetime('now'),
+                penalty_proof = ?,
+                updated_at = datetime('now')
+            WHERE id = ?
+        `;
+        
+        db.run(updateSql, [proofPath, id], function(err) {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: '罚款已提交，等待管理员确认' });
+        });
     });
 });
 

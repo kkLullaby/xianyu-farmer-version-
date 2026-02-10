@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试仲裁详情显示</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .file-item { 
+            background: white; 
+            padding: 10px 15px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+            cursor: pointer;
+            margin: 5px;
+        }
+        .file-item:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <h1>测试仲裁详情 - ID: 4</h1>
+    <div id="result"></div>
+    <div id="preview" style="margin-top: 20px;"></div>
+
+    <script>
+        async function loadArbitration() {
+            try {
+                const response = await fetch('http://localhost:4000/api/arbitration-requests/all?status=all');
+                const data = await response.json();
+                const item = data.find(x => x.id === 4);
+                
+                if (!item) {
+                    document.getElementById('result').innerHTML = '<p style="color: red;">未找到ID=4的仲裁记录</p>';
+                    return;
+                }
+                
+                let html = '<h2>证据材料数据：</h2>';
+                html += '<h3>1. 交易凭证:</h3>';
+                html += '<pre>' + JSON.stringify(item.evidence_trade, null, 2) + '</pre>';
+                
+                html += '<h3>渲染结果：</h3>';
+                
+                item.evidence_trade.forEach(fileStr => {
+                    console.log('Processing file:', fileStr);
+                    let fileInfo;
+                    try {
+                        fileInfo = JSON.parse(fileStr);
+                        console.log('Parsed:', fileInfo);
+                    } catch (e) {
+                        fileInfo = { originalName: fileStr, path: null };
+                        console.log('Parse failed, using fallback:', fileInfo);
+                    }
+                    
+                    const fileName = fileInfo.originalName || fileStr;
+                    const filePath = fileInfo.path;
+                    
+                    html += `
+                        <div class="file-item" onclick="viewFile('${filePath}', '${fileName}')">
+                            🖼️ ${fileName}
+                            ${filePath ? '<span style="color: #3498db; font-size: 12px;">点击查看</span>' : ''}
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('result').innerHTML = html;
+                
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">错误: ' + error.message + '</p>';
+                console.error(error);
+            }
+        }
+        
+        function viewFile(filePath, fileName) {
+            console.log('Viewing file:', filePath, fileName);
+            const preview = document.getElementById('preview');
+            preview.innerHTML = `
+                <h3>预览: ${fileName}</h3>
+                <img src="http://localhost:4000${filePath}" style="max-width: 500px; border: 1px solid #ccc;" 
+                     onerror="this.outerHTML='<p style=color:red>图片加载失败: ${filePath}</p>'" />
+            `;
+        }
+        
+        loadArbitration();
+    </script>
+</body>
+</html>

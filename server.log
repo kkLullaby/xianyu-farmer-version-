@@ -1,2 +1,46 @@
 Server listening on http://localhost:4000
 Use POST /init to init DB, or run `node server.js --init`
+A user connected: sU5ODqCdbD5xxB3gAAAD
+A user connected: n-Pg9GrGwEan6DUDAAAE
+A user connected: FPA-3SawrZr4oo8_AAAG
+A user connected: WWErCr_3e4Wgto99AAAH
+User disconnected: WWErCr_3e4Wgto99AAAH
+User disconnected: n-Pg9GrGwEan6DUDAAAE
+User disconnected: FPA-3SawrZr4oo8_AAAG
+User disconnected: sU5ODqCdbD5xxB3gAAAD
+A user connected: PG1XVSuF8eHFfBTkAAAM
+A user connected: NR3NYbnSKvgwfjsYAAAN
+A user connected: MvIpl1nvme_0LvfrAAAO
+A user connected: nkoF98w-ggmWo4qRAAAP
+User disconnected: MvIpl1nvme_0LvfrAAAO
+User disconnected: nkoF98w-ggmWo4qRAAAP
+User disconnected: PG1XVSuF8eHFfBTkAAAM
+User disconnected: NR3NYbnSKvgwfjsYAAAN
+A user connected: W2f2gpecTlb-YqBEAAAS
+A user connected: 6IaVVwoHrJtAncUDAAAT
+A user connected: qOeGjb1nSzTFlTjnAAAW
+A user connected: jGOBWoWZ4J8wJP79AAAX
+User disconnected: jGOBWoWZ4J8wJP79AAAX
+User disconnected: 6IaVVwoHrJtAncUDAAAT
+User disconnected: W2f2gpecTlb-YqBEAAAS
+User disconnected: qOeGjb1nSzTFlTjnAAAW
+A user connected: 1dCa4fwzs2gAMT_4AAAb
+A user connected: Iz6wTbX5q0XpD6lIAAAc
+A user connected: P3ogmhK-vPDepfD9AAAd
+A user connected: IjeeZkM3glSagxHqAAAf
+User disconnected: IjeeZkM3glSagxHqAAAf
+User disconnected: P3ogmhK-vPDepfD9AAAd
+User disconnected: 1dCa4fwzs2gAMT_4AAAb
+User disconnected: Iz6wTbX5q0XpD6lIAAAc
+A user connected: xgBFfgvRgw5nrWhFAAAi
+A user connected: LqTFLIzgyYhO2vbWAAAj
+A user connected: 6YlInttv_obQ419fAAAm
+A user connected: tbG-K9DSgu1WfZS0AAAn
+User disconnected: tbG-K9DSgu1WfZS0AAAn
+User disconnected: xgBFfgvRgw5nrWhFAAAi
+User disconnected: LqTFLIzgyYhO2vbWAAAj
+User disconnected: 6YlInttv_obQ419fAAAm
+A user connected: t-3485RUUceIwaJBAAAs
+A user connected: hqzAo1TfBFHkknYwAAAt
+A user connected: NqD-xoZHFdDOoo8BAAAu
+A user connected: qJMifp77dRUtD80xAAAv

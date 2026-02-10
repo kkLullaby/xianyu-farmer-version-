@@ -233,3 +233,48 @@ CREATE TABLE IF NOT EXISTS recycler_supplies (
 
 CREATE INDEX IF NOT EXISTS idx_recycler_supplies_recycler ON recycler_supplies(recycler_id);
 CREATE INDEX IF NOT EXISTS idx_recycler_supplies_status ON recycler_supplies(status);
+-- Arbitration requests (仲裁申请表)
+CREATE TABLE IF NOT EXISTS arbitration_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    arbitration_no TEXT NOT NULL UNIQUE,    -- 仲裁编号
+    applicant_id INTEGER NOT NULL,          -- 申请人ID
+    respondent_id INTEGER,                  -- 被申请人ID (可能为空，后续填写)
+    order_type TEXT NOT NULL,               -- 订单类型: farmer_report, recycler_request, processor_request
+    order_id INTEGER NOT NULL,              -- 关联订单ID
+    order_no TEXT NOT NULL,                 -- 订单编号
+    order_amount REAL DEFAULT 0,            -- 订单金额
+    reason TEXT NOT NULL,                   -- 仲裁原因: quality, quantity, payment, delivery, fraud, breach, other
+    description TEXT NOT NULL,              -- 详细说明
+    
+    -- 证据材料 (JSON格式存储文件路径数组)
+    evidence_trade TEXT DEFAULT '[]',       -- 平台交易凭证（必须）
+    evidence_material TEXT DEFAULT '[]',    -- 废料相关证据（必须）
+    evidence_payment TEXT DEFAULT '[]',     -- 资金往来凭证（必须）
+    evidence_communication TEXT DEFAULT '[]', -- 沟通记录（可选）
+    evidence_other TEXT DEFAULT '[]',       -- 其他材料（可选）
+    
+    status TEXT DEFAULT 'pending',          -- pending(待处理), investigating(调查中), resolved(已裁决), rejected(已驳回)
+    admin_notes TEXT,                       -- 管理员备注
+    decision TEXT,                          -- 裁决结果
+    decided_by INTEGER,                     -- 裁决人ID (管理员)
+    decided_at DATETIME,                    -- 裁决时间
+    
+    -- 罚款相关字段
+    penalty_amount REAL DEFAULT 0,          -- 罚款金额
+    penalty_party TEXT,                     -- 被罚方: applicant(申请人), respondent(被申请人)
+    penalty_reason TEXT,                    -- 罚款原因
+    penalty_status TEXT DEFAULT 'none',     -- none(无罚款), pending(待支付), paid(已支付), waived(已豁免)
+    penalty_paid_at DATETIME,               -- 罚款支付时间
+    penalty_proof TEXT,                     -- 支付凭证 (文件路径)
+    
+    created_at DATETIME DEFAULT (datetime('now')),
+    updated_at DATETIME DEFAULT (datetime('now')),
+    
+    FOREIGN KEY(applicant_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(respondent_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY(decided_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_arbitration_applicant ON arbitration_requests(applicant_id);
+CREATE INDEX IF NOT EXISTS idx_arbitration_status ON arbitration_requests(status);
+CREATE INDEX IF NOT EXISTS idx_arbitration_order ON arbitration_requests(order_type, order_id);

@@ -4,8 +4,17 @@
 
 // ====== 身份信息管理 ======
 const authSystem = {
-    // API 基础 URL
-    API_BASE: 'http://localhost:4000',
+    // API 基础 URL - 动态获取当前域名和端口
+    get API_BASE() {
+        // 如果是通过 Cloudflare 或其他代理访问，使用当前页面的 origin
+        // 否则使用 localhost:4000
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return 'http://localhost:4000';
+        } else {
+            // 使用当前页面的 origin
+            return window.location.origin;
+        }
+    },
     
     // 当前登录用户信息
     currentUser: null,
@@ -458,6 +467,13 @@ const authSystem = {
                         <p style="color: var(--text-medium); font-size: 14px;">配置平台参数，管理处理点、费用等</p>
                         <button style="background: var(--text-medium); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入设置</button>
                     </div>
+                    
+                    <!-- 仲裁管理卡片 -->
+                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-management')" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
+                        <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚖️ 仲裁管理</h3>
+                        <p style="color: var(--text-medium); font-size: 14px;">处理订单纠纷，查看仲裁请求并做出裁决</p>
+                        <button style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入管理</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -520,6 +536,13 @@ const authSystem = {
                         <h3 style="color: var(--text-medium); margin: 0 0 10px 0;">👤 我的账户</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">管理账户信息，修改密码和隐私设置</p>
                         <button style="background: var(--text-medium); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">管理账户</button>
+                    </div>
+                    
+                    <!-- 仲裁中心卡片 -->
+                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-center')" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
+                        <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚖️ 仲裁中心</h3>
+                        <p style="color: var(--text-medium); font-size: 14px;">提出订单仲裁申请，查看仲裁进度和结果</p>
+                        <button style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入中心</button>
                     </div>
                 </div>
             </div>
@@ -593,6 +616,13 @@ const authSystem = {
                         <p style="color: var(--text-medium); font-size: 14px;">管理账户信息，修改密码和企业信息</p>
                         <button style="background: var(--text-medium); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">管理账户</button>
                     </div>
+                    
+                    <!-- 仲裁中心卡片 -->
+                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-center')" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
+                        <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚖️ 仲裁中心</h3>
+                        <p style="color: var(--text-medium); font-size: 14px;">提出订单仲裁申请，查看仲裁进度和结果</p>
+                        <button style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入中心</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -651,6 +681,13 @@ const authSystem = {
                         <p style="color: var(--text-medium); font-size: 14px;">管理企业资质，修改密码和联系人信息</p>
                         <button style="background: var(--text-medium); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">管理账户</button>
                     </div>
+                    
+                    <!-- 仲裁中心卡片 -->
+                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-center')" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
+                        <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚖️ 仲裁中心</h3>
+                        <p style="color: var(--text-medium); font-size: 14px;">提出订单仲裁申请，查看仲裁进度和结果</p>
+                        <button style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入中心</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -704,6 +741,7 @@ const authSystem = {
                 <li><a href="#" onclick="authSystem.navigateTo('user-management')">👥 用户管理</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('audit-reports')">📝 申报审核</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('data-stats')">📈 数据统计</a></li>
+                <li><a href="#" onclick="authSystem.navigateTo('arbitration-management')">⚖️ 仲裁管理</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('system-settings')">⚙️ 系统设置</a></li>
                 <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
             `;
@@ -713,6 +751,7 @@ const authSystem = {
                 <li><a href="#" onclick="authSystem.navigateTo('new-report')">📝 发起申报</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('my-reports')">📋 申报记录</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('processing-points')">🗺️ 处理点查询</a></li>
+                <li><a href="#" onclick="authSystem.navigateTo('arbitration-center')">⚖️ 仲裁中心</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('my-account')">👤 我的账户</a></li>
                 <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
             `;
@@ -724,6 +763,7 @@ const authSystem = {
                 <li><a href="#" onclick="authSystem.navigateTo('my-orders')">📦 订单管理</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('processor-demands')">🏭 处理商需求</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('finance')">💰 财务中心</a></li>
+                <li><a href="#" onclick="authSystem.navigateTo('arbitration-center')">⚖️ 仲裁中心</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('my-account')">👤 我的账户</a></li>
                 <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
             `;
@@ -733,6 +773,7 @@ const authSystem = {
                 <li><a href="#" onclick="authSystem.navigateTo('publish-demand')">📢 发布求购</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('my-orders')">📦 订单管理</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('supply-sources')">🌾 货源供应</a></li>
+                <li><a href="#" onclick="authSystem.navigateTo('arbitration-center')">⚖️ 仲裁中心</a></li>
                 <li><a href="#" onclick="authSystem.navigateTo('my-account')">👤 我的账户</a></li>
                 <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
             `;
@@ -805,6 +846,12 @@ const authSystem = {
             },
             'farmer-supplies': () => {
                 this.showFarmerSupplies();
+            },
+            'arbitration-center': () => {
+                this.showArbitrationCenter();
+            },
+            'arbitration-management': () => {
+                this.showArbitrationManagement();
             }
         };
         if (pages[page]) pages[page]();
@@ -3972,6 +4019,1306 @@ const authSystem = {
             alertDiv.style.animation = 'slideOut 0.3s ease';
             setTimeout(() => alertDiv.remove(), 300);
         }, 3000);
+    },
+
+    // ====== 仲裁中心（用户端）======
+    showArbitrationCenter() {
+        const container = document.getElementById('content-area');
+        container.innerHTML = `
+            <div style="animation: fadeIn 0.5s;">
+                <h1 class="page-title">⚖️ 仲裁中心</h1>
+                <p style="color: var(--text-medium); margin-bottom: 30px;">处理订单纠纷，维护您的合法权益</p>
+                
+                <!-- 二级菜单 -->
+                <div style="display: flex; gap: 15px; margin-bottom: 30px; border-bottom: 2px solid #e0e0e0;">
+                    <button class="arbitration-tab active" data-tab="submit" style="padding: 12px 24px; border: none; background: transparent; cursor: pointer; font-weight: bold; border-bottom: 3px solid #e74c3c; color: #e74c3c;">
+                        📝 提出仲裁申请
+                    </button>
+                    <button class="arbitration-tab" data-tab="progress" style="padding: 12px 24px; border: none; background: transparent; cursor: pointer; font-weight: bold; border-bottom: 3px solid transparent; color: #888;">
+                        📊 我的仲裁进度
+                    </button>
+                </div>
+                
+                <!-- 提出仲裁申请面板 -->
+                <div id="submit-arbitration-panel" class="arbitration-panel">
+                    <div class="glass-card" style="padding: 30px; max-width: 900px; margin: 0 auto;">
+                        <h3 style="margin: 0 0 20px 0; color: #e74c3c;">📝 提交仲裁申请</h3>
+                        <p style="color: #666; margin-bottom: 25px;">如果您在交易过程中遇到纠纷，可以向平台提出仲裁申请，我们将公正处理。</p>
+                        
+                        <form id="arbitration-form">
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: bold;">选择订单类型 <span style="color: red;">*</span></label>
+                                <select id="order-type" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                                    <option value="">-- 请选择订单类型 --</option>
+                                    <option value="farmer_report">农户申报订单</option>
+                                    <option value="recycler_request">回收商求购订单</option>
+                                    <option value="processor_request">处理商求购订单</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: bold;">订单编号 <span style="color: red;">*</span></label>
+                                <input type="text" id="order-no" required placeholder="请输入订单编号" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                                <span style="font-size: 12px; color: #999;">提示：可在订单详情页找到订单编号</span>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: bold;">仲裁原因 <span style="color: red;">*</span></label>
+                                <select id="arbitration-reason" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                                    <option value="">-- 请选择仲裁原因 --</option>
+                                    <option value="quality">货物质量问题</option>
+                                    <option value="quantity">重量/数量不符</option>
+                                    <option value="payment">付款纠纷</option>
+                                    <option value="delivery">交货延迟/未交货</option>
+                                    <option value="fraud">欺诈行为</option>
+                                    <option value="breach">违反协议条款</option>
+                                    <option value="other">其他原因</option>
+                                </select>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: bold;">详细说明 <span style="color: red;">*</span></label>
+                                <textarea id="arbitration-description" required rows="6" placeholder="请详细描述纠纷情况、发生时间、涉及金额等..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; resize: vertical;"></textarea>
+                            </div>
+                            
+                            <!-- 证据材料区域 -->
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                                <h4 style="margin: 0 0 15px 0; color: #333;">📎 证据材料上传</h4>
+                                
+                                <!-- 1. 平台交易凭证（必须）-->
+                                <div style="margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #e74c3c;">
+                                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">
+                                        1. 平台交易凭证 <span style="color: red;">*（必须）</span>
+                                    </label>
+                                    <p style="font-size: 13px; color: #666; margin: 5px 0 10px 0;">平台订单、回收报价单、废料交付确认单、平台系统操作日志（证明供需双方履约过程）</p>
+                                    <input type="file" id="evidence-trade" multiple accept="image/*,application/pdf" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                                    <div id="trade-preview" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                                </div>
+                                
+                                <!-- 2. 废料相关证据（必须）-->
+                                <div style="margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #e74c3c;">
+                                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">
+                                        2. 废料相关证据 <span style="color: red;">*（必须）</span>
+                                    </label>
+                                    <p style="font-size: 13px; color: #666; margin: 5px 0 10px 0;">新会柑果肉/果渣交付清单、质量检测报告、称重单据、现场照片/视频（证明废料品类、数量、质量等义）</p>
+                                    <input type="file" id="evidence-material" multiple accept="image/*,application/pdf,video/*" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                                    <div id="material-preview" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                                </div>
+                                
+                                <!-- 3. 资金往来凭证（必须）-->
+                                <div style="margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #e74c3c;">
+                                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">
+                                        3. 资金往来凭证 <span style="color: red;">*（必须）</span>
+                                    </label>
+                                    <p style="font-size: 13px; color: #666; margin: 5px 0 10px 0;">转账记录、收款收据、平台结算账单（证明货款、服务费、违约金等义）</p>
+                                    <input type="file" id="evidence-payment" multiple accept="image/*,application/pdf" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                                    <div id="payment-preview" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                                </div>
+                                
+                                <!-- 4. 沟通记录（可选）-->
+                                <div style="margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db;">
+                                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">
+                                        4. 沟通记录 <span style="color: #3498db;">（可选）</span>
+                                    </label>
+                                    <p style="font-size: 13px; color: #666; margin: 5px 0 10px 0;">平台聊天、微信/短信、邮件往来（证明协商过程、违约事实）</p>
+                                    <input type="file" id="evidence-communication" multiple accept="image/*,application/pdf" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                                    <div id="communication-preview" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                                </div>
+                                
+                                <!-- 5. 其他材料（可选）-->
+                                <div style="margin-bottom: 0; background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db;">
+                                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">
+                                        5. 其他材料 <span style="color: #3498db;">（可选）</span>
+                                    </label>
+                                    <p style="font-size: 13px; color: #666; margin: 5px 0 10px 0;">平台服务协议、行业标准、损失核算明细（如资源化利用损失、仓储物流损失）</p>
+                                    <input type="file" id="evidence-other" multiple accept="image/*,application/pdf" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                                    <div id="other-preview" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                                </div>
+                            </div>
+                            
+                            <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #ff9800;">
+                                <strong style="color: #e65100;">⚠️ 仲裁说明：</strong>
+                                <ul style="margin: 10px 0 0 20px; color: #666; line-height: 1.8;">
+                                    <li>提交后，平台将在3个工作日内审核并联系双方</li>
+                                    <li>请确保提供的信息真实准确，虚假申请将受到处罚</li>
+                                    <li>仲裁期间，相关订单将被冻结，双方不得私下处理</li>
+                                    <li>平台仲裁结果为最终决定，双方需无条件执行</li>
+                                    <li><strong>必须上传前3项证据材料，否则无法提交申请</strong></li>
+                                </ul>
+                            </div>
+                            
+                            <div style="display: flex; gap: 15px;">
+                                <button type="submit" style="flex: 1; padding: 14px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;">
+                                    📤 提交仲裁申请
+                                </button>
+                                <button type="button" onclick="authSystem.navigateTo('dashboard')" style="padding: 14px 30px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                                    取消
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- 我的仲裁进度面板 -->
+                <div id="progress-arbitration-panel" class="arbitration-panel" style="display: none;">
+                    <div id="arbitration-list"></div>
+                </div>
+            </div>
+        `;
+        
+        // 标签页切换
+        document.querySelectorAll('.arbitration-tab').forEach(btn => {
+            btn.onclick = () => {
+                const tab = btn.dataset.tab;
+                
+                // 更新按钮样式
+                document.querySelectorAll('.arbitration-tab').forEach(b => {
+                    b.classList.remove('active');
+                    b.style.borderBottom = '3px solid transparent';
+                    b.style.color = '#888';
+                });
+                btn.classList.add('active');
+                btn.style.borderBottom = '3px solid #e74c3c';
+                btn.style.color = '#e74c3c';
+                
+                // 显示对应面板
+                document.getElementById('submit-arbitration-panel').style.display = tab === 'submit' ? 'block' : 'none';
+                document.getElementById('progress-arbitration-panel').style.display = tab === 'progress' ? 'block' : 'none';
+                
+                // 加载数据
+                if (tab === 'progress') {
+                    this.loadMyArbitrations();
+                }
+            };
+        });
+        
+        // 绑定表单提交
+        document.getElementById('arbitration-form').onsubmit = (e) => {
+            e.preventDefault();
+            this.submitArbitration();
+        };
+        
+        // 为文件输入添加预览功能
+        this.setupFilePreview('evidence-trade', 'trade-preview');
+        this.setupFilePreview('evidence-material', 'material-preview');
+        this.setupFilePreview('evidence-payment', 'payment-preview');
+        this.setupFilePreview('evidence-communication', 'communication-preview');
+        this.setupFilePreview('evidence-other', 'other-preview');
+    },
+    
+    setupFilePreview(inputId, previewId) {
+        const input = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
+        
+        if (!input || !preview) return;
+        
+        input.onchange = () => {
+            preview.innerHTML = '';
+            const files = Array.from(input.files);
+            
+            files.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.style.cssText = 'position: relative; padding: 8px 12px; background: #e8f5e9; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 6px;';
+                
+                const icon = file.type.includes('image') ? '🖼️' : (file.type.includes('pdf') ? '📄' : '📹');
+                item.innerHTML = `
+                    ${icon} <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${file.name}</span>
+                    <button type="button" onclick="this.parentElement.remove(); document.getElementById('${inputId}').value = '';" style="background: #e74c3c; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; margin-left: 5px;">×</button>
+                `;
+                preview.appendChild(item);
+            });
+        };
+    },
+    
+    loadMyArbitrations() {
+        const listDiv = document.getElementById('arbitration-list');
+        listDiv.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">加载中...</p>';
+        
+        fetch(`${this.API_BASE}/api/arbitration-requests?applicant_id=${this.currentUser.id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!Array.isArray(data) || data.length === 0) {
+                    listDiv.innerHTML = `
+                        <div class="glass-card" style="padding: 30px; text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
+                            <p style="color: #888; font-size: 16px;">暂无仲裁记录</p>
+                            <p style="color: #999; font-size: 14px; margin-top: 10px;">您的仲裁申请和进度将显示在这里</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const statusLabels = {
+                    'pending': { text: '待处理', color: '#f39c12', icon: '⏳' },
+                    'investigating': { text: '调查中', color: '#3498db', icon: '🔍' },
+                    'resolved': { text: '已裁决', color: '#27ae60', icon: '✅' },
+                    'rejected': { text: '已驳回', color: '#e74c3c', icon: '❌' }
+                };
+                
+                const reasonLabels = {
+                    'quality': '货物质量问题',
+                    'quantity': '重量/数量不符',
+                    'payment': '付款纠纷',
+                    'delivery': '交货延迟/未交货',
+                    'fraud': '欺诈行为',
+                    'breach': '违反协议条款',
+                    'other': '其他原因'
+                };
+                
+                listDiv.innerHTML = data.map(item => {
+                    const status = statusLabels[item.status] || statusLabels.pending;
+                    
+                    // 判断当前用户是否是被罚方
+                    const isPenaltyTarget = (
+                        (item.penalty_party === 'applicant' && item.applicant_id === this.currentUser.id) ||
+                        (item.penalty_party === 'respondent' && item.respondent_id === this.currentUser.id)
+                    );
+                    
+                    return `
+                        <div class="glass-card" style="padding: 24px; margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                                <div>
+                                    <h3 style="margin: 0; font-size: 18px;">
+                                        ${status.icon} 仲裁编号：${item.arbitration_no}
+                                    </h3>
+                                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">订单编号：${item.order_no}</p>
+                                </div>
+                                <span style="padding: 6px 14px; border-radius: 20px; background: ${status.color}; color: white; font-size: 13px; font-weight: bold;">
+                                    ${status.text}
+                                </span>
+                            </div>
+                            
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <p style="margin: 0 0 8px 0;"><strong>仲裁原因：</strong>${reasonLabels[item.reason] || item.reason}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>详细说明：</strong>${item.description}</p>
+                                <p style="margin: 0;"><strong>提交时间：</strong>${item.created_at}</p>
+                            </div>
+                            
+                            ${item.penalty_status && item.penalty_status !== 'none' && isPenaltyTarget ? `
+                                <div style="background: ${item.penalty_status === 'paid' ? '#e8f5e9' : '#fff3cd'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${item.penalty_status === 'paid' ? '#27ae60' : '#f39c12'}; margin-bottom: 15px;">
+                                    <strong style="color: #e74c3c;">💰 罚款通知</strong>
+                                    <p style="margin: 8px 0; color: #333;">
+                                        根据仲裁结果，您需要支付罚款：<span style="font-size: 20px; font-weight: bold; color: #e74c3c;">¥${item.penalty_amount}</span>
+                                    </p>
+                                    ${item.penalty_reason ? `<p style="margin: 8px 0 0 0; font-size: 13px; color: #666;">罚款原因：${item.penalty_reason}</p>` : ''}
+                                    <p style="margin: 8px 0 0 0; font-size: 13px; color: #666;">
+                                        状态：${item.penalty_status === 'pending' ? '<span style="color: #f39c12;">⏳ 待支付</span>' : ''}
+                                        ${item.penalty_status === 'paid' ? '<span style="color: #27ae60;">✅ 已支付</span>' : ''}
+                                        ${item.penalty_status === 'waived' ? '<span style="color: #95a5a6;">🔓 已豁免</span>' : ''}
+                                    </p>
+                                    ${item.penalty_status === 'pending' ? `
+                                        <button onclick="authSystem.payPenalty(${item.id})" style="margin-top: 12px; padding: 10px 20px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                            立即支付罚款
+                                        </button>
+                                    ` : ''}
+                                    ${item.penalty_paid_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">支付时间：${item.penalty_paid_at}</p>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            ${item.status === 'resolved' && item.decision ? `
+                                <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 4px solid #27ae60; margin-bottom: 15px;">
+                                    <strong style="color: #27ae60;">✅ 裁决结果：</strong>
+                                    <p style="margin: 8px 0 0 0; color: #333;">${item.decision}</p>
+                                    ${item.decided_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">裁决时间：${item.decided_at}</p>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            ${item.status === 'rejected' && item.admin_notes ? `
+                                <div style="background: #ffebee; padding: 15px; border-radius: 8px; border-left: 4px solid #e74c3c;">
+                                    <strong style="color: #e74c3c;">❌ 驳回原因：</strong>
+                                    <p style="margin: 8px 0 0 0; color: #333;">${item.admin_notes}</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${item.status === 'investigating' && item.admin_notes ? `
+                                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db;">
+                                    <strong style="color: #3498db;">🔍 管理员备注：</strong>
+                                    <p style="margin: 8px 0 0 0; color: #333;">${item.admin_notes}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+            })
+            .catch(err => {
+                console.error('加载仲裁记录失败:', err);
+                listDiv.innerHTML = `<p style="text-align: center; color: #e74c3c; padding: 20px;">加载失败，请刷新重试</p>`;
+            });
+    },
+    
+    async submitArbitration() {
+        const orderType = document.getElementById('order-type').value;
+        const orderNo = document.getElementById('order-no').value.trim();
+        const reason = document.getElementById('arbitration-reason').value;
+        const description = document.getElementById('arbitration-description').value.trim();
+        
+        if (!orderType || !orderNo || !reason || !description) {
+            return this.showAlert('请填写所有必填项', 'warning');
+        }
+        
+        // 检查必须的证据材料
+        const tradeFiles = document.getElementById('evidence-trade').files;
+        const materialFiles = document.getElementById('evidence-material').files;
+        const paymentFiles = document.getElementById('evidence-payment').files;
+        
+        if (tradeFiles.length === 0 || materialFiles.length === 0 || paymentFiles.length === 0) {
+            return this.showAlert('请上传必需的证据材料：平台交易凭证、废料相关证据、资金往来凭证', 'error');
+        }
+        
+        try {
+            this.showAlert('正在上传证据材料...', 'info');
+            
+            // 上传所有文件
+            const formData = new FormData();
+            
+            // 添加所有文件
+            Array.from(tradeFiles).forEach(file => formData.append('files', file));
+            Array.from(materialFiles).forEach(file => formData.append('files', file));
+            Array.from(paymentFiles).forEach(file => formData.append('files', file));
+            Array.from(document.getElementById('evidence-communication').files).forEach(file => formData.append('files', file));
+            Array.from(document.getElementById('evidence-other').files).forEach(file => formData.append('files', file));
+            
+            const uploadResponse = await fetch(`${this.API_BASE}/api/upload-arbitration-files`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!uploadResponse.ok) {
+                throw new Error('文件上传失败');
+            }
+            
+            const uploadResult = await uploadResponse.json();
+            const uploadedFiles = uploadResult.files;
+            
+            // 按类型分类文件
+            let tradeIndex = 0;
+            let materialIndex = tradeFiles.length;
+            let paymentIndex = materialIndex + materialFiles.length;
+            let communicationIndex = paymentIndex + paymentFiles.length;
+            let otherIndex = communicationIndex + document.getElementById('evidence-communication').files.length;
+            
+            const evidence_trade = uploadedFiles.slice(tradeIndex, materialIndex).map(f => JSON.stringify(f));
+            const evidence_material = uploadedFiles.slice(materialIndex, paymentIndex).map(f => JSON.stringify(f));
+            const evidence_payment = uploadedFiles.slice(paymentIndex, communicationIndex).map(f => JSON.stringify(f));
+            const evidence_communication = uploadedFiles.slice(communicationIndex, otherIndex).map(f => JSON.stringify(f));
+            const evidence_other = uploadedFiles.slice(otherIndex).map(f => JSON.stringify(f));
+            
+            // 从订单编号提取订单ID (简化处理，实际应该从数据库查询)
+            const order_id = Math.floor(Math.random() * 1000); // 临时生成，实际应该从订单表查询
+            
+            const response = await fetch(`${this.API_BASE}/api/arbitration-requests`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    applicant_id: this.currentUser.id,
+                    order_type: orderType,
+                    order_id: order_id,
+                    order_no: orderNo,
+                    reason: reason,
+                    description: description,
+                    evidence_trade: evidence_trade,
+                    evidence_material: evidence_material,
+                    evidence_payment: evidence_payment,
+                    evidence_communication: evidence_communication,
+                    evidence_other: evidence_other
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || '提交失败');
+            }
+            
+            this.showAlert('仲裁申请已提交，我们将在3个工作日内处理', 'success');
+            
+            // 清空表单
+            document.getElementById('arbitration-form').reset();
+            document.querySelectorAll('[id$="-preview"]').forEach(el => el.innerHTML = '');
+            
+            // 切换到进度面板
+            setTimeout(() => {
+                document.querySelector('[data-tab="progress"]').click();
+            }, 1500);
+            
+        } catch (err) {
+            console.error('提交仲裁申请失败:', err);
+            this.showAlert(err.message || '提交失败，请重试', 'error');
+        }
+    },
+    
+    // ====== 仲裁管理（管理员端）======
+    showArbitrationManagement() {
+        const container = document.getElementById('content-area');
+        container.innerHTML = `
+            <div style="animation: fadeIn 0.5s;">
+                <h1 class="page-title">⚖️ 仲裁管理</h1>
+                <p style="color: var(--text-medium); margin-bottom: 30px;">处理用户仲裁请求，维护平台交易秩序</p>
+                
+                <!-- 筛选面板 -->
+                <div class="glass-card" style="padding: 20px; margin-bottom: 25px;">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                        <button class="filter-btn active" data-status="all" style="padding: 8px 16px; border-radius: 20px; border: none; background: #e74c3c; color: white; cursor: pointer;">
+                            全部
+                        </button>
+                        <button class="filter-btn" data-status="pending" style="padding: 8px 16px; border-radius: 20px; border: none; background: #dfe6e9; color: #2d3436; cursor: pointer;">
+                            待处理 <span class="badge">12</span>
+                        </button>
+                        <button class="filter-btn" data-status="investigating" style="padding: 8px 16px; border-radius: 20px; border: none; background: #74b9ff; color: white; cursor: pointer;">
+                            调查中
+                        </button>
+                        <button class="filter-btn" data-status="resolved" style="padding: 8px 16px; border-radius: 20px; border: none; background: #55efc4; color: #2d3436; cursor: pointer;">
+                            已裁决
+                        </button>
+                        <button class="filter-btn" data-status="rejected" style="padding: 8px 16px; border-radius: 20px; border: none; background: #fab1a0; color: #2d3436; cursor: pointer;">
+                            已驳回
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 仲裁列表 -->
+                <div id="arbitration-management-list"></div>
+            </div>
+        `;
+        
+        // 筛选按钮事件
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.loadArbitrationRequests(btn.dataset.status);
+            };
+        });
+        
+        // 加载仲裁请求
+        this.loadArbitrationRequests('all');
+    },
+    
+    loadArbitrationRequests(status = 'all') {
+        const listDiv = document.getElementById('arbitration-management-list');
+        listDiv.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">加载中...</p>';
+        
+        fetch(`${this.API_BASE}/api/arbitration-requests/all?status=${status}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!Array.isArray(data) || data.length === 0) {
+                    listDiv.innerHTML = `
+                        <div class="glass-card" style="padding: 30px; text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">⚖️</div>
+                            <p style="color: #888; font-size: 16px;">暂无仲裁请求</p>
+                            <p style="color: #999; font-size: 14px; margin-top: 10px;">用户提交的仲裁申请将显示在这里</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const statusLabels = {
+                    'pending': { text: '待处理', color: '#f39c12', icon: '⏳' },
+                    'investigating': { text: '调查中', color: '#3498db', icon: '🔍' },
+                    'resolved': { text: '已裁决', color: '#27ae60', icon: '✅' },
+                    'rejected': { text: '已驳回', color: '#e74c3c', icon: '❌' }
+                };
+                
+                const reasonLabels = {
+                    'quality': '货物质量问题',
+                    'quantity': '重量/数量不符',
+                    'payment': '付款纠纷',
+                    'delivery': '交货延迟/未交货',
+                    'fraud': '欺诈行为',
+                    'breach': '违反协议条款',
+                    'other': '其他原因'
+                };
+                
+                const orderTypeLabels = {
+                    'farmer_report': '农户申报订单',
+                    'recycler_request': '回收商求购订单',
+                    'processor_request': '处理商求购订单'
+                };
+                
+                listDiv.innerHTML = data.map(item => {
+                    const status = statusLabels[item.status] || statusLabels.pending;
+                    return `
+                        <div class="glass-card" onclick="authSystem.showArbitrationDetail(${item.id})" style="padding: 24px; margin-bottom: 20px; cursor: pointer; transition: all 0.3s;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                                <div>
+                                    <h3 style="margin: 0; font-size: 18px;">
+                                        ${status.icon} 仲裁编号：${item.arbitration_no}
+                                    </h3>
+                                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">
+                                        申请人：${item.applicant_name} (${item.applicant_phone || '未提供'})
+                                    </p>
+                                </div>
+                                <span style="padding: 6px 14px; border-radius: 20px; background: ${status.color}; color: white; font-size: 13px; font-weight: bold;">
+                                    ${status.text}
+                                </span>
+                            </div>
+                            
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                    <p style="margin: 0;"><strong>订单类型：</strong>${orderTypeLabels[item.order_type] || item.order_type}</p>
+                                    <p style="margin: 0;"><strong>订单编号：</strong>${item.order_no}</p>
+                                </div>
+                                <p style="margin: 0 0 8px 0;"><strong>仲裁原因：</strong>${reasonLabels[item.reason] || item.reason}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>详细说明：</strong>${item.description}</p>
+                                <p style="margin: 0;"><strong>提交时间：</strong>${item.created_at}</p>
+                            </div>
+                            
+                            <!-- 证据材料 -->
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <strong style="color: #856404;">📎 已提交证据材料：</strong>
+                                <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+                                    <div>
+                                        <strong>平台交易凭证：</strong>
+                                        <span style="color: ${item.evidence_trade.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                            ${item.evidence_trade.length > 0 ? `✅ ${item.evidence_trade.length}个文件` : '❌ 未提交'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <strong>废料相关证据：</strong>
+                                        <span style="color: ${item.evidence_material.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                            ${item.evidence_material.length > 0 ? `✅ ${item.evidence_material.length}个文件` : '❌ 未提交'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <strong>资金往来凭证：</strong>
+                                        <span style="color: ${item.evidence_payment.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                            ${item.evidence_payment.length > 0 ? `✅ ${item.evidence_payment.length}个文件` : '❌ 未提交'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <strong>沟通记录：</strong>
+                                        <span style="color: #666;">
+                                            ${item.evidence_communication.length > 0 ? `📄 ${item.evidence_communication.length}个文件` : '未提交'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <strong>其他材料：</strong>
+                                        <span style="color: #666;">
+                                            ${item.evidence_other.length > 0 ? `📄 ${item.evidence_other.length}个文件` : '未提交'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${item.admin_notes ? `
+                                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; margin-bottom: 15px;">
+                                    <strong style="color: #3498db;">📝 管理员备注：</strong>
+                                    <p style="margin: 8px 0 0 0; color: #333;">${item.admin_notes}</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${item.decision ? `
+                                <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 4px solid #27ae60; margin-bottom: 15px;">
+                                    <strong style="color: #27ae60;">⚖️ 裁决结果：</strong>
+                                    <p style="margin: 8px 0 0 0; color: #333;">${item.decision}</p>
+                                    ${item.decided_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">裁决时间：${item.decided_at} | 裁决人：${item.decided_by_name || '管理员'}</p>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            <!-- 操作按钮 -->
+                            ${item.status === 'pending' || item.status === 'investigating' ? `
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    ${item.status === 'pending' ? `
+                                        <button onclick="authSystem.updateArbitrationStatus(${item.id}, 'investigating')" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                            🔍 开始调查
+                                        </button>
+                                    ` : ''}
+                                    <button onclick="authSystem.resolveArbitration(${item.id})" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                        ✅ 做出裁决
+                                    </button>
+                                    <button onclick="authSystem.rejectArbitration(${item.id})" style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                        ❌ 驳回申请
+                                    </button>
+                                    <button onclick="authSystem.addArbitrationNote(${item.id})" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                        📝 添加备注
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+            })
+            .catch(err => {
+                console.error('加载仲裁请求失败:', err);
+                listDiv.innerHTML = `<p style="text-align: center; color: #e74c3c; padding: 20px;">加载失败，请刷新重试</p>`;
+            });
+    },
+    
+    async updateArbitrationStatus(id, status) {
+        try {
+            const response = await fetch(`${this.API_BASE}/api/arbitration-requests/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || '更新失败');
+            
+            this.showAlert('状态已更新', 'success');
+            this.loadArbitrationRequests('all');
+        } catch (err) {
+            this.showAlert(err.message, 'error');
+        }
+    },
+    
+    resolveArbitration(id) {
+        const decision = prompt('请输入裁决结果：');
+        if (!decision || !decision.trim()) return;
+        
+        fetch(`${this.API_BASE}/api/arbitration-requests/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                status: 'resolved',
+                decision: decision.trim(),
+                decided_by: this.currentUser.id,
+                decided_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                this.showAlert('裁决已保存', 'success');
+                // 如果在详情页，刷新详情；否则刷新列表
+                setTimeout(() => {
+                    const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
+                    if (isInDetailPage) {
+                        this.showArbitrationDetail(id);
+                    } else {
+                        this.loadArbitrationRequests('all');
+                    }
+                }, 800);
+            } else {
+                throw new Error(data.error || '操作失败');
+            }
+        })
+        .catch(err => {
+            this.showAlert(err.message, 'error');
+        });
+    },
+    
+    rejectArbitration(id) {
+        const reason = prompt('请输入驳回原因：');
+        if (!reason || !reason.trim()) return;
+        
+        fetch(`${this.API_BASE}/api/arbitration-requests/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                status: 'rejected',
+                decision: '申请已驳回。理由：' + reason.trim(),
+                decided_by: this.currentUser.id,
+                decided_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                this.showAlert('申请已驳回', 'success');
+                // 如果在详情页，刷新详情；否则刷新列表
+                setTimeout(() => {
+                    const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
+                    if (isInDetailPage) {
+                        this.showArbitrationDetail(id);
+                    } else {
+                        this.loadArbitrationRequests('all');
+                    }
+                }, 800);
+            } else {
+                throw new Error(data.error || '操作失败');
+            }
+        })
+        .catch(err => {
+            this.showAlert(err.message, 'error');
+        });
+    },
+    
+    addArbitrationNote(id) {
+        const note = prompt('请输入备注内容：');
+        if (!note || !note.trim()) return;
+        
+        fetch(`${this.API_BASE}/api/arbitration-requests/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                admin_notes: note.trim()
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                this.showAlert('备注已添加', 'success');
+                // 如果在详情页，刷新详情；否则刷新列表
+                setTimeout(() => {
+                    const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
+                    if (isInDetailPage) {
+                        this.showArbitrationDetail(id);
+                    } else {
+                        this.loadArbitrationRequests('all');
+                    }
+                }, 800);
+            } else {
+                throw new Error(data.error || '操作失败');
+            }
+        })
+        .catch(err => {
+            this.showAlert(err.message, 'error');
+        });
+    },
+    
+    // 显示仲裁详情页面
+    showArbitrationDetail(id) {
+        const container = document.getElementById('content-area');
+        container.innerHTML = '<p style="text-align: center; padding: 40px; color: #888;">加载中...</p>';
+        
+        // 渲染文件列表的辅助函数
+        const renderFileList = (files) => {
+            if (!files || files.length === 0) {
+                return '<p style="margin: 0; color: #999; font-style: italic;">未提交</p>';
+            }
+            
+            return `
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    ${files.map(fileStr => {
+                        let fileInfo;
+                        try {
+                            // 尝试解析JSON格式的文件信息
+                            fileInfo = JSON.parse(fileStr);
+                        } catch (e) {
+                            // 如果不是JSON，则是旧格式的文件名
+                            fileInfo = { originalName: fileStr, path: null };
+                        }
+                        
+                        const fileName = fileInfo.originalName || fileStr;
+                        const filePath = fileInfo.path;
+                        const isImage = /\.(jpg|jpeg|png|gif|bmp)$/i.test(fileName);
+                        const isPdf = /\.pdf$/i.test(fileName);
+                        const isVideo = /\.(mp4|avi|mov)$/i.test(fileName);
+                        
+                        let icon = '📄';
+                        if (isImage) icon = '🖼️';
+                        else if (isPdf) icon = '📄';
+                        else if (isVideo) icon = '📹';
+                        
+                        const clickHandler = filePath 
+                            ? `onclick="authSystem.viewFile('${filePath}', '${fileName}', ${isImage})"` 
+                            : '';
+                        
+                        return `
+                            <div ${clickHandler} style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; ${filePath ? 'cursor: pointer; transition: transform 0.2s;' : ''}" ${filePath ? 'onmouseenter="this.style.transform=\'scale(1.05)\'" onmouseleave="this.style.transform=\'scale(1)\'"' : ''}>
+                                ${icon}
+                                <span style="font-size: 14px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${fileName}">${fileName}</span>
+                                ${filePath ? '<span style="color: #3498db; font-size: 12px;">点击查看</span>' : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        };
+        
+        fetch(`${this.API_BASE}/api/arbitration-requests/all?status=all`)
+            .then(res => res.json())
+            .then(data => {
+                const item = data.find(a => a.id === id);
+                if (!item) {
+                    container.innerHTML = '<p style="text-align: center; padding: 40px; color: #e74c3c;">未找到该仲裁记录</p>';
+                    return;
+                }
+                
+                const statusLabels = {
+                    'pending': { text: '待处理', color: '#f39c12', icon: '⏳' },
+                    'investigating': { text: '调查中', color: '#3498db', icon: '🔍' },
+                    'resolved': { text: '已裁决', color: '#27ae60', icon: '✅' },
+                    'rejected': { text: '已驳回', color: '#e74c3c', icon: '❌' }
+                };
+                
+                const reasonLabels = {
+                    'quality': '货物质量问题',
+                    'quantity': '重量/数量不符',
+                    'payment': '付款纠纷',
+                    'delivery': '交货延迟/未交货',
+                    'fraud': '欺诈行为',
+                    'breach': '违反协议条款',
+                    'other': '其他原因'
+                };
+                
+                const orderTypeLabels = {
+                    'farmer_report': '农户申报订单',
+                    'recycler_request': '回收商求购订单',
+                    'processor_request': '处理商求购订单'
+                };
+                
+                const status = statusLabels[item.status] || statusLabels.pending;
+                
+                container.innerHTML = `
+                    <div style="animation: fadeIn 0.5s;">
+                        <!-- 返回按钮 -->
+                        <div style="margin-bottom: 20px;">
+                            <button onclick="authSystem.navigateTo('arbitration-management')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                ← 返回仲裁列表
+                            </button>
+                        </div>
+                        
+                        <!-- 仲裁基本信息 -->
+                        <div class="glass-card" style="padding: 30px; margin-bottom: 25px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+                                <div>
+                                    <h1 style="margin: 0 0 10px 0; font-size: 24px; color: #2c3e50;">
+                                        ${status.icon} 仲裁详情
+                                    </h1>
+                                    <p style="margin: 0; font-size: 16px; color: #666;">仲裁编号：${item.arbitration_no}</p>
+                                </div>
+                                <span style="padding: 10px 20px; border-radius: 25px; background: ${status.color}; color: white; font-size: 15px; font-weight: bold;">
+                                    ${status.text}
+                                </span>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                                <div>
+                                    <strong style="color: #555;">申请人：</strong>
+                                    <span>${item.applicant_name}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #555;">联系电话：</strong>
+                                    <span>${item.applicant_phone || '未提供'}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #555;">订单类型：</strong>
+                                    <span>${orderTypeLabels[item.order_type] || item.order_type}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #555;">订单编号：</strong>
+                                    <span>${item.order_no}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #555;">仲裁原因：</strong>
+                                    <span>${reasonLabels[item.reason] || item.reason}</span>
+                                </div>
+                                <div>
+                                    <strong style="color: #555;">提交时间：</strong>
+                                    <span>${item.created_at}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 详细说明 -->
+                        <div class="glass-card" style="padding: 25px; margin-bottom: 25px;">
+                            <h3 style="margin: 0 0 15px 0; color: #2c3e50;">📄 详细说明</h3>
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #3498db; line-height: 1.8;">
+                                ${item.description}
+                            </div>
+                        </div>
+                        
+                        <!-- 证据材料 -->
+                        <div class="glass-card" style="padding: 25px; margin-bottom: 25px;">
+                            <h3 style="margin: 0 0 20px 0; color: #2c3e50;">📎 提交的证据材料</h3>
+                            
+                            <!-- 1. 平台交易凭证 -->
+                            <div style="margin-bottom: 20px; background: ${item.evidence_trade.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${item.evidence_trade.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
+                                    ${item.evidence_trade.length > 0 ? '✅' : '❌'} 1. 平台交易凭证 <span style="color: #e74c3c;">*（必须）</span>
+                                </h4>
+                                <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">平台订单、回收报价单、废料交付确认单、平台系统操作日志</p>
+                                ${renderFileList(item.evidence_trade)}
+                            </div>
+                            
+                            <!-- 2. 废料相关证据 -->
+                            <div style="margin-bottom: 20px; background: ${item.evidence_material.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${item.evidence_material.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
+                                    ${item.evidence_material.length > 0 ? '✅' : '❌'} 2. 废料相关证据 <span style="color: #e74c3c;">*（必须）</span>
+                                </h4>
+                                <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">新会柑果肉/果渣交付清单、质量检测报告、称重单据、现场照片/视频</p>
+                                ${renderFileList(item.evidence_material)}
+                            </div>
+                            
+                            <!-- 3. 资金往来凭证 -->
+                            <div style="margin-bottom: 20px; background: ${item.evidence_payment.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${item.evidence_payment.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
+                                    ${item.evidence_payment.length > 0 ? '✅' : '❌'} 3. 资金往来凭证 <span style="color: #e74c3c;">*（必须）</span>
+                                </h4>
+                                <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">转账记录、收款收据、平台结算账单</p>
+                                ${renderFileList(item.evidence_payment)}
+                            </div>
+                            
+                            <!-- 4. 沟通记录（可选）-->
+                            <div style="margin-bottom: 20px; background: ${item.evidence_communication.length > 0 ? '#e3f2fd' : '#f8f9fa'}; padding: 20px; border-radius: 10px; border-left: 5px solid #3498db;">
+                                <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
+                                    ${item.evidence_communication.length > 0 ? '📄' : '📭'} 4. 沟通记录 <span style="color: #3498db;">（可选）</span>
+                                </h4>
+                                <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">平台聊天、微信/短信、邮件往来</p>
+                                ${renderFileList(item.evidence_communication)}
+                            </div>
+                            
+                            <!-- 5. 其他材料（可选）-->
+                            <div style="background: ${item.evidence_other.length > 0 ? '#e3f2fd' : '#f8f9fa'}; padding: 20px; border-radius: 10px; border-left: 5px solid #3498db;">
+                                <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
+                                    ${item.evidence_other.length > 0 ? '📄' : '📭'} 5. 其他材料 <span style="color: #3498db;">（可选）</span>
+                                </h4>
+                                <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">平台服务协议、行业标准、损失核算明细</p>
+                                ${renderFileList(item.evidence_other)}
+                            </div>
+                        </div>
+                        
+                        ${item.admin_notes ? `
+                            <!-- 管理员备注 -->
+                            <div class="glass-card" style="padding: 25px; margin-bottom: 25px;">
+                                <h3 style="margin: 0 0 15px 0; color: #2c3e50;">📝 管理员备注</h3>
+                                <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #3498db; line-height: 1.8;">
+                                    ${item.admin_notes}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${item.penalty_status && item.penalty_status !== 'none' ? `
+                            <!-- 罚款信息 -->
+                            <div class="glass-card" style="padding: 25px; margin-bottom: 25px; background: ${item.penalty_status === 'paid' ? '#e8f5e9' : '#fff3cd'};">
+                                <h3 style="margin: 0 0 15px 0; color: #2c3e50;">💰 罚款处罚</h3>
+                                <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid ${item.penalty_status === 'paid' ? '#27ae60' : '#f39c12'};">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                        <div><strong>被罚方：</strong>${item.penalty_party === 'applicant' ? item.applicant_name + '（申请人）' : (item.respondent_name || '被申请人')}</div>
+                                        <div><strong>罚款金额：</strong><span style="color: #e74c3c; font-size: 18px; font-weight: bold;">¥${item.penalty_amount}</span></div>
+                                        <div><strong>订单金额：</strong>¥${item.order_amount || 0}</div>
+                                        <div><strong>罚款状态：</strong>
+                                            ${item.penalty_status === 'pending' ? '<span style="color: #f39c12;">⏳ 待支付</span>' : ''}
+                                            ${item.penalty_status === 'paid' ? '<span style="color: #27ae60;">✅ 已支付</span>' : ''}
+                                            ${item.penalty_status === 'waived' ? '<span style="color: #95a5a6;">🔓 已豁免</span>' : ''}
+                                        </div>
+                                    </div>
+                                    ${item.penalty_reason ? `<div style="margin-top: 10px;"><strong>罚款原因：</strong>${item.penalty_reason}</div>` : ''}
+                                    ${item.penalty_paid_at ? `<div style="margin-top: 10px;"><strong>支付时间：</strong>${item.penalty_paid_at}</div>` : ''}
+                                    ${item.penalty_proof ? `
+                                        <div style="margin-top: 10px;">
+                                            <strong>支付凭证：</strong>
+                                            <button onclick="authSystem.viewFile('${item.penalty_proof}', '支付凭证', true)" style="padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                                                查看凭证
+                                            </button>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${item.decision ? `
+                            <!-- 裁决结果 -->
+                            <div class="glass-card" style="padding: 25px; margin-bottom: 25px;">
+                                <h3 style="margin: 0 0 15px 0; color: #2c3e50;">⚖️ 裁决结果</h3>
+                                <div style="background: #e8f5e9; padding: 20px; border-radius: 8px; border-left: 4px solid #27ae60; line-height: 1.8;">
+                                    ${item.decision}
+                                </div>
+                                ${item.decided_at ? `
+                                    <p style="margin: 15px 0 0 0; font-size: 13px; color: #666;">
+                                        裁决时间：${item.decided_at} | 裁决人：${item.decided_by_name || '管理员'}
+                                    </p>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <!-- 操作按钮 -->
+                        ${item.status === 'pending' || item.status === 'investigating' ? `
+                            <div class="glass-card" style="padding: 25px;">
+                                <h3 style="margin: 0 0 20px 0; color: #2c3e50;">🔧 仲裁操作</h3>
+                                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                    ${item.status === 'pending' ? `
+                                        <button onclick="authSystem.updateArbitrationStatus(${item.id}, 'investigating'); setTimeout(() => authSystem.showArbitrationDetail(${item.id}), 1000);" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                            🔍 开始调查
+                                        </button>
+                                    ` : ''}
+                                    <button onclick="authSystem.setPenalty(${item.id}, ${item.order_amount || 0})" style="padding: 12px 24px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                        💰 设置罚款
+                                    </button>
+                                    <button onclick="authSystem.resolveArbitration(${item.id})" style="padding: 12px 24px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                        ✅ 做出裁决
+                                    </button>
+                                    <button onclick="authSystem.rejectArbitration(${item.id})" style="padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                        ❌ 驳回申请
+                                    </button>
+                                    <button onclick="authSystem.addArbitrationNote(${item.id})" style="padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                        📝 添加备注
+                                    </button>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            })
+            .catch(err => {
+                console.error('加载仲裁详情失败:', err);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="color: #e74c3c; margin-bottom: 20px;">加载失败，请重试</p>
+                        <button onclick="authSystem.navigateTo('arbitration-management')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            返回列表
+                        </button>
+                    </div>
+                `;
+            });
+    },
+    
+    // 查看文件
+    viewFile(filePath, fileName, isImage) {
+        // 创建模态框显示文件
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '✕ 关闭';
+        closeBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; z-index: 10001;';
+        closeBtn.onclick = () => modal.remove();
+        
+        const title = document.createElement('div');
+        title.style.cssText = 'position: absolute; top: 20px; left: 20px; color: white; font-size: 18px; font-weight: bold; z-index: 10001; max-width: calc(100% - 180px);';
+        title.textContent = fileName;
+        
+        const contentWrapper = document.createElement('div');
+        contentWrapper.style.cssText = 'max-width: 90%; max-height: 80%; overflow: auto; background: white; border-radius: 10px; padding: 20px;';
+        
+        if (isImage) {
+            const img = document.createElement('img');
+            img.src = `${this.API_BASE}${filePath}`;
+            img.style.cssText = 'max-width: 100%; max-height: 70vh; object-fit: contain;';
+            img.onerror = () => {
+                contentWrapper.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 40px;">图片加载失败</p>';
+            };
+            contentWrapper.appendChild(img);
+        } else if (filePath.endsWith('.pdf')) {
+            const iframe = document.createElement('iframe');
+            iframe.src = `${this.API_BASE}${filePath}`;
+            iframe.style.cssText = 'width: 80vw; height: 80vh; border: none;';
+            iframe.onerror = () => {
+                contentWrapper.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="color: #e74c3c; margin-bottom: 20px;">PDF预览失败</p>
+                        <a href="${this.API_BASE}${filePath}" download="${fileName}" style="padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 8px;">下载文件</a>
+                    </div>
+                `;
+            };
+            contentWrapper.appendChild(iframe);
+        } else {
+            // 其他文件类型，提供下载链接
+            contentWrapper.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
+                    <p style="margin-bottom: 20px; color: #666;">暂不支持在线预览此文件类型</p>
+                    <a href="${this.API_BASE}${filePath}" download="${fileName}" style="padding: 12px 24px; background: #3498db; color: white; text-decoration: none; border-radius: 8px; display: inline-block;">
+                        ⬇️ 下载文件
+                    </a>
+                </div>
+            `;
+        }
+        
+        modal.appendChild(closeBtn);
+        modal.appendChild(title);
+        modal.appendChild(contentWrapper);
+        
+        // 点击背景关闭
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+        
+        document.body.appendChild(modal);
+    },
+    
+    // 设置罚款
+    setPenalty(arbitrationId, orderAmount = 0) {
+        const container = document.createElement('div');
+        container.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
+        
+        container.innerHTML = `
+            <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 100%;">
+                <h2 style="margin: 0 0 20px 0; color: #2c3e50;">💰 设置罚款</h2>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">被罚方 <span style="color: red;">*</span></label>
+                    <select id="penalty-party" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                        <option value="">-- 请选择 --</option>
+                        <option value="applicant">申请人（原告）</option>
+                        <option value="respondent">被申请人（被告）</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">订单金额</label>
+                    <input type="number" id="order-amount" value="${orderAmount}" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                    <small style="color: #666;">用于计算默认罚款比例</small>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">罚款金额 <span style="color: red;">*</span></label>
+                    <input type="number" id="penalty-amount" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" placeholder="输入罚款金额">
+                    <button onclick="document.getElementById('penalty-amount').value = (document.getElementById('order-amount').value * 0.2).toFixed(2)" style="margin-top: 5px; padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                        按订单金额20%计算
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">罚款原因</label>
+                    <textarea id="penalty-reason" rows="3" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" placeholder="说明罚款原因..."></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="authSystem.submitPenalty(${arbitrationId})" style="flex: 1; padding: 12px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        确认设置
+                    </button>
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        取消
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        container.onclick = (e) => {
+            if (e.target === container) container.remove();
+        };
+        
+        document.body.appendChild(container);
+    },
+    
+    // 提交罚款设置
+    async submitPenalty(arbitrationId) {
+        const party = document.getElementById('penalty-party').value;
+        const amount = parseFloat(document.getElementById('penalty-amount').value);
+        const reason = document.getElementById('penalty-reason').value.trim();
+        const orderAmount = parseFloat(document.getElementById('order-amount').value) || 0;
+        
+        if (!party) {
+            return this.showAlert('请选择被罚方', 'warning');
+        }
+        
+        if (!amount || amount <= 0) {
+            return this.showAlert('请输入有效的罚款金额', 'warning');
+        }
+        
+        try {
+            const response = await fetch(`${this.API_BASE}/api/arbitration-requests/${arbitrationId}/penalty`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    penalty_party: party,
+                    penalty_amount: amount,
+                    penalty_reason: reason,
+                    order_amount: orderAmount
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || '设置失败');
+            }
+            
+            this.showAlert('罚款设置成功', 'success');
+            
+            // 关闭弹窗
+            document.querySelectorAll('div[style*="position: fixed"]').forEach(el => {
+                if (el.innerHTML.includes('设置罚款')) el.remove();
+            });
+            
+            // 刷新详情页
+            setTimeout(() => {
+                this.showArbitrationDetail(arbitrationId);
+            }, 800);
+            
+        } catch (err) {
+            console.error('设置罚款失败:', err);
+            this.showAlert(err.message || '设置失败，请重试', 'error');
+        }
+    },
+    
+    // 支付罚款（用户端）
+    payPenalty(arbitrationId) {
+        const container = document.createElement('div');
+        container.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
+        
+        container.innerHTML = `
+            <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 100%;">
+                <h2 style="margin: 0 0 20px 0; color: #2c3e50;">💰 上交罚款</h2>
+                
+                <p style="color: #666; margin-bottom: 20px;">请上传您的支付凭证（转账记录、付款截图等）</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">支付凭证 <span style="color: red;">*</span></label>
+                    <input type="file" id="penalty-proof" accept="image/*,.pdf" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                </div>
+                
+                <div id="proof-preview" style="margin-bottom: 20px;"></div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="authSystem.submitPenaltyPayment(${arbitrationId})" style="flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        提交支付凭证
+                    </button>
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        取消
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        container.onclick = (e) => {
+            if (e.target === container) container.remove();
+        };
+        
+        document.body.appendChild(container);
+        
+        // 文件预览
+        document.getElementById('penalty-proof').onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const preview = document.getElementById('proof-preview');
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        preview.innerHTML = `<img src="${e.target.result}" style="max-width: 100%; max-height: 200px; border-radius: 8px;">`;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    preview.innerHTML = `<p style="color: #666;">📄 ${file.name}</p>`;
+                }
+            }
+        };
+    },
+    
+    // 提交罚款支付
+    async submitPenaltyPayment(arbitrationId) {
+        const fileInput = document.getElementById('penalty-proof');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            return this.showAlert('请上传支付凭证', 'warning');
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('proof', file);
+            formData.append('user_id', this.currentUser.id);
+            
+            const response = await fetch(`${this.API_BASE}/api/arbitration-requests/${arbitrationId}/pay-penalty`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || '提交失败');
+            }
+            
+            this.showAlert('支付凭证已提交，等待管理员确认', 'success');
+            
+            // 关闭弹窗
+            document.querySelectorAll('div[style*="position: fixed"]').forEach(el => {
+                if (el.innerHTML.includes('上交罚款')) el.remove();
+            });
+            
+            // 刷新列表
+            setTimeout(() => {
+                this.loadMyArbitrations();
+            }, 1000);
+            
+        } catch (err) {
+            console.error('提交支付失败:', err);
+            this.showAlert(err.message || '提交失败，请重试', 'error');
+        }
     }
 };
 
