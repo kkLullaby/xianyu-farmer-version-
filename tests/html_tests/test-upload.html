@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试文件上传</title>
+</head>
+<body>
+    <h1>测试文件上传功能</h1>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.mp4,.avi">
+        <button type="submit">上传文件</button>
+    </form>
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script>
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const files = document.getElementById('fileInput').files;
+            if (files.length === 0) {
+                alert('请选择文件');
+                return;
+            }
+
+            const formData = new FormData();
+            for (let file of files) {
+                formData.append('files', file);
+            }
+
+            try {
+                const response = await fetch('http://localhost:4000/api/upload-arbitration-files', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (err) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">错误: ' + err.message + '</p>';
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完整测试：上传并查看仲裁</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        button { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        .result { margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 5px; }
+        .file-preview { display: inline-block; margin: 5px; padding: 10px; background: #e8f5e9; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>完整测试流程</h1>
+    
+    <div class="section">
+        <h2>步骤1: 上传测试文件</h2>
+        <input type="file" id="fileInput" accept="image/*,.pdf" multiple>
+        <button onclick="uploadFiles()">上传文件</button>
+        <div id="uploadResult" class="result" style="display:none;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>步骤2: 创建仲裁申请</h2>
+        <button onclick="createArbitration()">创建测试仲裁</button>
+        <div id="createResult" class="result" style="display:none;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>步骤3: 查看仲裁详情</h2>
+        <button onclick="viewArbitration()">查看最新仲裁</button>
+        <div id="viewResult" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        let uploadedFiles = [];
+        
+        async function uploadFiles() {
+            const files = document.getElementById('fileInput').files;
+            if (files.length === 0) {
+                alert('请选择文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            for (let file of files) {
+                formData.append('files', file);
+            }
+            
+            try {
+                const response = await fetch('http://localhost:4000/api/upload-arbitration-files', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                uploadedFiles = data.files;
+                
+                const resultDiv = document.getElementById('uploadResult');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<h3>✅ 上传成功</h3>' + 
+                    uploadedFiles.map(f => `<div class="file-preview">📎 ${f.originalName}</div>`).join('');
+                
+            } catch (error) {
+                alert('上传失败: ' + error.message);
+            }
+        }
+        
+        async function createArbitration() {
+            if (uploadedFiles.length === 0) {
+                alert('请先上传文件');
+                return;
+            }
+            
+            const evidence = uploadedFiles.map(f => JSON.stringify(f));
+            
+            try {
+                const response = await fetch('http://localhost:4000/api/arbitration-requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        applicant_id: 2,
+                        order_type: 'farmer_report',
+                        order_id: 999,
+                        order_no: 'TEST-' + Date.now(),
+                        reason: 'quality',
+                        description: '这是一个完整的测试，包含真实上传的文件',
+                        evidence_trade: evidence,
+                        evidence_material: evidence,
+                        evidence_payment: evidence,
+                        evidence_communication: [],
+                        evidence_other: []
+                    })
+                });
+                
+                const data = await response.json();
+                const resultDiv = document.getElementById('createResult');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `<h3>✅ 仲裁已创建</h3><p>ID: ${data.id}<br>编号: ${data.arbitration_no}</p>`;
+                
+                window.lastArbitrationId = data.id;
+                
+            } catch (error) {
+                alert('创建失败: ' + error.message);
+            }
+        }
+        
+        async function viewArbitration() {
+            if (!window.lastArbitrationId) {
+                alert('请先创建仲裁');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:4000/api/arbitration-requests/all?status=all');
+                const data = await response.json();
+                const item = data.find(x => x.id === window.lastArbitrationId);
+                
+                if (!item) {
+                    alert('未找到仲裁记录');
+                    return;
+                }
+                
+                const resultDiv = document.getElementById('viewResult');
+                resultDiv.style.display = 'block';
+                
+                let html = '<h3>📎 证据材料</h3>';
+                
+                const renderFiles = (files, title) => {
+                    if (!files || files.length === 0) return '';
+                    
+                    let result = `<h4>${title}</h4>`;
+                    files.forEach(fileStr => {
+                        const fileInfo = JSON.parse(fileStr);
+                        result += `
+                            <div class="file-preview" onclick="previewFile('${fileInfo.path}', '${fileInfo.originalName}')" 
+                                 style="cursor: pointer;">
+                                🖼️ ${fileInfo.originalName} <span style="color:#3498db;">点击查看</span>
+                            </div>
+                        `;
+                    });
+                    return result;
+                };
+                
+                html += renderFiles(item.evidence_trade, '交易凭证');
+                html += renderFiles(item.evidence_material, '物料证明');
+                html += renderFiles(item.evidence_payment, '付款凭证');
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                alert('查看失败: ' + error.message);
+            }
+        }
+        
+        function previewFile(path, name) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; align-items: center; justify-content: center;';
+            modal.innerHTML = `
+                <div style="position: relative; max-width: 90%; max-height: 90%; background: white; padding: 20px; border-radius: 10px;">
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="position: absolute; top: 10px; right: 10px;">关闭</button>
+                    <h3>${name}</h3>
+                    <img src="http://localhost:4000${path}" style="max-width: 100%; max-height: 70vh;" 
+                         onerror="this.outerHTML='<p style=color:red>图片加载失败</p>'">
+                </div>
+            `;
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            document.body.appendChild(modal);
+        }
+    </script>
+</body>
+</html>

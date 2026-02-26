@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前后端集成测试</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #1abc9c;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            background: #f8f9fa;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #1abc9c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #16a085;
+        }
+        .code {
+            background: #2c3e50;
+            color: #1abc9c;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 农业废品回收平台 - 前后端集成测试</h1>
+        
+        <div class="test-section">
+            <h2>📡 服务状态检查</h2>
+            <button onclick="checkBackendHealth()">检查后端服务</button>
+            <div id="health-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔐 登录功能测试</h2>
+            <button onclick="testLogin('admin001', 'admin123', 'admin')">测试管理员登录</button>
+            <button onclick="testLogin('farmer001', 'farmer123', 'farmer')">测试农户登录</button>
+            <button onclick="testLogin('recycler001', 'recycler123', 'recycler')">测试回收商登录</button>
+            <button onclick="testLogin('wronguser', 'wrongpass', null)">测试错误登录</button>
+            <div id="login-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 注册功能测试</h2>
+            <button onclick="testRegister()">测试注册新用户</button>
+            <div id="register-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📦 订单查询测试</h2>
+            <button onclick="testGetOrders()">查询所有订单</button>
+            <button onclick="testGetLocations()">查询地点列表</button>
+            <div id="order-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 完整流程测试</h2>
+            <button onclick="runFullTest()">运行完整测试</button>
+            <div id="full-test-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:4000';
+
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.innerHTML = message;
+            element.appendChild(resultDiv);
+        }
+
+        function clearResult(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        async function checkBackendHealth() {
+            clearResult('health-result');
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showResult('health-result', '✅ 后端服务运行正常', 'success');
+                } else {
+                    showResult('health-result', '❌ 后端服务状态异常', 'error');
+                }
+            } catch (error) {
+                showResult('health-result', `❌ 无法连接后端服务: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin(username, password, expectedRole) {
+            clearResult('login-result');
+            showResult('login-result', `🔄 正在测试登录: ${username}`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (data.role === expectedRole) {
+                        showResult('login-result', 
+                            `✅ 登录成功<br>` +
+                            `用户: ${data.username}<br>` +
+                            `姓名: ${data.full_name}<br>` +
+                            `角色: ${data.role}<br>` +
+                            `ID: ${data.id}`, 
+                            'success'
+                        );
+                    } else {
+                        showResult('login-result', 
+                            `⚠️ 登录成功但角色不符<br>期望: ${expectedRole}<br>实际: ${data.role}`, 
+                            'error'
+                        );
+                    }
+                } else {
+                    if (expectedRole === null) {
+                        showResult('login-result', 
+                            `✅ 正确拒绝错误登录<br>错误信息: ${data.error}`, 
+                            'success'
+                        );
+                    } else {
+                        showResult('login-result', 
+                            `❌ 登录失败: ${data.error}`, 
+                            'error'
+                        );
+                    }
+                }
+            } catch (error) {
+                showResult('login-result', `❌ 请求错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function testRegister() {
+            clearResult('register-result');
+            const randomNum = Math.floor(Math.random() * 10000);
+            const testUser = {
+                username: `testuser${randomNum}`,
+                password: 'test123',
+                role: 'farmer',
+                full_name: `测试用户${randomNum}`
+            };
+            
+            showResult('register-result', `🔄 正在注册: ${testUser.username}`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testUser)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('register-result', 
+                        `✅ 注册成功<br>用户ID: ${data.id}<br>用户名: ${data.username}`, 
+                        'success'
+                    );
+                    
+                    // 测试新用户登录
+                    setTimeout(async () => {
+                        showResult('register-result', `🔄 测试新用户登录...`, 'info');
+                        const loginResponse = await fetch(`${API_BASE}/api/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                username: testUser.username,
+                                password: testUser.password
+                            })
+                        });
+                        
+                        const loginData = await loginResponse.json();
+                        if (loginResponse.ok) {
+                            showResult('register-result', 
+                                `✅ 新用户登录成功<br>` +
+                                `姓名: ${loginData.full_name}<br>` +
+                                `角色: ${loginData.role}`, 
+                                'success'
+                            );
+                        } else {
+                            showResult('register-result', 
+                                `❌ 新用户登录失败: ${loginData.error}`, 
+                                'error'
+                            );
+                        }
+                    }, 500);
+                    
+                } else {
+                    showResult('register-result', 
+                        `❌ 注册失败: ${data.error}`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('register-result', `❌ 请求错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGetOrders() {
+            clearResult('order-result');
+            showResult('order-result', '🔄 正在查询订单...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/orders`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('order-result', 
+                        `✅ 查询成功，共 ${data.length} 条订单<br>` +
+                        `<div class="code"><pre>${JSON.stringify(data, null, 2)}</pre></div>`, 
+                        'success'
+                    );
+                } else {
+                    showResult('order-result', `❌ 查询失败`, 'error');
+                }
+            } catch (error) {
+                showResult('order-result', `❌ 请求错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGetLocations() {
+            clearResult('order-result');
+            showResult('order-result', '🔄 正在查询地点...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/locations`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('order-result', 
+                        `✅ 查询成功，共 ${data.length} 个地点<br>` +
+                        `<div class="code"><pre>${JSON.stringify(data, null, 2)}</pre></div>`, 
+                        'success'
+                    );
+                } else {
+                    showResult('order-result', `❌ 查询失败`, 'error');
+                }
+            } catch (error) {
+                showResult('order-result', `❌ 请求错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function runFullTest() {
+            clearResult('full-test-result');
+            const results = [];
+            
+            showResult('full-test-result', '<h3>🚀 开始完整测试...</h3>', 'info');
+            
+            // Test 1: Health Check
+            try {
+                const health = await fetch(`${API_BASE}/health`);
+                const healthData = await health.json();
+                results.push({
+                    test: '后端健康检查',
+                    passed: healthData.status === 'ok'
+                });
+            } catch (e) {
+                results.push({ test: '后端健康检查', passed: false, error: e.message });
+            }
+            
+            // Test 2: Admin Login
+            try {
+                const admin = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin001', password: 'admin123' })
+                });
+                const adminData = await admin.json();
+                results.push({
+                    test: '管理员登录',
+                    passed: admin.ok && adminData.role === 'admin'
+                });
+            } catch (e) {
+                results.push({ test: '管理员登录', passed: false, error: e.message });
+            }
+            
+            // Test 3: Farmer Login
+            try {
+                const farmer = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'farmer001', password: 'farmer123' })
+                });
+                const farmerData = await farmer.json();
+                results.push({
+                    test: '农户登录',
+                    passed: farmer.ok && farmerData.role === 'farmer'
+                });
+            } catch (e) {
+                results.push({ test: '农户登录', passed: false, error: e.message });
+            }
+            
+            // Test 4: Recycler Login
+            try {
+                const recycler = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'recycler001', password: 'recycler123' })
+                });
+                const recyclerData = await recycler.json();
+                results.push({
+                    test: '回收商登录',
+                    passed: recycler.ok && recyclerData.role === 'recycler'
+                });
+            } catch (e) {
+                results.push({ test: '回收商登录', passed: false, error: e.message });
+            }
+            
+            // Test 5: Wrong Login
+            try {
+                const wrong = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'wronguser', password: 'wrongpass' })
+                });
+                results.push({
+                    test: '错误登录拦截',
+                    passed: !wrong.ok
+                });
+            } catch (e) {
+                results.push({ test: '错误登录拦截', passed: false, error: e.message });
+            }
+            
+            // Test 6: Get Orders
+            try {
+                const orders = await fetch(`${API_BASE}/api/orders`);
+                const ordersData = await orders.json();
+                results.push({
+                    test: '订单查询',
+                    passed: orders.ok && Array.isArray(ordersData)
+                });
+            } catch (e) {
+                results.push({ test: '订单查询', passed: false, error: e.message });
+            }
+            
+            // Test 7: Get Locations
+            try {
+                const locations = await fetch(`${API_BASE}/api/locations`);
+                const locationsData = await locations.json();
+                results.push({
+                    test: '地点查询',
+                    passed: locations.ok && Array.isArray(locationsData) && locationsData.length >= 3
+                });
+            } catch (e) {
+                results.push({ test: '地点查询', passed: false, error: e.message });
+            }
+            
+            // Display results
+            const passed = results.filter(r => r.passed).length;
+            const total = results.length;
+            const passRate = ((passed / total) * 100).toFixed(1);
+            
+            let summary = `<h3>📊 测试结果汇总</h3>`;
+            summary += `<p><strong>通过率: ${passRate}% (${passed}/${total})</strong></p>`;
+            summary += `<table style="width:100%; border-collapse: collapse;">`;
+            summary += `<tr style="background:#f0f0f0;"><th style="padding:10px; text-align:left; border:1px solid #ddd;">测试项</th><th style="padding:10px; text-align:center; border:1px solid #ddd;">结果</th></tr>`;
+            
+            results.forEach(r => {
+                const status = r.passed ? '✅ 通过' : '❌ 失败';
+                const bgColor = r.passed ? '#d4edda' : '#f8d7da';
+                summary += `<tr style="background:${bgColor};"><td style="padding:10px; border:1px solid #ddd;">${r.test}</td><td style="padding:10px; text-align:center; border:1px solid #ddd;">${status}</td></tr>`;
+                if (r.error) {
+                    summary += `<tr><td colspan="2" style="padding:5px 10px; background:#fff3cd; border:1px solid #ddd; font-size:12px;">错误: ${r.error}</td></tr>`;
+                }
+            });
+            
+            summary += `</table>`;
+            
+            showResult('full-test-result', summary, passRate == 100 ? 'success' : 'error');
+        }
+
+        // 页面加载时自动检查后端健康状态
+        window.onload = () => {
+            checkBackendHealth();
+        };
+    </script>
+</body>
+</html>

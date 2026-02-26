@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>新会陈皮产业看板 - 数字化管理系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- 柑橘·陈皮·环保 主题配置 (Citrus Eco Theme) --- */
+        :root {
+            --primary-green: #2E7D32;    /* 深绿：成熟柑叶 */
+            --primary-light: #66BB6A;    /* 浅绿：嫩叶 */
+            --citrus-orange: #EF6C00;    /* 陈皮橙：晒干的陈皮 */
+            --citrus-gold: #FFB300;      /* 金黄：新鲜柑果 */
+            --bg-cream: #FAFAF5;         /* 米白：温暖背景 */
+            --text-dark: #1B3A24;        /* 深墨绿：正文文字 */
+            --text-medium: #45664E;      /* 中绿：次要文字 */
+            --glass-bg: rgba(255, 255, 255, 0.85); /* 磨砂玻璃背景 */
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --shadow-soft: 0 10px 40px rgba(46, 125, 50, 0.08);
+            --shadow-hover: 0 15px 50px rgba(239, 108, 0, 0.15);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --nav-height: 80px;
+        }
+
+        /* --- 基础设置 --- */
+        body { 
+            font-family: "Noto Sans SC", "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            background-color: var(--bg-cream); 
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 249, 196, 0.4) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(200, 230, 201, 0.4) 0%, transparent 40%);
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- 顶部导航栏 --- */
+        .top-navbar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            max-width: 1400px;
+            height: var(--nav-height);
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-sizing: border-box;
+            box-shadow: var(--shadow-soft);
+            z-index: 1100;
+            transition: all 0.3s ease;
+        }
+
+        .logo-area {
+            font-family: "ZCOOL XiaoWei", serif;
+            font-size: 28px;
+            color: var(--primary-green);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: 1px;
+        }
+        
+        .logo-area span:first-child {
+            position: relative;
+        }
+        
+        .logo-area span:first-child::after {
+            content: '🍊';
+            font-size: 20px;
+            position: absolute;
+            top: -10px;
+            right: -15px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-medium);
+            font-size: 15px;
+            font-weight: 500;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--citrus-orange);
+            transition: width 0.3s;
+        }
+
+        .nav-item:hover { color: var(--citrus-orange); }
+        .nav-item:hover::after { width: 100%; }
+
+        /* 登录注册按钮样式 */
+        .auth-buttons {
+            display: flex;
+            gap: 12px;
+            margin-left: 20px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: none;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-login {
+            color: var(--primary-green);
+            background: transparent;
+            border: 2px solid var(--primary-green);
+        }
+        .btn-login:hover { 
+            background: rgba(46, 125, 50, 0.08); 
+            transform: translateY(-2px);
+        }
+
+        .btn-signup {
+            background: linear-gradient(135deg, var(--citrus-orange), var(--citrus-gold));
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 108, 0, 0.3);
+        }
+        .btn-signup:hover { 
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(239, 108, 0, 0.4);
+        }
+
+        /* --- 侧边栏 --- */
+        .sidebar {
+            position: fixed;
+            left: -280px;
+            width: 280px;
+            height: calc(100vh - 140px);
+            top: 120px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid white;
+            color: var(--text-dark);
+            transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            z-index: 1000;
+            padding: 30px 20px;
+            border-radius: 0 24px 24px 0;
+            box-shadow: 20px 0 40px rgba(0,0,0,0.05);
+        }
+
+        .sidebar:hover { left: 0; }
+
+        .toggle-btn {
+            position: absolute;
+            right: -60px;
+            top: 0px;
+            width: 60px;
+            height: 60px;
+            background: white;
+            color: var(--primary-green);
+            cursor: pointer;
+            border-radius: 0 16px 16px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 5px 0 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        
+        .sidebar:hover .toggle-btn {
+            transform: scale(0.9);
+            color: var(--citrus-orange);
+        }
+
+        .nav-list { list-style: none; padding: 0; margin-top: 30px; opacity: 0; transition: opacity 0.3s 0.2s; }
+        .sidebar:hover .nav-list { opacity: 1; }
+        .nav-list a { 
+            display: block; 
+            padding: 16px 20px; 
+            color: var(--text-medium); 
+            text-decoration: none; 
+            border-radius: 12px; 
+            margin-bottom: 8px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .nav-list li a:hover { 
+            background: linear-gradient(90deg, rgba(255, 243, 224, 0.6), transparent);
+            color: var(--citrus-orange); 
+            transform: translateX(5px); 
+            transition: all 0.3s; 
+        }
+
+        /* --- 内容展示区 --- */
+        #content-area {
+            padding: 140px 60px 60px 100px;
+            min-height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        /* 装饰背景元素 */
+        #content-area::before {
+            content: '';
+            position: fixed;
+            right: -100px;
+            bottom: -100px;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--citrus-gold) 0%, transparent 70%);
+            opacity: 0.1;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* 通用卡片样式 (Glass Card) */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.02);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08), 0 8px 16px rgba(0,0,0,0.04);
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(46, 125, 50, 0.3);
+        }
+        
+        /* 聊天模态窗口样式 */
+        .chat-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .chat-window {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            height: 80vh;
+            max-height: 700px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f5f5f5;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+
+        .chat-input {
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        /* 仪表板Grid布局 */
+        .dashboard-grid {
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 25px; 
+            margin-top: 30px;
+        }
+        
+        /* 标题样式 */
+        h1, h2, h3 { font-family: "Noto Sans SC", sans-serif; font-weight: 700; }
+        .page-title {
+            color: var(--text-dark);
+            border-bottom: none !important;
+            position: relative;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .page-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 60px;
+            height: 6px;
+            background: linear-gradient(90deg, var(--primary-green), var(--citrus-orange));
+            border-radius: 3px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        /* --- 响应式布局 --- */
+        @media (max-width: 1200px) {
+            #content-area > div > div:first-child > div[style*="display: grid"] {
+                grid-template-columns: 1.4fr 1fr !important;
+                gap: 20px !important;
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            /* 首页布局在平板上改为上下排列 */
+            #content-area > div > div:first-child > div[style*="display: grid"] {
+                grid-template-columns: 1fr !important;
+                gap: 24px !important;
+            }
+            
+            .top-navbar {
+                width: 92%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .top-navbar {
+                width: 90%;
+                padding: 0 20px;
+                height: auto;
+            }
+            
+            .logo-area {
+                font-size: 20px;
+            }
+            
+            .nav-menu {
+                gap: 15px;
+                font-size: 13px;
+            }
+            
+            #content-area {
+                padding: 20px 16px 40px;
+            }
+        }
+
+        /* --- 弹窗样式优化 --- */
+        #login-modal > div {
+            border: 1px solid white !important;
+            backdrop-filter: blur(20px) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+            border-radius: 24px !important;
+        }
+        
+        input[type="text"], input[type="password"], input[type="date"], input[type="number"], select, textarea {
+            background: #F5F7F5 !important;
+            border: 1px solid #E0E0E0 !important;
+            border-radius: 12px !important;
+            padding: 14px 16px !important;
+            transition: all 0.3s !important;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            background: white !important;
+            border-color: var(--primary-green) !important;
+            box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.1) !important;
+            outline: none;
+        }
+        
+        .tab-active {
+            color: var(--primary-green) !important;
+            border-bottom-color: var(--primary-green) !important;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="top-navbar">
+        <div class="logo-area">
+            <span>循果环生</span> <span style="font-family: 'Noto Sans SC', sans-serif; font-size: 13px; color: var(--text-medium); font-weight: normal; margin-top: 6px; margin-left: 8px; letter-spacing: 0;">柑橘果肉废物回收平台</span>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="#" class="nav-item">关于我们</a>
+            <a href="#" class="nav-item">联系我们</a>
+            
+            <div class="auth-buttons">
+                <a href="#" class="btn btn-login">登录</a>
+                <a href="#" class="btn btn-signup">注册</a>
+            </div>
+        </nav>
+    </header>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="toggle-btn">
+            <div style="font-size: 24px;">☰</div>
+        </div>
+        
+        <div style="padding: 0 20px;">
+            <h2 style="color: var(--primary-green); font-size: 18px; margin-bottom: 5px;">功能菜单</h2>
+            <div style="width: 40px; height: 3px; background: var(--citrus-orange); border-radius: 2px;"></div>
+        </div>
+        <ul class="nav-list">
+            <li><a href="#">🏠 请登录之后继续</a></li>
+        </ul>
+    </nav>
+
+    <div id="content-area" style="padding: 40px 60px;">
+        <!-- ====== 首页 ====== -->
+        <div id="homepage-content" style="animation: fadeIn 0.6s;">
+        
+            <!-- 顶部：滚动公告条 -->
+            <div id="scroll-announcements" style="background: linear-gradient(90deg, #FFF8E1, #E8F5E9); padding: 12px 24px; border-radius: 16px; margin-bottom: 40px; overflow: hidden; position: relative; border: 1px solid rgba(46,125,50,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span style="background: linear-gradient(135deg, var(--citrus-orange), #FF7043); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; white-space: nowrap; box-shadow: 0 4px 12px rgba(239, 108, 0, 0.3);">📢 公告</span>
+                    <div id="marquee-wrap" style="flex: 1; overflow: hidden; white-space: nowrap;">
+                        <div id="marquee-text" style="display: inline-block; animation: marquee 30s linear infinite; color: var(--text-dark); font-size: 15px; font-weight: 500;">
+                            欢迎使用循果环生柑橘果肉废物回收平台 | 加载公告中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 主要内容区：优化后的响应式布局 -->
+            <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 24px; margin-bottom: 40px; align-items: start;">
+                
+                <!-- 左侧：政策公告（主要内容，占62%） -->
+                <div>
+                    <!-- 政策公告标题栏 -->
+                    <div style="background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); border-radius: 20px 20px 0 0; padding: 28px 32px; box-shadow: 0 8px 24px rgba(13, 71, 161, 0.2);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                            <h2 style="color: white; font-size: 28px; margin: 0; display: flex; align-items: center; gap: 12px; font-weight: bold;">
+                                📋 政策公告
+                            </h2>
+                            <span style="background: rgba(255,255,255,0.25); color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; white-space: nowrap;">最新发布</span>
+                        </div>
+                        <p style="color: rgba(255,255,255,0.9); margin: 12px 0 0 0; font-size: 14px;">了解最新政策法规与平台动态</p>
+                    </div>
+                    
+                    <!-- 政策公告内容区 -->
+                    <div style="background: rgba(255,255,255,0.8); border-radius: 0 0 20px 20px; padding: 24px; box-shadow: 0 8px 24px rgba(13, 71, 161, 0.1); min-height: 300px;">
+                        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                            <button id="ann-prev-btn" onclick="changeAnnouncement(-1)" style="padding: 8px 16px; border: none; background: #2E7D32; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; display: flex; align-items: center; gap: 6px;">← 上一则</button>
+                            <div id="ann-counter" style="padding: 8px 16px; background: rgba(46, 125, 50, 0.1); color: #2E7D32; border-radius: 6px; font-size: 13px; font-weight: 600; display: flex; align-items: center;">1 / 1</div>
+                            <button id="ann-next-btn" onclick="changeAnnouncement(1)" style="padding: 8px 16px; border: none; background: #2E7D32; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; display: flex; align-items: center; gap: 6px;">下一则 →</button>
+                        </div>
+                        <div id="announcement-cards" style="display: flex; flex-direction: column; gap: 16px;">
+                            <div class="glass-card" style="padding: 24px; text-align: center;">
+                                <p style="color: #999; margin: 0;">加载公告中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧：成功案例 + 合作商推荐（次要内容，占38%） -->
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    
+                    <!-- 成功案例 -->
+                    <div>
+                        <div style="background: linear-gradient(135deg, #F57C00 0%, #E65100 100%); border-radius: 16px 16px 0 0; padding: 20px 24px; box-shadow: 0 6px 20px rgba(230, 81, 0, 0.2);">
+                            <h3 style="color: white; font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; font-weight: bold;">
+                                🏆 成功案例
+                                <span style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">真实展示</span>
+                            </h3>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.8); border-radius: 0 0 16px 16px; padding: 16px;">
+                            <div id="case-cards" style="display: flex; flex-direction: column; gap: 12px;">
+                                <div class="glass-card" style="padding: 16px; text-align: center;">
+                                    <p style="color: #999; font-size: 12px; margin: 0;">加载案例中...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 合作商推荐 -->
+                    <div>
+                        <div style="background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%); border-radius: 16px 16px 0 0; padding: 20px 24px; box-shadow: 0 6px 20px rgba(46, 125, 50, 0.2);">
+                            <h3 style="color: white; font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; font-weight: bold;">
+                                🤝 合作商推荐
+                                <span style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; font-weight: normal;">官方认证</span>
+                            </h3>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.8); border-radius: 0 0 16px 16px; padding: 16px;">
+                            <div id="ad-cards" style="display: flex; flex-direction: column; gap: 12px;">
+                                <div class="glass-card" style="padding: 16px; text-align: center;">
+                                    <p style="color: #999; font-size: 12px; margin: 0;">加载推荐中...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 底部：平台信息区 -->
+            <div style="background: linear-gradient(135deg, #1B3A24 0%, #2E7D32 100%); color: white; border-radius: 24px; padding: 48px 40px; margin-top: 60px; box-shadow: 0 12px 40px rgba(46, 125, 50, 0.2);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 48px; margin-bottom: 40px;">
+                    <!-- 联系我们 -->
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                            <span style="font-size: 24px;">📞</span>
+                            <h3 style="color: #A5D6A7; margin: 0; font-size: 18px; font-weight: bold;">联系我们</h3>
+                        </div>
+                        <p id="footer-phone" style="margin: 0 0 12px 0; font-size: 24px; font-weight: bold; color: white;">400-888-6688</p>
+                        <p style="margin: 0; font-size: 13px; color: #A5D6A7; line-height: 1.6;">周一至周五 9:00-18:00<br>欢迎您的来电咨询</p>
+                    </div>
+                    
+                    <!-- 合规资质 -->
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                            <span style="font-size: 24px;">📜</span>
+                            <h3 style="color: #A5D6A7; margin: 0; font-size: 18px; font-weight: bold;">合规资质</h3>
+                        </div>
+                        <p id="footer-license" style="margin: 0 0 8px 0; font-size: 14px; color: #C8E6C9; font-weight: 500;">XH-NR-2025-0088</p>
+                        <p style="margin: 0; font-size: 13px; color: #A5D6A7; line-height: 1.6;">新会区农业农村局备案<br>合规废弃物回收处理平台</p>
+                    </div>
+                    
+                    <!-- 关于平台 -->
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                            <span style="font-size: 24px;">🍊</span>
+                            <h3 style="color: #A5D6A7; margin: 0; font-size: 18px; font-weight: bold;">关于平台</h3>
+                        </div>
+                        <p id="footer-about" style="margin: 0; font-size: 13px; line-height: 1.8; color: #C8E6C9;">
+                            "循果环生"是新会区首个合规柑肉回收对接平台，为柑橘产业链提供透明、安全、高效的回收处理服务。
+                        </p>
+                    </div>
+                </div>\n                \n                <!-- 底部分割线和链接 -->\n                <div style=\"border-top: 1px solid rgba(255,255,255,0.15); padding-top: 24px; text-align: center;\">\n                    <p style=\"margin: 0 0 12px 0; font-size: 12px; color: #A5D6A7;\">\n                        © 2025 循果环生 · 新会陈皮产业数字化管理系统\n                    </p>\n                    <div style=\"display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; font-size: 12px;\">\n                        <a href=\"privacy-policy.html\" style=\"color: #81C784; text-decoration: none; transition: color 0.3s;\" onmouseover=\"this.style.color='#A5D6A7'\" onmouseout=\"this.style.color='#81C784'\">隐私政策</a>\n                        <span style=\"color: rgba(255,255,255,0.2);\">|</span>\n                        <a href=\"service-agreement.html\" style=\"color: #81C784; text-decoration: none; transition: color 0.3s;\" onmouseover=\"this.style.color='#A5D6A7'\" onmouseout=\"this.style.color='#81C784'\">服务协议</a>\n                        <span style=\"color: rgba(255,255,255,0.2);\">|</span>\n                        <span style=\"color: #A5D6A7;\">版本 v1.0</span>\n                    </div>\n                </div>\n            </div>
+        </div>
+    </div>
+
+
+    <!-- 登录/注册弹窗 -->
+    <div id="login-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+        <div style="width: 420px; position: relative; overflow: hidden;">
+            <!-- 关闭按钮 -->
+            <span onclick="authSystem.closeLoginModal()" style="position: absolute; right: 20px; top: 15px; cursor: pointer; font-size: 24px; z-index: 10; color: #999; transition: color 0.3s; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #f5f5f5;">×</span>
+            
+            <!-- 标签页 -->
+            <div style="display: flex; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                <div id="login-tab" onclick="authSystem.switchTab('login')" class="tab-active" style="flex: 1; padding: 20px; text-align: center; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 700; font-size: 16px; transition: all 0.3s;">
+                    登录
+                </div>
+                <div id="register-tab" onclick="authSystem.switchTab('register')" style="flex: 1; padding: 20px; text-align: center; cursor: pointer; border-bottom: 3px solid transparent; color: #999; font-weight: 700; font-size: 16px; transition: all 0.3s;">
+                    注册
+                </div>
+            </div>
+            
+            <!-- 登录表单 -->
+            <div id="login-form" style="padding: 30px 40px 40px;">
+                <h3 style="text-align: center; color: var(--text-dark); margin-bottom: 25px; font-weight: 700;">欢迎回来，请登录</h3>
+                
+                <div style="background: rgba(239, 108, 0, 0.08); border-left: 4px solid var(--citrus-orange); padding: 12px 16px; margin-bottom: 25px; border-radius: 8px; font-size: 13px; color: #5D4037;">
+                    <p style="margin: 0 0 5px 0;"><strong>🛠️ 测试账号：</strong></p>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 4px;">
+                        <span>👨‍💼 管理员: admin001 / admin123</span>
+                        <span>🌾 农户: farmer001 / farmer123</span>
+                        <span>♻️ 回收商: recycler001 / recycler123</span>
+                        <span>🏭 处理商: processor001 / processor123</span>
+                    </div>
+                </div>
+                
+                <input type="text" id="username" placeholder="手机号 / 用户名" style="width: 100%; margin-bottom: 16px; box-sizing: border-box;">
+                <input type="password" id="password" placeholder="密码" style="width: 100%; margin-bottom: 24px; box-sizing: border-box;">
+                
+                <button onclick="authSystem.handleLogin()" style="width: 100%; padding: 14px; background: var(--primary-green); color: white; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; font-size: 16px; transition: all 0.3s; box-shadow: 0 4px 15px rgba(46, 125, 50, 0.3);">立即登录</button>
+            </div>
+            
+            <!-- 注册表单 -->
+            <div id="register-form" style="padding: 30px 40px 40px; display: none;">
+                <h3 style="text-align: center; color: var(--text-dark); margin-bottom: 20px;">手机验证码注册</h3>
+
+                <input type="text" id="reg-phone" placeholder="手机号（用于登录）" style="width: 100%; margin-bottom: 12px; box-sizing: border-box;">
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <input type="text" id="reg-otp" placeholder="短信验证码" style="flex: 1; margin-bottom: 0; box-sizing: border-box;">
+                    <button id="btn-send-otp" style="width: 120px; background: var(--citrus-orange); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; transition: all 0.3s;">发送验证码</button>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <div id="slider-track" style="position: relative; height: 44px; background: #f0f0f0; border-radius: 12px; user-select: none; overflow: hidden;">
+                        <div id="slider-text" style="position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px;">按住滑块拖动验证</div>
+                        <div id="slider-knob" style="position: absolute; left: 0; top: 2px; width: 44px; height: 40px; background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 2px; color: var(--primary-green); font-weight: bold;">➜</div>
+                    </div>
+                </div>
+
+                <input type="text" id="reg-name" placeholder="真实姓名" style="width: 100%; margin-bottom: 12px; box-sizing: border-box;">
+                <select id="reg-role" style="width: 100%; margin-bottom: 12px; box-sizing: border-box; appearance: none; -webkit-appearance: none;">
+                    <option value="">-- 选择身份 --</option>
+                    <option value="farmer">🌾 农户</option>
+                    <option value="recycler">♻️ 回收商</option>
+                    <option value="processor">🏭 果肉处理商</option>
+                </select>
+
+                <input type="password" id="reg-password" placeholder="密码（8-16位，含字母和数字）" style="width: 100%; margin-bottom: 8px; box-sizing: border-box;">
+                <input type="password" id="reg-confirm-password" placeholder="确认密码" style="width: 100%; margin-bottom: 12px; box-sizing: border-box;">
+                <div style="font-size: 11px; color: #888; margin-bottom: 12px; padding-left: 4px;">密码必须 8-16 位，且同时包含数字和字母。</div>
+
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; margin-bottom: 20px; cursor: pointer;">
+                    <input type="checkbox" id="reg-agree" style="width: auto !important; margin: 0;"> 
+                    <span>我已阅读并同意 <a href="#" id="privacy-link" style="color: var(--primary-green); text-decoration: none; font-weight: 600;">《隐私政策》</a> 和 <a href="#" id="service-link" style="color: var(--primary-green); text-decoration: none; font-weight: 600;">《服务协议》</a></span>
+                    <!-- 内容弹窗 -->
+                    <div id="policy-modal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.45); z-index:3000; align-items:center; justify-content:center;">
+                        <div style="background:#fff; border-radius:10px; max-width:500px; width:90vw; max-height:80vh; overflow:auto; padding:32px 24px 24px 24px; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+                            <span id="policy-modal-close" style="position:absolute; right:18px; top:10px; font-size:22px; color:#888; cursor:pointer;">×</span>
+                            <div id="policy-modal-content"></div>
+                        </div>
+                    </div>
+                </label>
+
+                <button id="btn-register" onclick="authSystem.handleRegister()" style="width: 100%; padding: 12px; background: #1abc9c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 16px; transition: all 0.3s;">注册账户</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSS 动画 -->
+    <style>
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 4px 12px rgba(255, 71, 87, 0.6);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
+            }
+        }
+    </style>
+
+    <script src="main_code.js"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="auth.js"></script>
+    <script>
+    // 首页内容加载
+    let announcementsList = []; // 全局公告列表
+    let currentAnnIndex = 0;   // 当前公告索引
+    
+    function changeAnnouncement(direction) {
+        if (announcementsList.length === 0) return;
+        currentAnnIndex = (currentAnnIndex + direction + announcementsList.length) % announcementsList.length;
+        renderAnnouncement(currentAnnIndex);
+    }
+    
+    function renderAnnouncement(index) {
+        const a = announcementsList[index];
+        const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:4000' : window.location.origin;
+        const typeIcons = { policy: '📜', subsidy: '💰', platform: '📢' };
+        const typeLabels = { policy: '政策法规', subsidy: '补贴通知', platform: '平台公告' };
+        const typeColors = { policy: '#2E7D32', subsidy: '#EF6C00', platform: '#1565C0' };
+        
+        const container = document.getElementById('announcement-cards');
+        container.innerHTML = `
+            <div class="glass-card" style="padding: 0; overflow: hidden; border-left: 6px solid ${typeColors[a.type]||'#2E7D32'}; transition: all 0.3s; display: flex; flex-direction: column;">
+                ${a.image_url ? `<div style="width:100%; height: 240px; overflow: hidden; background: linear-gradient(135deg, #E3F2FD, #E8F5E9); flex-shrink: 0;"><img src="${API}${a.image_url}" style="width:100%; height:100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:64px>📋</div>'"></div>` : ''}
+                <div style="padding: 32px; flex-grow: 1; display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                        <span style="background: ${typeColors[a.type]||'#2E7D32'}; color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: bold;">${typeIcons[a.type]||'📢'} ${typeLabels[a.type]||'公告'}</span>
+                        ${a.doc_number ? `<span style="font-size: 12px; color: #999; font-weight: 500;">${a.doc_number}</span>` : ''}
+                    </div>
+                    <h3 style="margin: 0 0 14px 0; font-size: 22px; color: #2c3e50; font-weight: bold; line-height: 1.5;">${a.title}</h3>
+                    ${a.summary ? `<p style="margin: 0 0 auto 0; font-size: 15px; color: #555; line-height: 1.8;">${a.summary}</p>` : ''}
+                    ${a.link ? `<a href="${a.link}" target="_blank" style="display: inline-block; margin-top: 18px; color: ${typeColors[a.type]||'#2E7D32'}; text-decoration: none; font-weight: 600; font-size: 15px; border-bottom: 2px solid ${typeColors[a.type]||'#2E7D32'};">查看详情 →</a>` : ''}
+                </div>
+            </div>
+        `;
+        
+        // 更新计数器
+        document.getElementById('ann-counter').textContent = `${index + 1} / ${announcementsList.length}`;
+        
+        // 更新按钮状态
+        document.getElementById('ann-prev-btn').style.opacity = announcementsList.length <= 1 ? '0.5' : '1';
+        document.getElementById('ann-next-btn').style.opacity = announcementsList.length <= 1 ? '0.5' : '1';
+        document.getElementById('ann-prev-btn').disabled = announcementsList.length <= 1;
+        document.getElementById('ann-next-btn').disabled = announcementsList.length <= 1;
+    }
+    
+    function loadHomepageContent() {
+        const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:4000' : window.location.origin;
+        
+        // 加载公告
+        fetch(`${API}/api/cms/announcements?active=1`).then(r => r.json()).then(data => {
+            const typeIcons = { policy: '📜', subsidy: '💰', platform: '📢' };
+            
+            // 保存公告列表并重置索引
+            announcementsList = data;
+            currentAnnIndex = 0;
+            
+            // 更新滚动条
+            if (data.length > 0) {
+                const marquee = document.getElementById('marquee-text');
+                marquee.textContent = data.map(a => `${typeIcons[a.type]||'📢'} ${a.title}`).join('  |  ');
+                
+                // 渲染第一条公告
+                renderAnnouncement(0);
+            } else {
+                const container = document.getElementById('announcement-cards');
+                container.innerHTML = `
+                    <div class="glass-card" style="padding: 60px; text-align: center;">
+                        <div style="font-size: 64px; margin-bottom: 15px;">📋</div>
+                        <p style="color: #999; font-size: 14px;">暂无公告</p>
+                    </div>`;
+                document.getElementById('ann-counter').textContent = '0 / 0';
+                document.getElementById('ann-prev-btn').disabled = true;
+                document.getElementById('ann-next-btn').disabled = true;
+            }
+        }).catch(() => {});
+        
+        // 加载案例 - 改进卡片样式
+        fetch(`${API}/api/cms/cases?active=1`).then(r => r.json()).then(data => {
+            const container = document.getElementById('case-cards');
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-card" style="padding: 30px; text-align: center;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">🏆</div>
+                        <p style="color: #999; font-size: 12px;">暂无案例</p>
+                    </div>`;
+                return;
+            }
+            container.innerHTML = data.map(c => `
+                <div class="glass-card" style="padding: 0; overflow: hidden; transition: all 0.3s; cursor: pointer; display: flex; flex-direction: column;" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                    ${c.thumbnail_url ? `<div style="width: 100%; height: 140px; overflow: hidden; flex-shrink: 0;"><img src="${API}${c.thumbnail_url}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:linear-gradient(135deg,#FFE082,#FFAB91);font-size:40px>🏆</div>'" /></div>` : '<div style="width: 100%; height: 140px; background: linear-gradient(135deg, #FFE082, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 40px; flex-shrink: 0;">🏆</div>'}
+                    <div style="padding: 18px; flex-grow: 1; display: flex; flex-direction: column;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                            ${c.logo_url ? `<img src="${API}${c.logo_url}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border: 2px solid #f5f5f5; flex-shrink: 0;" onerror="this.outerHTML='<div style=width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FFE082,#FFAB91);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0>🏆</div>'" />` : '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FFE082,#FFAB91);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🏆</div>'}
+                            <h4 style="margin: 0; font-size: 15px; color: #2c3e50; font-weight: bold; line-height: 1.3;">${c.title}</h4>
+                        </div>
+                        ${c.trade_data ? `<div style="background: linear-gradient(90deg, #FFF3E0, #E8F5E9); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 13px;"><span style="color: #F57C00; font-weight: bold;">📊 ${c.trade_data}</span></div>` : ''}
+                        ${c.description ? `<p style="margin: 0 0 auto 0; font-size: 13px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${c.description}</p>` : ''}
+                        <div style="display: flex; gap: 8px; font-size: 12px; color: #999; margin-top: 10px;">
+                            ${c.buyer_name ? `<span>🏢 ${c.buyer_name}</span>` : ''}
+                            ${c.seller_name ? `<span>🌾 ${c.seller_name}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }).catch(() => {});
+        
+        // 加载广告 - 改进卡片样式
+        fetch(`${API}/api/cms/ads?active=1`).then(r => r.json()).then(data => {
+            const container = document.getElementById('ad-cards');
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-card" style="padding: 30px; text-align: center;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">🤝</div>
+                        <p style="color: #999; font-size: 12px;">暂无推荐</p>
+                    </div>`;
+                return;
+            }
+            container.innerHTML = data.map(ad => `
+                <div class="glass-card" style="padding: 0; position: relative; transition: all 0.3s; cursor: pointer; overflow: hidden; display: flex; flex-direction: column;" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                    ${ad.image_url ? `<div style="width:100%; height:120px; overflow:hidden; flex-shrink: 0;"><img src="${API}${ad.image_url}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:linear-gradient(135deg,#E8F5E9,#FFF8E1);font-size:40px>🏭</div>'"/></div>` : '<div style="height:120px; background: linear-gradient(135deg, #E8F5E9, #FFF8E1); display:flex; align-items:center; justify-content:center; font-size:40px; flex-shrink: 0;">🏭</div>'}
+                    <div style="padding: 16px; flex-grow: 1; display: flex; flex-direction: column;">
+                        ${ad.badge ? `<span style="position: absolute; top: 12px; right: 12px; background: linear-gradient(135deg, #2E7D32, #1B5E20); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 8px rgba(46,125,50,0.3);">✓ ${ad.badge}</span>` : ''}
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #2c3e50; font-weight: bold; line-height: 1.3;">${ad.title}</h4>
+                        ${ad.company_name ? `<p style="margin: 0 0 8px 0; font-size: 13px; color: #2E7D32; font-weight: 600;">🏢 ${ad.company_name}</p>` : ''}
+                        ${ad.description ? `<p style="margin: 0 0 auto 0; font-size: 12px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${ad.description}</p>` : ''}
+                        ${ad.contact_info ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #999;">📞 ${ad.contact_info}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }).catch(() => {});
+        
+        // 加载底部信息 - 使用textContent避免HTML注入，确保文本正确显示
+        fetch(`${API}/api/cms/site-info`).then(r => r.json()).then(info => {
+            if (info.phone) {
+                const phoneEl = document.getElementById('footer-phone');
+                if (phoneEl) phoneEl.textContent = info.phone;
+            }
+            if (info.license) {
+                const licenseEl = document.getElementById('footer-license');
+                if (licenseEl) licenseEl.textContent = info.license;
+            }
+            if (info.about) {
+                const aboutEl = document.getElementById('footer-about');
+                if (aboutEl) aboutEl.textContent = info.about;
+            }
+        }).catch(err => console.log('底部信息加载失败:', err));
+    }
+
+    // 初始化认证系统和隐私政策/服务协议弹窗
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('=== Page Initialized ===');
+        
+        // 加载首页内容
+        loadHomepageContent();
+        
+        // 初始化认证系统（处理登录/注册按钮等）
+        if (typeof authSystem !== 'undefined' && authSystem.init) {
+            authSystem.init();
+            console.log('authSystem initialized successfully');
+        } else {
+            console.error('authSystem not found or init method missing');
+        }
+        
+        const modal = document.getElementById('policy-modal');
+        const content = document.getElementById('policy-modal-content');
+        const closeBtn = document.getElementById('policy-modal-close');
+        
+        if (!modal || !content || !closeBtn) {
+            console.warn('Policy modal elements not found');
+            return;
+        }
+        
+        const privacyLink = document.getElementById('privacy-link');
+        const serviceLink = document.getElementById('service-link');
+        
+        if (privacyLink) {
+            privacyLink.onclick = function(e) {
+                e.preventDefault();
+                fetch('privacy-policy.html').then(r=>r.text()).then(html=>{content.innerHTML=html;modal.style.display='flex';});
+            };
+        }
+        
+        if (serviceLink) {
+            serviceLink.onclick = function(e) {
+                e.preventDefault();
+                fetch('service-agreement.html').then(r=>r.text()).then(html=>{content.innerHTML=html;modal.style.display='flex';});
+            };
+        }
+        
+        closeBtn.onclick = function() {modal.style.display='none';};
+        modal.onclick = function(e) {if(e.target===modal) modal.style.display='none';};
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>附近处理点 - 循果环生</title>
+    <!-- 引入字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- 柑橘·陈皮·环保 主题配置 (Citrus Eco Theme) --- */
+        :root {
+            --primary-green: #2E7D32;    /* 深绿：成熟柑叶 */
+            --primary-light: #66BB6A;    /* 浅绿：嫩叶 */
+            --citrus-orange: #EF6C00;    /* 陈皮橙：晒干的陈皮 */
+            --citrus-gold: #FFB300;      /* 金黄：新鲜柑果 */
+            --bg-cream: #FAFAF5;         /* 米白：温暖背景 */
+            --text-dark: #1B3A24;        /* 深墨绿：正文文字 */
+            --text-medium: #45664E;      /* 中绿：次要文字 */
+            --glass-bg: rgba(255, 255, 255, 0.85); /* 磨砂玻璃背景 */
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --shadow-soft: 0 10px 40px rgba(46, 125, 50, 0.08);
+            --shadow-hover: 0 15px 50px rgba(239, 108, 0, 0.15);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Noto Sans SC", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-cream);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 249, 196, 0.4) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(200, 230, 201, 0.4) 0%, transparent 40%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: var(--text-dark);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid white;
+            padding: 24px 40px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: var(--primary-green);
+            font-family: "ZCOOL XiaoWei", serif;
+            font-size: 32px;
+            letter-spacing: 1px;
+        }
+
+        .back-btn {
+            padding: 10px 24px;
+            background: transparent;
+            color: var(--primary-green);
+            border: 2px solid var(--primary-green);
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .back-btn:hover {
+            background: var(--primary-green);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46, 125, 50, 0.2);
+        }
+
+        .location-status {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid white;
+            padding: 20px;
+            border-radius: var(--radius-md);
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            text-align: center;
+        }
+
+        .location-status.loading {
+            color: var(--primary-green);
+        }
+
+        .recyclers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .recycler-card {
+            background: white;
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: var(--radius-md);
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .recycler-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, var(--primary-green), var(--citrus-light));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .recycler-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .recycler-card:hover::before {
+            opacity: 1;
+        }
+
+        .recycler-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 20px;
+        }
+
+        .recycler-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+
+        .distance-badge {
+            background: rgba(239, 108, 0, 0.1);
+            color: var(--citrus-orange);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .recycler-info {
+            margin: 15px 0;
+            color: var(--text-medium);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .info-icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 12px;
+            color: var(--primary-light);
+        }
+
+        .phone-number {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary-green);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-call {
+            background: white;
+            border: 1px solid var(--primary-green);
+            color: var(--primary-green);
+        }
+
+        .btn-call:hover {
+            background: rgba(46, 125, 50, 0.05);
+        }
+
+        .btn-route {
+            background: linear-gradient(135deg, var(--primary-green), var(--primary-light));
+            color: white;
+            box-shadow: 0 4px 10px rgba(46, 125, 50, 0.2);
+        }
+
+        .btn-route:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(46, 125, 50, 0.3);
+        }
+
+        .map-container {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-soft);
+            margin-top: 40px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .map-header h2 {
+            font-family: "Noto Sans SC", sans-serif;
+            color: var(--text-dark);
+            font-size: 20px;
+        }
+
+        .close-map-btn {
+            padding: 8px 20px;
+            background: #fff0f0;
+            color: #d32f2f;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .close-map-btn:hover {
+            background: #ffebee;
+        }
+
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-medium);
+        }
+
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: var(--citrus-orange);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(46, 125, 50, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-green);
+            animation: spin 1s linear infinite;
+        }
+
+        .error-message {
+            background: #FFF8E1;
+            color: #795548;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid #FFC107;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📍 附近处理点</h1>
+            <a href="index.html" class="back-btn">返回主页</a>
+        </div>
+
+        <div id="location-status" class="location-status loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px;">正在获取您的位置...</p>
+        </div>
+
+        <div id="recyclers-container" class="recyclers-grid"></div>
+
+        <div id="map-container" class="map-container" style="display: none;">
+            <div class="map-header">
+                <h2 id="route-title">查看路线</h2>
+                <button class="close-map-btn" onclick="closeMap()">关闭地图</button>
+            </div>
+            <div id="map"></div>
+            <div id="route-info" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;"></div>
+        </div>
+    </div>
+
+    <!-- 高德地图API -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=ebfe63f863c9be121412d28f5dd60501&plugin=AMap.Driving"></script>
+    
+    <script>
+        const API_BASE = 'http://localhost:4000';
+        let userLocation = null;
+        let map = null;
+        let currentUser = null;
+
+        // 从 sessionStorage 获取当前用户信息
+        function getCurrentUser() {
+            const userStr = sessionStorage.getItem('currentUser');
+            if (userStr) {
+                return JSON.parse(userStr);
+            }
+            return null;
+        }
+
+        // 获取用户位置
+        function getUserLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('您的浏览器不支持地理定位'));
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        });
+                    },
+                    (error) => {
+                        // 如果获取失败，使用默认位置（北京）
+                        console.warn('获取位置失败，使用默认位置', error);
+                        resolve({ lat: 39.9042, lng: 116.4074 });
+                    },
+                    { timeout: 10000, enableHighAccuracy: true }
+                );
+            });
+        }
+
+        // 获取附近的回收商
+        async function fetchNearbyRecyclers(lat, lng) {
+            try {
+                const response = await fetch(
+                    `${API_BASE}/api/recyclers/nearby?lat=${lat}&lng=${lng}&limit=5`
+                );
+                
+                if (!response.ok) {
+                    throw new Error('获取附近处理点失败');
+                }
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error fetching recyclers:', error);
+                throw error;
+            }
+        }
+
+        // 渲染回收商卡片
+        function renderRecyclerCards(recyclers) {
+            const container = document.getElementById('recyclers-container');
+            
+            if (recyclers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h2>😔 附近暂无处理点</h2>
+                        <p>请稍后再试或联系客服</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = recyclers.map((recycler, index) => `
+                <div class="recycler-card" onclick="showRoute(${index})">
+                    <div class="recycler-header">
+                        <div>
+                            <div class="recycler-name">${recycler.name}</div>
+                        </div>
+                        <div class="distance-badge">
+                            ${recycler.distance} km
+                        </div>
+                    </div>
+                    
+                    <div class="recycler-info">
+                        <div class="info-item">
+                            <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                            </svg>
+                            <span class="phone-number">${recycler.phone || '未提供'}</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>${recycler.address}</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>${recycler.businessHours}</span>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-call" onclick="callPhone('${recycler.phone}', event)">
+                            📞 拨打电话
+                        </button>
+                        <button class="btn btn-route" onclick="showRoute(${index}, event)">
+                            🗺️ 查看路线
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            // 存储回收商数据供后续使用
+            window.recyclersData = recyclers;
+        }
+
+        // 拨打电话
+        function callPhone(phone, event) {
+            if (event) event.stopPropagation();
+            if (!phone || phone === '未提供') {
+                alert('该处理点未提供联系电话');
+                return;
+            }
+            window.location.href = `tel:${phone}`;
+        }
+
+        // 显示路线
+        function showRoute(index, event) {
+            if (event) event.stopPropagation();
+            
+            const recycler = window.recyclersData[index];
+            if (!recycler) return;
+
+            const mapContainer = document.getElementById('map-container');
+            const routeTitle = document.getElementById('route-title');
+            
+            routeTitle.textContent = `到 ${recycler.name} 的路线`;
+            mapContainer.style.display = 'block';
+            mapContainer.scrollIntoView({ behavior: 'smooth' });
+
+            // 初始化或更新地图
+            initMap(recycler);
+        }
+
+        // 关闭地图
+        function closeMap() {
+            document.getElementById('map-container').style.display = 'none';
+        }
+
+        // 初始化高德地图
+        function initMap(destination) {
+            if (!window.AMap) {
+                alert('地图加载失败，请检查网络连接或API密钥');
+                return;
+            }
+
+            // 如果地图已存在，清除之前的内容
+            if (map) {
+                map.clearMap();
+            } else {
+                map = new AMap.Map('map', {
+                    zoom: 12,
+                    center: [userLocation.lng, userLocation.lat]
+                });
+            }
+
+            // 添加起点标记（用户位置）
+            const startMarker = new AMap.Marker({
+                position: [userLocation.lng, userLocation.lat],
+                icon: new AMap.Icon({
+                    size: new AMap.Size(25, 34),
+                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/start.png'
+                }),
+                title: '您的位置'
+            });
+            map.add(startMarker);
+
+            // 添加终点标记（回收商位置）
+            const endMarker = new AMap.Marker({
+                position: [destination.longitude, destination.latitude],
+                icon: new AMap.Icon({
+                    size: new AMap.Size(25, 34),
+                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/end.png'
+                }),
+                title: destination.name
+            });
+            map.add(endMarker);
+
+            // 使用驾车路线规划
+            const driving = new AMap.Driving({
+                map: map,
+                panel: 'route-info'
+            });
+
+            driving.search(
+                [userLocation.lng, userLocation.lat],
+                [destination.longitude, destination.latitude],
+                function(status, result) {
+                    if (status === 'complete') {
+                        console.log('路线规划成功', result);
+                    } else {
+                        document.getElementById('route-info').innerHTML = 
+                            '<p style="color: #e74c3c;">路线规划失败，请稍后重试</p>';
+                    }
+                }
+            );
+        }
+
+        // 主初始化函数
+        async function init() {
+            const statusDiv = document.getElementById('location-status');
+            currentUser = getCurrentUser();
+
+            try {
+                // 获取用户位置
+                statusDiv.innerHTML = `
+                    <div class="spinner"></div>
+                    <p style="margin-top: 10px;">正在获取您的位置...</p>
+                `;
+                
+                userLocation = await getUserLocation();
+                
+                statusDiv.innerHTML = `
+                    <p style="color: #1abc9c;">✓ 位置获取成功</p>
+                    <p style="color: #666; font-size: 14px; margin-top: 5px;">
+                        纬度: ${userLocation.lat.toFixed(4)}, 经度: ${userLocation.lng.toFixed(4)}
+                    </p>
+                `;
+
+                // 获取附近的回收商
+                statusDiv.innerHTML += `
+                    <p style="margin-top: 10px; color: #27ae60;">正在查找附近的处理点...</p>
+                `;
+
+                const recyclers = await fetchNearbyRecyclers(userLocation.lat, userLocation.lng);
+                
+                statusDiv.innerHTML = `
+                    <p style="color: #1abc9c; font-size: 18px; font-weight: bold;">
+                        ✓ 找到 ${recyclers.length} 个附近的处理点
+                    </p>
+                `;
+
+                // 渲染回收商卡片
+                renderRecyclerCards(recyclers);
+
+            } catch (error) {
+                console.error('初始化失败:', error);
+                statusDiv.innerHTML = `
+                    <div class="error-message">
+                        <strong>⚠️ 加载失败</strong>
+                        <p>${error.message}</p>
+                        <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            重新加载
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.onload = init;
+    </script>
+</body>
+</html>
