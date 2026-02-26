@@ -5,14 +5,26 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "init": "node server.js --init"
+    "init": "node server.js --init",
+    "dev:h5": "uni",
+    "dev:mp-weixin": "uni -p mp-weixin",
+    "build:h5": "uni build",
+    "build:mp-weixin": "uni build -p mp-weixin"
   },
   "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-3081220230817001",
+    "@dcloudio/uni-components": "3.0.0-3081220230817001",
+    "@dcloudio/uni-mp-weixin": "3.0.0-3081220230817001",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "multer": "^2.0.2",
     "socket.io": "^4.8.3",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@dcloudio/vite-plugin-uni": "3.0.0-3081220230817001",
+    "vite": "^4.4.9"
   }
 }

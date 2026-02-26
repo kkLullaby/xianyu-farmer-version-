@@ -1,0 +1,147 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "循果环生",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录/注册",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "个人中心"
+      }
+    }
+  ],
+  "subPackages": [
+    {
+      "root": "pages/farmer",
+      "pages": [
+        {
+          "path": "dashboard/index",
+          "style": {
+            "navigationBarTitleText": "农户工作台"
+          }
+        },
+        {
+          "path": "report/create",
+          "style": {
+            "navigationBarTitleText": "发起申报"
+          }
+        },
+        {
+          "path": "report/list",
+          "style": {
+            "navigationBarTitleText": "申报记录",
+            "enablePullDownRefresh": true
+          }
+        },
+        {
+          "path": "nearby/index",
+          "style": {
+            "navigationBarTitleText": "附近处理点"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/merchant",
+      "pages": [
+        {
+          "path": "dashboard/index",
+          "style": {
+            "navigationBarTitleText": "回收商工作台"
+          }
+        },
+        {
+          "path": "demand/publish",
+          "style": {
+            "navigationBarTitleText": "发布求购"
+          }
+        },
+        {
+          "path": "orders/index",
+          "style": {
+            "navigationBarTitleText": "订单管理",
+            "enablePullDownRefresh": true
+          }
+        },
+        {
+          "path": "finance/index",
+          "style": {
+            "navigationBarTitleText": "财务中心"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/admin",
+      "pages": [
+        {
+          "path": "dashboard/index",
+          "style": {
+            "navigationBarTitleText": "管理控制台"
+          }
+        },
+        {
+          "path": "users/index",
+          "style": {
+            "navigationBarTitleText": "用户管理"
+          }
+        },
+        {
+          "path": "audit/index",
+          "style": {
+            "navigationBarTitleText": "申报审核"
+          }
+        },
+        {
+          "path": "cms/index",
+          "style": {
+            "navigationBarTitleText": "公告编辑中心"
+          }
+        },
+        {
+          "path": "arbitration/index",
+          "style": {
+            "navigationBarTitleText": "仲裁管理"
+          }
+        }
+      ]
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "循果环生",
+    "navigationBarBackgroundColor": "#FAFAF5",
+    "backgroundColor": "#FAFAF5"
+  },
+  "tabBar": {
+    "color": "#45664E",
+    "selectedColor": "#2E7D32",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "static/tabbar/profile.png",
+        "selectedIconPath": "static/tabbar/profile-active.png"
+      }
+    ]
+  }
+}

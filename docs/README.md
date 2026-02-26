@@ -1,290 +1,144 @@
-# 农业废品回收平台 - 身份认证与分流系统
+# 🍊 循果环生 - 新会柑橘果肉回收与交易平台 (Agricultural Waste Recycling System)
 
-## 📋 项目概述
+## 📖 项目简介 (Project Title & Introduction)
 
-这是一个完整的农业废品回收网页系统，包含**三种用户身份**的认证与分流功能：
+**循果环生** 是一个专为广东江门新会地区陈皮产业链打造的**农业废品回收与再利用协同协同平台**。在传统的陈皮加工过程中，会产生大量废旧柑橘果肉（约占总重量的40-60%），处理效率低且容易造成环境污染。
 
-| 身份 | 功能说明 | 颜色标识 |
-|------|--------|--------|
-| 👨‍💼 **管理员** | 系统管理、用户管理、数据审核 | 红色 (#e74c3c) |
-| 🌾 **农户** | 申报处理、查询处理点、管理账户 | 绿色 (#27ae60) |
-| ♻️ **回收商** | 发布求购、订单管理、财务中心 | 青绿色 (#1abc9c) |
+本系统通过数字化手段整合产业链各环节，致力于实现从农田到深加工的闭环生态。平台为**农户 (Farmer)**、**回收商 (Recycler)**、**处理商 (Processor)** 以及 **管理员 (Admin)** 提供了一站式的供需匹配、订单流转、实时沟通、地图定位与纠纷仲裁服务。
 
 ---
 
-## 🎯 核心功能
+## ✨ 核心功能 (Core Features)
 
-### 1. 用户认证系统
-- **登录模块**：手机号/用户名 + 密码验证
-- **注册模块**：手机号 + 短信验证码注册（阿里云短信，需勾选《隐私政策》《服务协议》）
-- **验证码安全**：5 分钟有效，60s 冷却，最多 5 次尝试
-- **密码校验**：8-16 位，需同时包含数字和字母（前后端双重校验）
-- **会话管理**：使用 sessionStorage 保存登录状态
-- **权限验证**：身份验证后自动分流到对应页面
+基于当前源代码的逆向工程，系统已实现以下基于角色的核心功能：
 
-### 2. 身份分流功能
-登录后自动进入相应的工作台：
+### 👨‍💼 管理员 (Admin)
+*   **用户管理**：管理所有平台用户账户，进行审核、禁用与删除操作。
+*   **申报审核**：审核农户提交的柑肉处理申报，核实处理数据。
+*   **数据统计**：查看平台全局数据，如处理量、用户活跃度等。
+*   **公告编辑中心 (CMS)**：可视化管理首页的政策公告、成功案例、合作商广告及底部信息，支持图片上传。
+*   **仲裁管理**：处理平台交易纠纷，查看双方提交的证据（支持多文件上传），并可进行裁决与罚款设置。
+*   **系统设置**：配置平台参数，管理处理点、费用等。
 
-#### 👨‍💼 **管理员工作台**
-```
-📊 系统概览 → 查看用户统计、申报数据
-👥 用户管理 → 审核、禁用、删除用户
-📝 申报审核 → 审核农户的处理申报
-📈 数据统计 → 查看平台各类统计数据
-⚙️ 系统设置 → 配置处理点、费用等
-```
+### 🌾 农户 (Farmer)
+*   **发起申报**：在线填报废旧柑肉的产出信息（重量、品种、地点等），获取处理凭证。
+*   **申报记录**：查看所有申报历史，跟踪申报状态。
+*   **附近处理点**：集成高德地图 (AMap) 与浏览器 Geolocation API，实时计算并展示距离最近的回收商，支持一键拨号与路线规划。
+*   **回收商求购**：查看回收商发布的收购需求，寻找合适的买家。
+*   **实时沟通**：通过内置的 Socket.IO 聊天系统与回收商/处理商就订单细节进行实时对话。
 
-#### 🌾 **农户工作台**
-```
-📊 我的统计 → 查看个人处理总量、申报记录
-📝 发起申报 → 新建柑肉处理申报
-📋 申报记录 → 查看历史申报和状态
-🗺️ 处理点 → 查找附近处理点和费用
-👤 我的账户 → 管理个人信息
-```
+### ♻️ 回收商 (Merchant / Recycler)
+*   **发布求购**：发布特定品级、重量的柑肉收购需求，吸引农户供应。
+*   **农户供应对接**：查看并接单农户发布的废料处理申报。
+*   **处理商需求对接**：查看大型处理商的采购需求，作为中间商进行货源流转。
+*   **订单管理**：管理订单与交易流程，跟踪订单状态。
+*   **财务中心**：查看账单与结算，管理财务信息。
 
-#### ♻️ **回收商工作台**
-```
-📊 我的统计 → 查看本月回收量、合作农户数
-📢 发布求购 → 发布收购需求
-📦 订单管理 → 管理订单和交易进度
-🤝 合作农户 → 管理合作关系
-💰 财务中心 → 查看账单和收款
-👤 我的账户 → 管理企业信息
-```
+### 🏭 处理商 (Processor)
+*   **发布采购需求**：发布大规模的原料采购需求（支持标记是否具备运输能力）。
+*   **货源供应对接**：直接对接农户或回收商的货源。
+*   **订单管理**：管理采购订单与收货流程。
+
+*(注：所有角色均可访问**仲裁中心**提交纠纷申请及证据，并管理**个人账户**。)*
 
 ---
 
-## 📁 文件结构
+## 🛠️ 技术栈 (Tech Stack)
 
-```
-Project Ex-class/
-├── index.html           # 主页面（包含登录弹窗）
-├── main_code.js        # 核心业务逻辑
-├── auth.js             # 身份认证与分流系统
-├── main code/          # 辅助资源目录（可选）
-└── README.md           # 本文档
-```
-
-### 文件职责划分
-
-| 文件 | 职责 |
-|-----|------|
-| **index.html** | 页面结构、登录/注册界面、内容显示区 |
-| **auth.js** | 身份认证、权限检查、仪表板分流、用户会话管理 |
-| **main_code.js** | 导航菜单逻辑、申报表单等业务功能 |
-
----
-
-## 🔐 测试账号
-
-系统内置三个测试账号，可直接在登录界面使用：
-
-### 👨‍💼 管理员
-```
-用户名: admin001
-密码: admin123
-```
-
-### 🌾 农户
-```
-用户名: farmer001
-密码: farmer123
-```
-
-### ♻️ 回收商
-```
-用户名: recycler001
-密码: recycler123
-```
-
-> **提示**：测试账号信息在登录界面有提示框显示
+*   **前端 (Frontend)**:
+    *   HTML5 / CSS3 (自定义柑橘环保主题 UI, 磨砂玻璃拟物化设计)
+    *   Vanilla JavaScript (原生 JS 进行 DOM 操作与路由分发)
+    *   Socket.IO Client (实时聊天)
+    *   高德地图 API (AMap) (地理定位与路线规划)
+*   **后端 (Backend)**:
+    *   Node.js
+    *   Express.js (RESTful API 路由)
+    *   Socket.IO (WebSocket 实时双向通信)
+    *   Multer (处理 multipart/form-data，用于仲裁证据与 CMS 图片上传)
+    *   bcryptjs (密码哈希加密)
+*   **数据库 (Database)**:
+    *   SQLite3 (轻量级关系型数据库，使用 `sqlite3` 驱动)
+*   **第三方服务 (Third-party Services)**:
+    *   阿里云短信服务 (Aliyun SMS) - *当前为 Mock 实现 (`smsClient.js`)*
 
 ---
 
-## 🚀 快速开始
+## 📂 目录结构 (Directory Structure)
 
-### 1. 打开网页
-直接在浏览器中打开 `index.html` 文件
-
-### 2. 登录系统
-- 点击导航栏右上角的"登录"按钮
-- 选择登录或注册标签页
-- 输入测试账号和密码
-- 点击"立即登录"
-
-### 3. 浏览工作台
-登录成功后，系统会自动跳转到对应身份的工作台
-
----
-
-## 💡 核心技术实现
-
-### 身份验证流程
-```
-用户输入账号密码
-    ↓
-authSystem.handleLogin() 验证
-    ↓
-用户存在且密码正确？
-    ├─ YES → 保存到 sessionStorage
-    │        ↓
-    │        authSystem.redirectToDashboard()
-    │        ↓
-    │        根据身份分流到对应仪表板
-    │
-    └─ NO → 显示错误提示
-```
-
-### 权限管理
-```
-页面加载时
-    ↓
-authSystem.checkLoginStatus()
-    ↓
-从 sessionStorage 读取用户信息
-    ↓
-用户已登录？
-    ├─ YES → 更新导航栏，显示用户名和退出按钮
-    │        ↓
-    │        根据身份初始化侧边栏菜单
-    │
-    └─ NO → 显示登录/注册按钮
-```
-
-### 会话管理
-- **存储方式**：sessionStorage（页面关闭时自动清除）
-- **存储内容**：用户名、角色、姓名、登录时间
-- **读取时机**：页面加载完成后立即检查
-
----
-
-## 🎨 UI/UX 特点
-
-### 界面特点
-- ✅ 响应式布局，支持不同屏幕尺寸
-- ✅ 彩色卡片设计，身份独立的视觉识别
-- ✅ 流畅的淡入/淡出动画
-- ✅ Toast 提示消息，清晰的用户反馈
-
-### 交互体验
-- ✅ 点击卡片直接进入功能页面
-- ✅ 侧边栏悬浮展开，不占用主区域
-- ✅ 退出登录确认弹窗，防止误操作
-- ✅ 表单验证和错误提示
-
----
-
-## 📝 自定义和扩展
-
-### 添加新用户账号
-
-在 `auth.js` 中修改 `authSystem.users` 对象：
-
-```javascript
-const authSystem = {
-    users: {
-        'admin001': { password: 'admin123', role: 'admin', name: '系统管理员' },
-        'farmer001': { password: 'farmer123', role: 'farmer', name: '李农户' },
-        'recycler001': { password: 'recycler123', role: 'recycler', name: '王回收商' },
-        
-        // 添加新账号
-        'mynewuser': { password: 'mypassword', role: 'farmer', name: '新用户名' }
-    },
-    // ...
-};
-```
-
-### 自定义仪表板内容
-
-修改 `auth.js` 中的 `showAdminDashboard()`、`showFarmerDashboard()`、`showRecyclerDashboard()` 函数
-
-### 添加新的页面功能
-
-1. 在侧边栏菜单中添加新菜单项
-2. 在 `authSystem.navigateTo()` 的 `pages` 对象中添加新页面逻辑
-3. 在相应的仪表板函数中添加卡片链接
-
-示例：
-```javascript
-// 在侧边栏中添加菜单
-// 修改 updateSidebar() 函数中对应身份的 menuHTML
-
-// 在 navigateTo() 中添加新页面逻辑
-'my-new-page': () => {
-    container.innerHTML = '<h2>新页面标题</h2><p>页面内容...</p>';
-}
+```text
+.
+├── auth.js                 # 前端核心：身份认证、路由分发、UI 聚合入口渲染
+├── main_code.js            # 前端核心：业务逻辑、导航监听与表单处理
+├── index.html              # 平台主页与登录/注册入口
+├── farmer-nearby-recyclers.html # 农户端：附近处理点地图与列表视图
+├── server.js               # 后端核心：Express 服务器、API 接口、Socket.IO 逻辑
+├── smsClient.js            # 阿里云短信发送模块 (当前为 Mock)
+├── package.json            # 项目依赖与 npm 脚本
+├── data/                   # SQLite 数据库文件存储目录
+│   └── agri.db             # 运行时生成的数据库文件
+├── db/                     # 数据库初始化脚本
+│   ├── schema.sql          # 核心数据表结构定义
+│   └── add_recyclers.sql   # 测试数据注入脚本
+├── docs/                   # 项目文档与 AI 开发日志
+│   ├── ARCHITECTURE.md     # 系统架构说明
+│   └── ai_logs/            # 历史开发记录与修复指南
+├── tests/                  # 测试脚本与 HTML 测试页面
+└── uploads/                # 用户上传文件存储目录
+    ├── arbitration/        # 仲裁证据文件 (图片、PDF、视频等)
+    └── cms/                # 首页 CMS 管理上传的图片
 ```
 
 ---
 
-## 🔧 常见问题与解决方案
+## 🚧 当前开发状态 (Current Project Status)
 
-### Q1: 登录后无法跳转到仪表板
-**A**: 确保 `auth.js` 正确引入，并在 `currentUser` 对象中有 `role` 字段
+**✅ 已完成并正常工作的功能：**
+*   基于手机号+验证码（Mock）的注册与基于密码的登录系统。
+*   基于角色的动态前端路由与工作台渲染 (`auth.js`)。
+*   完整的 SQLite 数据库 Schema，包含用户、订单、申报、求购、仲裁、CMS 等表结构。
+*   基于 Haversine 公式的附近处理点查询 API (`/api/recyclers/nearby`) 及前端地图展示。
+*   基于 Socket.IO 的实时聊天室（支持农户申报、回收商求购、处理商求购三种维度的独立聊天室）。
+*   仲裁系统的文件上传与罚款状态流转。
+*   CMS 内容管理系统的增删改查与图片上传。
 
-### Q2: 如何修改登录超时时间
-**A**: 修改 `auth.js` 中的 `setTimeout` 延迟时间（当前为2000毫秒）
-
-### Q3: 如何集成真实后端API
-**A**: 修改 `handleLogin()` 函数，将验证逻辑替换为 AJAX/fetch 请求
-
-```javascript
-handleLogin() {
-    // 替换为真实API调用
-    fetch('/api/login', {
-        method: 'POST',
-        body: JSON.stringify({
-            username: document.getElementById('username').value,
-            password: document.getElementById('password').value
-        })
-    }).then(response => response.json())
-      .then(data => {
-          this.currentUser = data.user;
-          sessionStorage.setItem('currentUser', JSON.stringify(data.user));
-          this.redirectToDashboard();
-      });
-}
-```
+**⚠️ 待完善或缺失的功能 (Incomplete/Missing)：**
+*   **短信网关**：`smsClient.js` 目前仅在控制台打印验证码，需接入真实的阿里云 SDK 凭证。
+*   **支付系统**：目前订单金额与仲裁罚款仅为数据库记录，尚未接入微信/支付宝等真实支付网关。
+*   **部分前端页面占位**：`main_code.js` 中部分未实现的菜单点击会显示 "正在开发中..."。
+*   **地理围栏 (Geofences)**：数据库中存在 `geofences` 表，但后端 API 尚未实现相关的业务逻辑。
 
 ---
 
-## 📚 API 参考
+## 🚀 快速启动 (Getting Started)
 
-### authSystem 对象公共方法
+### 环境要求
+*   Node.js (推荐 v16 或更高版本)
+*   npm 或 yarn
 
-| 方法 | 说明 | 参数 |
-|-----|------|------|
-| `init()` | 初始化认证系统 | 无 |
-| `handleLogin()` | 处理用户登录 | 无（读取表单值） |
-| `handleRegister()` | 处理用户注册 | 无（读取表单值） |
-| `logout()` | 用户退出登录 | 无 |
-| `redirectToDashboard()` | 根据身份分流 | 无 |
-| `navigateTo(page)` | 页面导航 | page: string |
-| `openLoginModal()` | 打开登录弹窗 | 无 |
-| `closeLoginModal()` | 关闭登录弹窗 | 无 |
-| `switchTab(tab)` | 切换登录/注册标签 | tab: 'login'\|'register' |
-| `updateNavbar()` | 更新导航栏 | 无 |
-| `updateSidebar(role)` | 更新侧边栏菜单 | role: 'admin'\|'farmer'\|'recycler' |
-| `showAlert(msg, type)` | 显示提示信息 | msg: string, type: 'success'\|'error'\|'warning'\|'info' |
+### 本地部署步骤
 
----
+1. **克隆/进入项目目录**
+   ```bash
+   cd "Project Ex-class(web ver)"
+   ```
 
-## 🎓 学习资源
+2. **安装依赖**
+   ```bash
+   npm install
+   ```
 
-- **HTML 基础**：页面结构和表单
-- **CSS 布局**：Flexbox 响应式设计
-- **JavaScript**：事件处理、DOM 操作、sessionStorage API
-- **认证模式**：客户端会话管理、权限分流
+3. **初始化数据库并注入测试数据**
+   此命令将创建 `data/agri.db` 并执行 `schema.sql`，同时生成默认的测试账号（如 `admin001`, `farmer001`, `recycler001`, `processor001`，密码均为 `xxx123`）。
+   ```bash
+   npm run init
+   # 或者执行: node server.js --init
+   ```
 
----
+4. **启动服务器**
+   ```bash
+   npm start
+   # 或者执行: node server.js
+   ```
 
-## 📞 支持与反馈
-
-如有问题或建议，欢迎提出！系统设计易于扩展，可根据实际业务需求进行自定义。
-
----
-
-**最后更新**：2026年1月9日  
-**版本**：1.0.0  
-**状态**：✅ 可投入使用
+5. **访问系统**
+   打开浏览器并访问：[http://localhost:4000](http://localhost:4000)
