@@ -1,0 +1,64 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/login/index",
+    "pages/profile/index"
+  ],
+  "subPackages": [
+    {
+      "root": "pages/farmer",
+      "pages": [
+        "dashboard/index",
+        "report/create",
+        "report/list",
+        "nearby/index"
+      ]
+    },
+    {
+      "root": "pages/merchant",
+      "pages": [
+        "dashboard/index",
+        "demand/publish",
+        "orders/index",
+        "finance/index"
+      ]
+    },
+    {
+      "root": "pages/admin",
+      "pages": [
+        "dashboard/index",
+        "users/index",
+        "audit/index",
+        "cms/index",
+        "arbitration/index"
+      ]
+    }
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "循果环生",
+    "navigationBarBackgroundColor": "#FAFAF5",
+    "backgroundColor": "#FAFAF5"
+  },
+  "tabBar": {
+    "color": "#45664E",
+    "selectedColor": "#2E7D32",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "static/tabbar/profile.png",
+        "selectedIconPath": "static/tabbar/profile-active.png"
+      }
+    ]
+  },
+  "usingComponents": {}
+}
