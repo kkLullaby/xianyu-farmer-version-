@@ -25,6 +25,18 @@
       "style": {
         "navigationBarTitleText": "文章详情"
       }
+    },
+    {
+      "path": "pages/profile/address/list",
+      "style": {
+        "navigationBarTitleText": "地址管理"
+      }
+    },
+    {
+      "path": "pages/profile/address/edit",
+      "style": {
+        "navigationBarTitleText": "编辑地址"
+      }
     }
   ],
   "subPackages": [
@@ -115,6 +127,12 @@
           "style": {
             "navigationBarTitleText": "仲裁中心"
           }
+        },
+        {
+          "path": "orders/detail",
+          "style": {
+            "navigationBarTitleText": "订单详情"
+          }
         }
       ]
     },
@@ -204,6 +222,12 @@
           "path": "arbitration/index",
           "style": {
             "navigationBarTitleText": "仲裁中心"
+          }
+        },
+        {
+          "path": "orders/detail",
+          "style": {
+            "navigationBarTitleText": "订单详情"
           }
         }
       ]

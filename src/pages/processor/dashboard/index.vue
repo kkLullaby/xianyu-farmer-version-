@@ -6,37 +6,34 @@
       <text class="desc">一站式管理您的全部业务功能</text>
     </view>
 
-    <!-- 采购管理 -->
     <view class="section">
       <view class="section-header">
-        <text class="section-title">📦 采购管理</text>
+        <text class="section-title">📦 订单与业务</text>
       </view>
       <view class="card-grid">
         <view class="card border-gold" @click="navigateTo('/pages/processor/orders/index')">
           <text class="card-title text-gold">📦 订单管理</text>
           <text class="card-desc">采购订单与收货管理，跟踪订单状态</text>
         </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">🤝 市场与供需</text>
+      </view>
+      <view class="card-grid">
         <view class="card border-orange" @click="navigateTo('/pages/processor/demand/publish')">
           <text class="card-title text-orange">📢 发布求购</text>
           <text class="card-desc">发布原料采购需求，吸引供应商</text>
         </view>
-      </view>
-    </view>
-
-    <!-- 货源协作 -->
-    <view class="section">
-      <view class="section-header">
-        <text class="section-title">🌾 货源协作</text>
-      </view>
-      <view class="card-grid">
         <view class="card border-green" @click="navigateTo('/pages/processor/supply/index')">
-          <text class="card-title text-green">🌾 货源供应</text>
+          <text class="card-title text-green">🌾 货源供应大厅</text>
           <text class="card-desc">对接农户/回收商货源，查看供应信息</text>
         </view>
       </view>
     </view>
 
-    <!-- 售后与账户 -->
     <view class="section">
       <view class="section-header">
         <text class="section-title">⚖️ 售后与账户</text>
@@ -48,7 +45,7 @@
         </view>
         <view class="card border-dark" @click="navigateTo('/pages/profile/index')">
           <text class="card-title text-dark">👤 我的账户</text>
-          <text class="card-desc">账户信息与安全设置，修改密码等</text>
+          <text class="card-desc">账户信息与安全设置</text>
         </view>
       </view>
     </view>

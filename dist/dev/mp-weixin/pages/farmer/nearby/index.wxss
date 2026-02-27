@@ -1,7 +1,7 @@
 
 .container.data-v-08110e48 {
   min-height: 100vh;
-  background-color: #F8F8F8;
+  background-color: #F5F7FA;
   padding: 20rpx;
 }
 .header.data-v-08110e48 {
@@ -10,7 +10,13 @@
 .title.data-v-08110e48 {
   font-size: 36rpx;
   font-weight: bold;
-  color: #333;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.desc.data-v-08110e48 {
+  font-size: 24rpx;
+  color: #666;
 }
 .map-area.data-v-08110e48 {
   width: 100%;
@@ -18,37 +24,77 @@
   border-radius: 16rpx;
   margin-bottom: 30rpx;
 }
+.list-container.data-v-08110e48 {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
 .recycler-card.data-v-08110e48 {
   background-color: #FFFFFF;
   border-radius: 16rpx;
   padding: 30rpx;
-  margin-bottom: 20rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 .info.data-v-08110e48 {
   display: flex;
   flex-direction: column;
   flex: 1;
+  margin-right: 20rpx;
+}
+.name-row.data-v-08110e48 {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 10rpx;
 }
 .name.data-v-08110e48 {
   font-size: 32rpx;
   font-weight: bold;
   color: #2E7D32;
-  margin-bottom: 10rpx;
+}
+.role-badge.data-v-08110e48 {
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+  font-weight: bold;
+}
+.badge-merchant.data-v-08110e48 {
+  background-color: #FFF3E0;
+  color: #EF6C00;
+}
+.badge-processor.data-v-08110e48 {
+  background-color: #E3F2FD;
+  color: #1565C0;
 }
 .address.data-v-08110e48 {
   font-size: 24rpx;
   color: #666;
-  margin-bottom: 10rpx;
+  margin-bottom: 8rpx;
+  line-height: 1.4;
 }
-.distance.data-v-08110e48 {
+.phone-text.data-v-08110e48 {
   font-size: 24rpx;
-  color: #FF8C00;
+  color: #999;
 }
 .call-btn.data-v-08110e48 {
   background-color: #2E7D32;
   color: white;
   margin: 0;
+  flex-shrink: 0;
+}
+.empty-state.data-v-08110e48 {
+  text-align: center;
+  padding: 80rpx 0;
+}
+.empty-icon.data-v-08110e48 {
+  font-size: 80rpx;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.empty-text.data-v-08110e48 {
+  font-size: 28rpx;
+  color: #999;
 }

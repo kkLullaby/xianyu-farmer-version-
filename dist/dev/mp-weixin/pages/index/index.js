@@ -104,7 +104,10 @@ const _sfc_main = {
       }
       common_vendor.index.navigateTo({ url: "/pages/index/article" });
     };
-    const navigateTo = (url) => {
+    const navigateTo = (url, role) => {
+      if (role) {
+        common_vendor.index.setStorageSync("current_role", role);
+      }
       common_vendor.index.navigateTo({
         url,
         fail: (err) => {
@@ -113,7 +116,10 @@ const _sfc_main = {
         }
       });
     };
-    const navigateToProcessor = () => {
+    const navigateToProcessor = (role) => {
+      if (role) {
+        common_vendor.index.setStorageSync("current_role", role);
+      }
       common_vendor.index.navigateTo({
         url: "/pages/processor/dashboard/index",
         fail: (err) => {
@@ -130,10 +136,10 @@ const _sfc_main = {
             b: index
           };
         }),
-        b: common_vendor.o(($event) => navigateTo("/pages/farmer/dashboard/index")),
-        c: common_vendor.o(($event) => navigateTo("/pages/merchant/dashboard/index")),
-        d: common_vendor.o(navigateToProcessor),
-        e: common_vendor.o(($event) => navigateTo("/pages/admin/dashboard/index")),
+        b: common_vendor.o(($event) => navigateTo("/pages/farmer/dashboard/index", "farmer")),
+        c: common_vendor.o(($event) => navigateTo("/pages/merchant/dashboard/index", "merchant")),
+        d: common_vendor.o(($event) => navigateToProcessor("processor")),
+        e: common_vendor.o(($event) => navigateTo("/pages/admin/dashboard/index", "admin")),
         f: adConfig.value.show
       }, adConfig.value.show ? common_vendor.e({
         g: adConfig.value.imageUrl,

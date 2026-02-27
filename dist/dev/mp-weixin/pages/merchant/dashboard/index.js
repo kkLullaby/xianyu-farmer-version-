@@ -17,12 +17,11 @@ const _sfc_main = {
       return {
         a: common_vendor.t(userInfo.value.name),
         b: common_vendor.o(($event) => navigateTo("/pages/merchant/orders/index")),
-        c: common_vendor.o(($event) => navigateTo("/pages/merchant/finance/index")),
+        c: common_vendor.o(($event) => navigateTo("/pages/merchant/demand/publish")),
         d: common_vendor.o(($event) => navigateTo("/pages/processor/supply/index")),
-        e: common_vendor.o(($event) => navigateTo("/pages/merchant/demand/publish")),
-        f: common_vendor.o(($event) => navigateTo("/pages/processor/orders/index")),
-        g: common_vendor.o(($event) => navigateTo("/pages/merchant/arbitration/index")),
-        h: common_vendor.o(($event) => navigateTo("/pages/profile/index"))
+        e: common_vendor.o(($event) => navigateTo("/pages/processor/orders/index")),
+        f: common_vendor.o(($event) => navigateTo("/pages/merchant/arbitration/index")),
+        g: common_vendor.o(($event) => navigateTo("/pages/profile/index"))
       };
     };
   }

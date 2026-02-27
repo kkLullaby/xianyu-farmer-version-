@@ -109,9 +109,8 @@ const filteredOrders = computed(() => {
 });
 
 const handleOrder = (item) => {
-  uni.showToast({
-    title: `查看订单: ${item.order_no}`,
-    icon: 'none'
+  uni.navigateTo({
+    url: '/pages/processor/orders/detail?id=' + item.id
   });
 };
 </script>

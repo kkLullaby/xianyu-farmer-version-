@@ -18,8 +18,8 @@ const _sfc_main = {
         a: common_vendor.t(userInfo.value.name),
         b: common_vendor.o(($event) => navigateTo("/pages/farmer/report/create")),
         c: common_vendor.o(($event) => navigateTo("/pages/farmer/report/list")),
-        d: common_vendor.o(($event) => navigateTo("/pages/farmer/nearby/index")),
-        e: common_vendor.o(($event) => navigateTo("/pages/farmer/demand-hall/index")),
+        d: common_vendor.o(($event) => navigateTo("/pages/farmer/demand-hall/index")),
+        e: common_vendor.o(($event) => navigateTo("/pages/farmer/nearby/index")),
         f: common_vendor.o(($event) => navigateTo("/pages/farmer/arbitration/index")),
         g: common_vendor.o(($event) => navigateTo("/pages/profile/index"))
       };

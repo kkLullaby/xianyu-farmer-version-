@@ -140,6 +140,24 @@ const submitForm = () => {
 
   isSubmitting.value = true;
 
+  const newReport = {
+    id: 'RPT-' + Date.now(),
+    submitter: formData.value.contact_name,
+    submitter_role: '农户',
+    goods_type: formData.value.citrus_variety,
+    weight: formData.value.weight_kg,
+    address: formData.value.location_address,
+    status: 'pending',
+    create_time: new Date().toLocaleString(),
+    pickup_date: formData.value.pickup_date,
+    contact_phone: formData.value.contact_phone,
+    notes: formData.value.notes
+  };
+
+  const globalList = uni.getStorageSync('global_report_list') || [];
+  globalList.unshift(newReport);
+  uni.setStorageSync('global_report_list', globalList);
+
   // 模拟提交请求
   setTimeout(() => {
     isSubmitting.value = false;

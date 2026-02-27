@@ -30,25 +30,25 @@
       </view>
       
       <view class="role-grid">
-        <view class="role-card farmer-card" @click="navigateTo('/pages/farmer/dashboard/index')">
+        <view class="role-card farmer-card" @click="navigateTo('/pages/farmer/dashboard/index', 'farmer')">
           <view class="role-icon">🌾</view>
           <text class="role-name">我是农户</text>
           <text class="role-desc">柑肉申报 · 预约回收</text>
         </view>
         
-        <view class="role-card merchant-card" @click="navigateTo('/pages/merchant/dashboard/index')">
+        <view class="role-card merchant-card" @click="navigateTo('/pages/merchant/dashboard/index', 'merchant')">
           <view class="role-icon">♻️</view>
           <text class="role-name">我是回收商</text>
           <text class="role-desc">发布收购 · 订单管理</text>
         </view>
 
-        <view class="role-card processor-card" @click="navigateToProcessor">
+        <view class="role-card processor-card" @click="navigateToProcessor('processor')">
           <view class="role-icon">🏭</view>
           <text class="role-name">我是处理商</text>
           <text class="role-desc">原料采购 · 生产监控</text>
         </view>
 
-        <view class="role-card admin-card" @click="navigateTo('/pages/admin/dashboard/index')">
+        <view class="role-card admin-card" @click="navigateTo('/pages/admin/dashboard/index', 'admin')">
           <view class="role-icon">👨‍💼</view>
           <text class="role-name">我是管理员</text>
           <text class="role-desc">平台监管 · 数据审核</text>
@@ -251,7 +251,10 @@ const goArticle = (item) => {
 };
 
 // ===== 通用导航 =====
-const navigateTo = (url) => {
+const navigateTo = (url, role) => {
+  if (role) {
+    uni.setStorageSync('current_role', role);
+  }
   uni.navigateTo({
     url,
     fail: (err) => {
@@ -261,7 +264,10 @@ const navigateTo = (url) => {
   });
 };
 
-const navigateToProcessor = () => {
+const navigateToProcessor = (role) => {
+  if (role) {
+    uni.setStorageSync('current_role', role);
+  }
   uni.navigateTo({
     url: '/pages/processor/dashboard/index',
     fail: (err) => {

@@ -6,9 +6,12 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const { Server } = require("socket.io"); // Import socket.io
 const { sendOtpSms } = require('./smsClient');
 const multer = require('multer');
+
+const JWT_SECRET = 'agri_waste_super_secret_key_2026';
 
 const DB_PATH = path.join(__dirname, 'data', 'agri.db');
 const SCHEMA_SQL = path.join(__dirname, 'db', 'schema.sql');
@@ -164,6 +167,63 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
+// 统一响应格式中间件
+app.use((req, res, next) => {
+    const originalJson = res.json;
+    res.json = function (body) {
+        // 如果已经是标准格式，直接返回
+        if (body && typeof body === 'object' && 'code' in body && 'msg' in body && 'data' in body) {
+            return originalJson.call(this, body);
+        }
+        
+        let code = res.statusCode || 200;
+        let msg = 'success';
+        let data = body;
+
+        if (code >= 400) {
+            msg = (body && (body.error || body.message)) || 'error';
+            data = null;
+        } else if (body && body.error) {
+            code = 400;
+            msg = body.error;
+            data = null;
+            res.status(code);
+        }
+
+        return originalJson.call(this, {
+            code,
+            msg,
+            data
+        });
+    };
+    next();
+});
+
+// JWT 鉴权中间件
+const authMiddleware = (req, res, next) => {
+    // 排除不需要鉴权的路由
+    const publicRoutes = ['/health', '/init', '/api/auth/request-otp', '/api/auth/register-phone', '/api/register', '/api/login'];
+    if (publicRoutes.includes(req.path) || req.path.startsWith('/uploads')) {
+        return next();
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: '未授权，请先登录' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded; // 将用户信息挂载到 req 上
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Token 无效或已过期' });
+    }
+};
+
+app.use('/api', authMiddleware);
+
 // 配置文件上传
 const uploadDir = path.join(__dirname, 'uploads', 'arbitration');
 if (!fs.existsSync(uploadDir)) {
@@ -288,7 +348,11 @@ app.post('/api/auth/register-phone', (req, res) => {
                 }
                 return res.status(500).json({ error: err2.message });
             }
-            res.json({ id: this.lastID, phone, role, full_name: full_name || null });
+            
+            const userPayload = { id: this.lastID, username, phone, role, full_name: full_name || null };
+            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '7d' });
+            
+            res.json({ ...userPayload, token });
         });
     });
 });
@@ -308,7 +372,11 @@ app.post('/api/register', (req, res) => {
         db.run(`INSERT INTO users(username,password_hash,role_id,full_name) VALUES(?,?,?,?)`, [username, hash, row.id, full_name || null], function(err2) {
             db.close();
             if (err2) return res.status(500).json({ error: err2.message });
-            res.json({ id: this.lastID, username });
+            
+            const userPayload = { id: this.lastID, username, role, full_name: full_name || null };
+            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '7d' });
+            
+            res.json({ ...userPayload, token });
         });
     });
 });
@@ -327,7 +395,10 @@ app.post('/api/login', (req, res) => {
         const ok = bcrypt.compareSync(password, row.password_hash);
         if (!ok) return res.status(401).json({ error: '密码错误' });
 
-        res.json({ id: row.id, username: row.username, phone: row.phone, full_name: row.full_name, role: row.role });
+        const userPayload = { id: row.id, username: row.username, phone: row.phone, full_name: row.full_name, role: row.role };
+        const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '7d' });
+
+        res.json({ ...userPayload, token });
     });
 });
 

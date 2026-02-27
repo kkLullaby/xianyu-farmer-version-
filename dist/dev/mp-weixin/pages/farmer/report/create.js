@@ -47,6 +47,22 @@ const _sfc_main = {
       if (!formData.value.location_address)
         return showToast("请输入处理地点");
       isSubmitting.value = true;
+      const newReport = {
+        id: "RPT-" + Date.now(),
+        submitter: formData.value.contact_name,
+        submitter_role: "农户",
+        goods_type: formData.value.citrus_variety,
+        weight: formData.value.weight_kg,
+        address: formData.value.location_address,
+        status: "pending",
+        create_time: (/* @__PURE__ */ new Date()).toLocaleString(),
+        pickup_date: formData.value.pickup_date,
+        contact_phone: formData.value.contact_phone,
+        notes: formData.value.notes
+      };
+      const globalList = common_vendor.index.getStorageSync("global_report_list") || [];
+      globalList.unshift(newReport);
+      common_vendor.index.setStorageSync("global_report_list", globalList);
       setTimeout(() => {
         isSubmitting.value = false;
         common_vendor.index.showToast({

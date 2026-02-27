@@ -6,40 +6,34 @@
       <text class="desc">一站式管理您的全部业务功能</text>
     </view>
 
-    <!-- 交易管理 -->
     <view class="section">
       <view class="section-header">
-        <text class="section-title">📦 交易管理</text>
+        <text class="section-title">📦 订单与业务</text>
       </view>
       <view class="card-grid">
         <view class="card border-gold" @click="navigateTo('/pages/merchant/orders/index')">
           <text class="card-title text-gold">📦 订单管理</text>
           <text class="card-desc">管理订单与交易流程，跟踪订单状态</text>
         </view>
-        <view class="card border-dark" @click="navigateTo('/pages/merchant/finance/index')">
-          <text class="card-title text-dark">💰 财务中心</text>
-          <text class="card-desc">查看账单与结算，管理财务信息</text>
-        </view>
       </view>
     </view>
 
-    <!-- 供需协作 -->
     <view class="section">
       <view class="section-header">
-        <text class="section-title">🌾 供需协作</text>
+        <text class="section-title">🤝 市场与供需</text>
       </view>
       <view class="card-grid">
-        <view class="card border-green" @click="navigateTo('/pages/processor/supply/index')">
-          <text class="card-title text-green">🌾 农户供应</text>
-          <text class="card-desc">对接农户供应，查看农户货源信息</text>
-        </view>
         <view class="card border-orange" @click="navigateTo('/pages/merchant/demand/publish')">
           <text class="card-title text-orange">📢 发布求购</text>
-          <text class="card-desc">发布收购需求，吸引农户供应</text>
+          <text class="card-desc">发布收购需求，吸引农户/处理商供应</text>
+        </view>
+        <view class="card border-green" @click="navigateTo('/pages/processor/supply/index')">
+          <text class="card-title text-green">🌾 货源供应大厅</text>
+          <text class="card-desc">查看农户货源信息，对接采购渠道</text>
         </view>
         <view class="card border-blue" @click="navigateTo('/pages/processor/orders/index')">
-          <text class="card-title text-blue">🏭 处理商需求</text>
-          <text class="card-desc">对接处理商订单，查看采购需求</text>
+          <text class="card-title text-blue">🏭 处理商需求大厅</text>
+          <text class="card-desc">对接处理商采购需求，发现合作机会</text>
         </view>
       </view>
     </view>

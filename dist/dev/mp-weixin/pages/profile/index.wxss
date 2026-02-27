@@ -1,0 +1,178 @@
+
+.container.data-v-f97f9319 {
+  min-height: 100vh;
+  background-color: #F5F7FA;
+  padding: 30rpx;
+  padding-bottom: 60rpx;
+}
+.profile-header.data-v-f97f9319 {
+  display: flex;
+  align-items: center;
+  background-color: #FFFFFF;
+  padding: 40rpx 30rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  margin-bottom: 30rpx;
+}
+.avatar.data-v-f97f9319 {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  margin-right: 32rpx;
+  background-color: #EEEEEE;
+  border: 4rpx solid #FFFFFF;
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+.info-right.data-v-f97f9319 {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.nickname.data-v-f97f9319 {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 16rpx;
+}
+.tags.data-v-f97f9319 {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+}
+.tag.data-v-f97f9319 {
+  font-size: 24rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+}
+.role-tag.data-v-f97f9319 {
+  font-weight: bold;
+}
+.role-farmer.data-v-f97f9319 {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+.role-merchant.data-v-f97f9319 {
+  background-color: #FFF3E0;
+  color: #EF6C00;
+}
+.role-processor.data-v-f97f9319 {
+  background-color: #E3F2FD;
+  color: #1565C0;
+}
+.realname-tag.data-v-f97f9319 {
+  background-color: #F0FDF4;
+  color: #1B5E20;
+}
+.unverified-tag.data-v-f97f9319 {
+  background-color: #FFEBEE;
+  color: #C62828;
+}
+
+/* 钱包卡片 */
+.wallet-card.data-v-f97f9319 {
+  background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+  border-radius: 24rpx;
+  padding: 30rpx 40rpx;
+  color: #FFFFFF;
+  box-shadow: 0 8rpx 24rpx rgba(46, 125, 50, 0.2);
+  margin-bottom: 30rpx;
+}
+.wallet-header.data-v-f97f9319 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+.wallet-title.data-v-f97f9319 {
+  font-size: 30rpx;
+  font-weight: bold;
+  opacity: 0.9;
+}
+.wallet-link.data-v-f97f9319 {
+  font-size: 24rpx;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+}
+.wallet-body.data-v-f97f9319 {
+  display: flex;
+  align-items: center;
+}
+.wallet-item.data-v-f97f9319 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.wallet-label.data-v-f97f9319 {
+  font-size: 24rpx;
+  opacity: 0.8;
+  margin-bottom: 10rpx;
+}
+.wallet-value.data-v-f97f9319 {
+  font-size: 36rpx;
+  font-weight: bold;
+}
+.wallet-value.highlight.data-v-f97f9319 {
+  font-size: 48rpx;
+}
+.wallet-divider.data-v-f97f9319 {
+  width: 2rpx;
+  height: 60rpx;
+  background-color: rgba(255, 255, 255, 0.2);
+  margin: 0 40rpx;
+}
+
+/* 业务管理列表 */
+.business-section.data-v-f97f9319, .service-section.data-v-f97f9319 {
+  background-color: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 0 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
+  margin-bottom: 30rpx;
+}
+.list-item.data-v-f97f9319 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 0;
+  border-bottom: 2rpx solid #F0F0F0;
+}
+.list-item.data-v-f97f9319:last-child {
+  border-bottom: none;
+}
+.item-content.data-v-f97f9319 {
+  display: flex;
+  flex-direction: column;
+}
+.item-title.data-v-f97f9319 {
+  font-size: 30rpx;
+  color: #333333;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+}
+.item-desc.data-v-f97f9319 {
+  font-size: 24rpx;
+  color: #999999;
+}
+.arrow.data-v-f97f9319 {
+  color: #CCCCCC;
+  font-size: 32rpx;
+  margin-left: 10rpx;
+}
+
+/* 退出登录按钮 */
+.logout-btn.data-v-f97f9319 {
+  margin-top: 60rpx;
+  background-color: #FFFFFF;
+  color: #E53935;
+  font-size: 32rpx;
+  font-weight: bold;
+  border-radius: 24rpx;
+  border: none;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
+}
+.logout-btn.data-v-f97f9319::after {
+  border: none;
+}

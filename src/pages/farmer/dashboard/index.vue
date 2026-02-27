@@ -6,10 +6,9 @@
       <text class="desc">一站式管理您的全部业务功能</text>
     </view>
 
-    <!-- 申报与处理 -->
     <view class="section">
       <view class="section-header">
-        <text class="section-title">📦 申报与处理</text>
+        <text class="section-title">📦 订单与业务</text>
       </view>
       <view class="card-grid">
         <view class="card border-orange" @click="navigateTo('/pages/farmer/report/create')">
@@ -20,22 +19,21 @@
           <text class="card-title text-gold">📋 申报记录</text>
           <text class="card-desc">查看所有历史记录与申报状态</text>
         </view>
-        <view class="card border-green" @click="navigateTo('/pages/farmer/nearby/index')">
-          <text class="card-title text-green">🌍 附近处理点</text>
-          <text class="card-desc">查找最近处理点，实时显示位置</text>
-        </view>
       </view>
     </view>
 
-    <!-- 交易与供需 -->
     <view class="section">
       <view class="section-header">
-        <text class="section-title">🤝 交易与供需</text>
+        <text class="section-title">🤝 市场与供需</text>
       </view>
       <view class="card-grid">
         <view class="card border-blue" @click="navigateTo('/pages/farmer/demand-hall/index')">
           <text class="card-title text-blue">📢 求购大厅</text>
           <text class="card-desc">查看回收商与处理商的求购需求</text>
+        </view>
+        <view class="card border-green" @click="navigateTo('/pages/farmer/nearby/index')">
+          <text class="card-title text-green">🌍 附近处理点</text>
+          <text class="card-desc">查找最近的回收/处理点，实时显示位置</text>
         </view>
       </view>
     </view>

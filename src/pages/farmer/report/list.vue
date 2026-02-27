@@ -21,7 +21,7 @@
     <view class="list-container">
       <view class="report-card" v-for="(item, index) in reportList" :key="item.id">
         <view class="card-header">
-          <text class="report-no">单号：{{ item.report_no }}</text>
+          <text class="report-no">单号：{{ item.id }}</text>
           <text class="status-badge" :class="getStatusClass(item.status)">
             {{ getStatusText(item.status) }}
           </text>
@@ -30,24 +30,24 @@
         <view class="card-body">
           <view class="info-row">
             <text class="label">处理日期：</text>
-            <text class="value">{{ item.pickup_date }}</text>
+            <text class="value">{{ item.pickup_date || item.create_time }}</text>
           </view>
           <view class="info-row">
             <text class="label">预估重量：</text>
-            <text class="value highlight">{{ item.weight_kg }} 斤</text>
+            <text class="value highlight">{{ item.weight }} 斤</text>
           </view>
           <view class="info-row">
             <text class="label">柑橘品种：</text>
-            <text class="value">{{ item.citrus_variety }}</text>
+            <text class="value">{{ item.goods_type }}</text>
           </view>
           <view class="info-row">
             <text class="label">处理地点：</text>
-            <text class="value address">{{ item.location_address }}</text>
+            <text class="value address">{{ item.address }}</text>
           </view>
         </view>
 
         <view class="card-footer">
-          <text class="time">{{ item.created_at }}</text>
+          <text class="time">{{ item.create_time }}</text>
           <view class="actions">
             <button class="btn btn-detail" size="mini" @click="viewDetail(item)">查看详情</button>
             <button 
@@ -72,51 +72,56 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 // Mock Data
-const reportList = ref([
+const originalMockList = [
   {
-    id: 1,
-    report_no: 'RPT-20240315-001',
+    id: 'RPT-20240315-001',
     pickup_date: '2024-03-20',
-    weight_kg: 500,
-    citrus_variety: '新会柑',
-    location_address: '新会区三江镇xx村果园A区',
-    status: 'pending', // pending, accepted, completed, draft
-    created_at: '2024-03-15 10:30'
+    weight: 500,
+    goods_type: '新会柑',
+    address: '新会区三江镇xx村果园A区',
+    status: 'pending', // pending, approved, rejected, draft
+    create_time: '2024-03-15 10:30'
   },
   {
-    id: 2,
-    report_no: 'RPT-20240310-005',
+    id: 'RPT-20240310-005',
     pickup_date: '2024-03-12',
-    weight_kg: 1200,
-    citrus_variety: '茶枝柑',
-    location_address: '新会区双水镇处理中心旁',
-    status: 'completed',
-    created_at: '2024-03-10 14:20'
+    weight: 1200,
+    goods_type: '茶枝柑',
+    address: '新会区双水镇处理中心旁',
+    status: 'approved',
+    create_time: '2024-03-10 14:20'
   },
   {
-    id: 3,
-    report_no: 'RPT-20240301-002',
+    id: 'RPT-20240301-002',
     pickup_date: '2024-03-05',
-    weight_kg: 300,
-    citrus_variety: '新会柑',
-    location_address: '新会区会城街道果园',
+    weight: 300,
+    goods_type: '新会柑',
+    address: '新会区会城街道果园',
     status: 'draft',
-    created_at: '2024-03-01 09:15'
+    create_time: '2024-03-01 09:15'
   }
-]);
+];
+
+const reportList = ref([]);
+
+onShow(() => {
+  const globalList = uni.getStorageSync('global_report_list') || [];
+  reportList.value = [...globalList, ...originalMockList];
+});
 
 const acceptedCount = computed(() => {
-  return reportList.value.filter(item => item.status === 'accepted' || item.status === 'completed').length;
+  return reportList.value.filter(item => item.status === 'approved').length;
 });
 
 // Helper Methods
 const getStatusText = (status) => {
   const map = {
-    'pending': '待受理',
-    'accepted': '已受理',
-    'completed': '已完成',
+    'pending': '待处理',
+    'approved': '已通过',
+    'rejected': '已驳回',
     'draft': '草稿'
   };
   return map[status] || status;

@@ -133,6 +133,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 const currentTab = ref(0);
 const showPopup = ref(false);
@@ -149,7 +150,7 @@ const auditStatusLabel = {
   rejected: '已驳回'
 };
 
-const farmerList = ref([
+const originalFarmerMockList = [
   {
     id: 'AUD20260226001',
     submitter: '张三',
@@ -189,7 +190,28 @@ const farmerList = ref([
     commission_value: 10,
     created_at: '2026-02-20 10:00'
   }
-]);
+];
+
+const farmerList = ref([]);
+
+onShow(() => {
+  const globalList = uni.getStorageSync('global_report_list') || [];
+  const mappedGlobalList = globalList.map(item => ({
+    id: item.id,
+    submitter: item.submitter,
+    role_label: item.submitter_role,
+    type_label: '柑肉处理申报',
+    spec: item.goods_type,
+    quantity: item.weight + ' 斤',
+    unit_price: 0, // 申报无单价
+    audit_status: item.status,
+    commission_type: null,
+    commission_value: null,
+    created_at: item.create_time,
+    _isGlobal: true
+  }));
+  farmerList.value = [...mappedGlobalList, ...originalFarmerMockList];
+});
 
 const merchantPublishList = ref([
   {
@@ -277,6 +299,15 @@ const closePopup = () => {
   showPopup.value = false;
 };
 
+const updateGlobalReportStatus = (id, status) => {
+  let reports = uni.getStorageSync('global_report_list') || [];
+  const index = reports.findIndex(r => r.id === id);
+  if (index > -1) {
+    reports[index].status = status;
+    uni.setStorageSync('global_report_list', reports);
+  }
+};
+
 const confirmAudit = () => {
   const val = Number(commissionForm.value.value);
   if (!val || val <= 0) {
@@ -294,6 +325,9 @@ const confirmAudit = () => {
       target.audit_status = 'approved';
       target.commission_type = commissionForm.value.type;
       target.commission_value = val;
+      if (target._isGlobal) {
+        updateGlobalReportStatus(target.id, 'approved');
+      }
       break;
     }
   }
@@ -308,6 +342,9 @@ const rejectItem = (item) => {
     success: (res) => {
       if (res.confirm) {
         item.audit_status = 'rejected';
+        if (item._isGlobal) {
+          updateGlobalReportStatus(item.id, 'rejected');
+        }
         uni.showToast({ title: '已驳回', icon: 'none' });
       }
     }

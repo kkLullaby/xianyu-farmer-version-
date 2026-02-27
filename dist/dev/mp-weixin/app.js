@@ -6,6 +6,8 @@ if (!Math) {
   "./pages/login/index.js";
   "./pages/profile/index.js";
   "./pages/index/article.js";
+  "./pages/profile/address/list.js";
+  "./pages/profile/address/edit.js";
   "./pages/farmer/dashboard/index.js";
   "./pages/farmer/report/create.js";
   "./pages/farmer/report/list.js";
