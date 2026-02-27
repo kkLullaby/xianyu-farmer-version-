@@ -1,0 +1,147 @@
+
+.container.data-v-dd3a9fa7 {
+  padding: 30rpx;
+  min-height: 100vh;
+  background-color: #FAFAF5;
+}
+.header.data-v-dd3a9fa7 {
+  margin-bottom: 30rpx;
+}
+.title.data-v-dd3a9fa7 {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 10rpx;
+}
+.desc.data-v-dd3a9fa7 {
+  font-size: 26rpx;
+  color: #45664E;
+}
+.filter-bar.data-v-dd3a9fa7 {
+  display: flex;
+  background: white;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
+}
+.filter-item.data-v-dd3a9fa7 {
+  flex: 1;
+  text-align: center;
+  font-size: 28rpx;
+  color: #666;
+  padding: 10rpx 0;
+  position: relative;
+}
+.filter-item.active.data-v-dd3a9fa7 {
+  color: #EF6C00;
+  font-weight: bold;
+}
+.list-container.data-v-dd3a9fa7 {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+.demand-card.data-v-dd3a9fa7 {
+  background: white;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+  border-left: 8rpx solid #EF6C00;
+}
+.card-header.data-v-dd3a9fa7 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+.buyer-name.data-v-dd3a9fa7 {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+.deadline-tag.data-v-dd3a9fa7 {
+  font-size: 22rpx;
+  color: #999;
+  background: #f5f5f5;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+.info-row.data-v-dd3a9fa7 {
+  display: flex;
+  margin-bottom: 12rpx;
+  font-size: 28rpx;
+}
+.label.data-v-dd3a9fa7 {
+  color: #888;
+  width: 160rpx;
+}
+.value.data-v-dd3a9fa7 {
+  color: #333;
+  flex: 1;
+}
+.highlight.data-v-dd3a9fa7 {
+  color: #EF6C00;
+  font-weight: bold;
+}
+.price.data-v-dd3a9fa7 {
+  color: #e74c3c;
+  font-weight: bold;
+  font-size: 30rpx;
+}
+.tag-transport.data-v-dd3a9fa7 {
+  color: #2E7D32;
+  background: #E8F5E9;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  font-size: 24rpx;
+}
+.tag-self.data-v-dd3a9fa7 {
+  color: #EF6C00;
+  background: #FFF3E0;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  font-size: 24rpx;
+}
+.description .value.data-v-dd3a9fa7 {
+  color: #666;
+  font-size: 26rpx;
+  line-height: 1.4;
+}
+.card-footer.data-v-dd3a9fa7 {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #eee;
+  margin-top: 20rpx;
+}
+.actions.data-v-dd3a9fa7 {
+  display: flex;
+  gap: 20rpx;
+}
+.btn.data-v-dd3a9fa7 {
+  margin: 0;
+  font-size: 26rpx;
+  border-radius: 30rpx;
+  padding: 0 30rpx;
+  line-height: 60rpx;
+}
+.btn-call.data-v-dd3a9fa7 {
+  background: white;
+  color: #1B3A24;
+  border: 1rpx solid #1B3A24;
+}
+.btn-primary.data-v-dd3a9fa7 {
+  background: linear-gradient(135deg, #EF6C00, #F57C00);
+  color: white;
+  border: none;
+}
+.empty-state.data-v-dd3a9fa7 {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}

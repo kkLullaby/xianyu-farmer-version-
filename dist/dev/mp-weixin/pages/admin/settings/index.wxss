@@ -1,0 +1,11 @@
+
+.container.data-v-04f41929 { padding: 40rpx;
+}
+.header.data-v-04f41929 { margin-bottom: 40rpx;
+}
+.title.data-v-04f41929 { font-size: 40rpx; font-weight: bold;
+}
+.desc.data-v-04f41929 { font-size: 26rpx; color: #666;
+}
+.empty-state.data-v-04f41929 { text-align: center; margin-top: 100rpx; color: #999;
+}

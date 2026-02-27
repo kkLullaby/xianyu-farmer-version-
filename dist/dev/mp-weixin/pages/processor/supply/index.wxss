@@ -1,0 +1,123 @@
+
+.container.data-v-c851e281 {
+  padding: 30rpx;
+  min-height: 100vh;
+  background-color: #FAFAF5;
+}
+.header.data-v-c851e281 {
+  margin-bottom: 30rpx;
+}
+.title.data-v-c851e281 {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 10rpx;
+}
+.desc.data-v-c851e281 {
+  font-size: 26rpx;
+  color: #45664E;
+}
+.filter-bar.data-v-c851e281 {
+  display: flex;
+  background: white;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  margin-bottom: 30rpx;
+}
+.filter-item.data-v-c851e281 {
+  flex: 1;
+  text-align: center;
+  font-size: 28rpx;
+  color: #666;
+  padding: 10rpx 0;
+}
+.filter-item.active.data-v-c851e281 {
+  color: #1565C0;
+  font-weight: bold;
+}
+.list-container.data-v-c851e281 {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+.supply-card.data-v-c851e281 {
+  background: white;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.card-header.data-v-c851e281 {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+.supply-type.data-v-c851e281 {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  color: white;
+}
+.type-farmer.data-v-c851e281 { background-color: #2E7D32;
+}
+.type-merchant.data-v-c851e281 { background-color: #EF6C00;
+}
+.variety.data-v-c851e281 {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+.info-row.data-v-c851e281 {
+  display: flex;
+  margin-bottom: 12rpx;
+  font-size: 28rpx;
+}
+.label.data-v-c851e281 {
+  color: #888;
+  width: 160rpx;
+}
+.value.data-v-c851e281 {
+  color: #333;
+  flex: 1;
+}
+.highlight.data-v-c851e281 {
+  color: #2E7D32;
+  font-weight: bold;
+}
+.price.data-v-c851e281 {
+  color: #e74c3c;
+  font-weight: bold;
+}
+.card-footer.data-v-c851e281 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #eee;
+}
+.time.data-v-c851e281 {
+  font-size: 24rpx;
+  color: #999;
+}
+.actions.data-v-c851e281 {
+  display: flex;
+  gap: 16rpx;
+}
+.btn-call.data-v-c851e281 {
+  background: white;
+  color: #1565C0;
+  border: 1rpx solid #1565C0;
+}
+.btn-primary.data-v-c851e281 {
+  background: #1565C0;
+  color: white;
+}
+.empty-state.data-v-c851e281 {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}

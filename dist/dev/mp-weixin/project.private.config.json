@@ -1,7 +1,19 @@
 {
   "libVersion": "3.14.2",
   "projectname": "mp-weixin",
-  "condition": {},
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "pages/farmer/dashboard/index",
+          "pathName": "pages/farmer/dashboard/index",
+          "query": "",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
+  },
   "setting": {
     "urlCheck": false,
     "coverView": false,

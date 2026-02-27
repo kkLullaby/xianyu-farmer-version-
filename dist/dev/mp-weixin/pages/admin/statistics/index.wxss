@@ -1,0 +1,11 @@
+
+.container.data-v-6eea2a8d { padding: 40rpx;
+}
+.header.data-v-6eea2a8d { margin-bottom: 40rpx;
+}
+.title.data-v-6eea2a8d { font-size: 40rpx; font-weight: bold;
+}
+.desc.data-v-6eea2a8d { font-size: 26rpx; color: #666;
+}
+.empty-state.data-v-6eea2a8d { text-align: center; margin-top: 100rpx; color: #999;
+}

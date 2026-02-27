@@ -1,0 +1,172 @@
+
+.container.data-v-672a3bca {
+  padding: 30rpx;
+  min-height: 100vh;
+  background-color: #FAFAF5;
+}
+.header.data-v-672a3bca {
+  margin-bottom: 30rpx;
+}
+.title.data-v-672a3bca {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 10rpx;
+}
+.desc.data-v-672a3bca {
+  font-size: 26rpx;
+  color: #45664E;
+}
+
+/* 统计栏 */
+.stats-bar.data-v-672a3bca {
+  display: flex;
+  background: white;
+  padding: 30rpx;
+  border-radius: 20rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
+}
+.stat-item.data-v-672a3bca {
+  flex: 1;
+  text-align: center;
+  border-right: 1px solid #eee;
+}
+.stat-item.data-v-672a3bca:last-child {
+  border-right: none;
+}
+.stat-num.data-v-672a3bca {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+}
+.text-green.data-v-672a3bca { color: #2E7D32;
+}
+.stat-label.data-v-672a3bca {
+  font-size: 24rpx;
+  color: #888;
+  margin-top: 8rpx;
+  display: block;
+}
+
+/* 列表卡片 */
+.list-container.data-v-672a3bca {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+.report-card.data-v-672a3bca {
+  background: white;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.card-header.data-v-672a3bca {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1px solid #f5f5f5;
+}
+.report-no.data-v-672a3bca {
+  font-size: 28rpx;
+  color: #666;
+  font-family: monospace;
+}
+.status-badge.data-v-672a3bca {
+  font-size: 24rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 30rpx;
+  font-weight: bold;
+}
+.status-pending.data-v-672a3bca { background: #FFF3E0; color: #EF6C00;
+}
+.status-accepted.data-v-672a3bca { background: #E3F2FD; color: #1565C0;
+}
+.status-completed.data-v-672a3bca { background: #E8F5E9; color: #2E7D32;
+}
+.status-draft.data-v-672a3bca { background: #F5F5F5; color: #999;
+}
+.card-body.data-v-672a3bca {
+  margin-bottom: 24rpx;
+}
+.info-row.data-v-672a3bca {
+  display: flex;
+  margin-bottom: 12rpx;
+  font-size: 28rpx;
+}
+.label.data-v-672a3bca {
+  color: #888;
+  width: 160rpx;
+}
+.value.data-v-672a3bca {
+  color: #333;
+  flex: 1;
+}
+.highlight.data-v-672a3bca {
+  color: #EF6C00;
+  font-weight: bold;
+}
+.address.data-v-672a3bca {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-footer.data-v-672a3bca {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20rpx;
+  border-top: 1px dashed #eee;
+}
+.time.data-v-672a3bca {
+  font-size: 24rpx;
+  color: #999;
+}
+.actions.data-v-672a3bca {
+  display: flex;
+  gap: 16rpx;
+}
+.btn.data-v-672a3bca {
+  font-size: 24rpx;
+  padding: 0 24rpx;
+  line-height: 50rpx;
+  margin: 0;
+}
+.btn-detail.data-v-672a3bca {
+  background: white;
+  color: #2E7D32;
+  border: 1px solid #2E7D32;
+}
+.btn-delete.data-v-672a3bca {
+  background: white;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}
+
+/* 空状态 */
+.empty-state.data-v-672a3bca {
+  text-align: center;
+  padding: 100rpx 0;
+}
+.empty-icon.data-v-672a3bca {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+  display: block;
+}
+.empty-text.data-v-672a3bca {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 40rpx;
+  display: block;
+}
+.btn-create.data-v-672a3bca {
+  background: #2E7D32;
+  color: white;
+  width: 240rpx;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+}

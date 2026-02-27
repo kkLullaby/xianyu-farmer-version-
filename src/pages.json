@@ -49,6 +49,30 @@
           "style": {
             "navigationBarTitleText": "附近处理点"
           }
+        },
+        {
+          "path": "merchant-demand/index",
+          "style": {
+            "navigationBarTitleText": "回收商求购"
+          }
+        },
+        {
+          "path": "demand-hall/index",
+          "style": {
+            "navigationBarTitleText": "求购大厅"
+          }
+        },
+        {
+          "path": "supply/index",
+          "style": {
+            "navigationBarTitleText": "处理商供应"
+          }
+        },
+        {
+          "path": "arbitration/index",
+          "style": {
+            "navigationBarTitleText": "仲裁中心"
+          }
         }
       ]
     },
@@ -78,6 +102,12 @@
           "path": "finance/index",
           "style": {
             "navigationBarTitleText": "财务中心"
+          }
+        },
+        {
+          "path": "arbitration/index",
+          "style": {
+            "navigationBarTitleText": "仲裁中心"
           }
         }
       ]
@@ -114,6 +144,55 @@
           "style": {
             "navigationBarTitleText": "仲裁管理"
           }
+        },
+        {
+          "path": "settings/index",
+          "style": {
+            "navigationBarTitleText": "系统设置"
+          }
+        },
+        {
+          "path": "statistics/index",
+          "style": {
+            "navigationBarTitleText": "数据统计"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/processor",
+      "pages": [
+        {
+          "path": "dashboard/index",
+          "style": {
+            "navigationBarTitleText": "处理商工作台"
+          }
+        },
+        {
+          "path": "demand/publish",
+          "style": {
+            "navigationBarTitleText": "发布求购"
+          }
+        },
+        {
+          "path": "supply/index",
+          "style": {
+            "navigationBarTitleText": "货源供应",
+            "enablePullDownRefresh": true
+          }
+        },
+        {
+          "path": "orders/index",
+          "style": {
+            "navigationBarTitleText": "订单管理",
+            "enablePullDownRefresh": true
+          }
+        },
+        {
+          "path": "arbitration/index",
+          "style": {
+            "navigationBarTitleText": "仲裁中心"
+          }
         }
       ]
     }
@@ -123,25 +202,5 @@
     "navigationBarTitleText": "循果环生",
     "navigationBarBackgroundColor": "#FAFAF5",
     "backgroundColor": "#FAFAF5"
-  },
-  "tabBar": {
-    "color": "#45664E",
-    "selectedColor": "#2E7D32",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "black",
-    "list": [
-      {
-        "pagePath": "pages/index/index",
-        "text": "首页",
-        "iconPath": "static/tabbar/home.png",
-        "selectedIconPath": "static/tabbar/home-active.png"
-      },
-      {
-        "pagePath": "pages/profile/index",
-        "text": "我的",
-        "iconPath": "static/tabbar/profile.png",
-        "selectedIconPath": "static/tabbar/profile-active.png"
-      }
-    ]
   }
 }

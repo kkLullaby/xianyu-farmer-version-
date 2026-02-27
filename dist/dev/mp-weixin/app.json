@@ -11,7 +11,11 @@
         "dashboard/index",
         "report/create",
         "report/list",
-        "nearby/index"
+        "nearby/index",
+        "merchant-demand/index",
+        "demand-hall/index",
+        "supply/index",
+        "arbitration/index"
       ]
     },
     {
@@ -20,7 +24,8 @@
         "dashboard/index",
         "demand/publish",
         "orders/index",
-        "finance/index"
+        "finance/index",
+        "arbitration/index"
       ]
     },
     {
@@ -30,6 +35,18 @@
         "users/index",
         "audit/index",
         "cms/index",
+        "arbitration/index",
+        "settings/index",
+        "statistics/index"
+      ]
+    },
+    {
+      "root": "pages/processor",
+      "pages": [
+        "dashboard/index",
+        "demand/publish",
+        "supply/index",
+        "orders/index",
         "arbitration/index"
       ]
     }
@@ -39,26 +56,6 @@
     "navigationBarTitleText": "循果环生",
     "navigationBarBackgroundColor": "#FAFAF5",
     "backgroundColor": "#FAFAF5"
-  },
-  "tabBar": {
-    "color": "#45664E",
-    "selectedColor": "#2E7D32",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "black",
-    "list": [
-      {
-        "pagePath": "pages/index/index",
-        "text": "首页",
-        "iconPath": "static/tabbar/home.png",
-        "selectedIconPath": "static/tabbar/home-active.png"
-      },
-      {
-        "pagePath": "pages/profile/index",
-        "text": "我的",
-        "iconPath": "static/tabbar/profile.png",
-        "selectedIconPath": "static/tabbar/profile-active.png"
-      }
-    ]
   },
   "usingComponents": {}
 }
