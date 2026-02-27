@@ -19,6 +19,12 @@
       "style": {
         "navigationBarTitleText": "个人中心"
       }
+    },
+    {
+      "path": "pages/index/article",
+      "style": {
+        "navigationBarTitleText": "文章详情"
+      }
     }
   ],
   "subPackages": [
@@ -137,6 +143,12 @@
           "path": "cms/index",
           "style": {
             "navigationBarTitleText": "公告编辑中心"
+          }
+        },
+        {
+          "path": "cms/edit",
+          "style": {
+            "navigationBarTitleText": "编辑文章"
           }
         },
         {

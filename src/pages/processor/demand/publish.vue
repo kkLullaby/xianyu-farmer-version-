@@ -48,6 +48,44 @@
         </view>
 
         <view class="form-group">
+          <text class="label">截止日期</text>
+          <picker mode="date" @change="bindDateChange">
+            <view class="picker-view">
+              <text v-if="formData.deadline">{{ formData.deadline }}</text>
+              <text v-else class="placeholder">请选择截止日期</text>
+            </view>
+          </picker>
+        </view>
+
+        <view class="form-group">
+          <text class="label">联系人</text>
+          <input
+            class="input"
+            placeholder="请输入联系人姓名"
+            v-model="formData.contact_name"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="label">联系电话</text>
+          <input
+            type="number"
+            class="input"
+            placeholder="请输入联系电话"
+            v-model="formData.contact_phone"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="label">收货地址</text>
+          <input
+            class="input"
+            placeholder="请输入收货地址"
+            v-model="formData.address"
+          />
+        </view>
+
+        <view class="form-group">
           <text class="label">详细说明</text>
           <textarea 
             class="textarea" 
@@ -74,6 +112,10 @@ const formData = ref({
   weight: '',
   quality: '',
   price: '',
+  deadline: '',
+  contact_name: '',
+  contact_phone: '',
+  address: '',
   description: ''
 });
 
@@ -85,14 +127,37 @@ const bindQualityChange = (e) => {
   formData.value.quality = qualityLevels[e.detail.value];
 };
 
+const bindDateChange = (e) => {
+  formData.value.deadline = e.detail.value;
+};
+
 const submitDemand = () => {
-  if (!formData.value.material || !formData.value.weight) {
+  if (!formData.value.material || !formData.value.weight || !formData.value.price || !formData.value.contact_name || !formData.value.contact_phone || !formData.value.address) {
     return uni.showToast({ title: '请填写完整信息', icon: 'none' });
   }
 
   isSubmitting.value = true;
   
   setTimeout(() => {
+    const newItem = {
+      id: 'DEM' + Date.now(),
+      source: 'processor',
+      goods_type: formData.value.material,
+      weight: Number(formData.value.weight),
+      unit: '吨',
+      price: Number(formData.value.price),
+      deadline: formData.value.deadline || '长期有效',
+      contact_name: formData.value.contact_name,
+      contact_phone: formData.value.contact_phone,
+      address: formData.value.address,
+      commissionRate: 8,
+      description: formData.value.description || ''
+    };
+
+    const currentList = uni.getStorageSync('global_demand_list') || [];
+    currentList.unshift(newItem);
+    uni.setStorageSync('global_demand_list', currentList);
+
     isSubmitting.value = false;
     uni.showToast({ title: '发布成功', icon: 'success' });
     setTimeout(() => uni.navigateBack(), 1500);

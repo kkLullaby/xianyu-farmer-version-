@@ -56,6 +56,15 @@
       </view>
     </view>
 
+    <!-- 商业广告位 (联动 CMS 配置) -->
+    <view class="ad-banner-section" v-if="adConfig.show" @click="navigateTo(adConfig.link)">
+      <image class="ad-image" :src="adConfig.imageUrl" mode="aspectFill"></image>
+      <view class="ad-overlay" v-if="adConfig.text">
+        <text class="ad-text">{{ adConfig.text }}</text>
+        <text class="ad-badge">广告</text>
+      </view>
+    </view>
+
     <!-- 政策公告区 -->
     <view class="content-section">
       <view class="section-header-blue">
@@ -63,7 +72,7 @@
         <text class="badge">最新发布</text>
       </view>
       <view class="card-container">
-        <view v-if="announcements.length > 0" class="info-card">
+        <view v-if="announcements.length > 0" class="info-card" @click="goArticle(currentAnnouncement)">
           <image v-if="currentAnnouncement.image_url" :src="currentAnnouncement.image_url" class="card-image" mode="aspectFill"></image>
           <view class="card-content">
             <view class="card-tags">
@@ -88,7 +97,7 @@
         <text class="badge-transparent">真实展示</text>
       </view>
       <view class="card-container">
-        <view v-for="(item, index) in cases" :key="index" class="case-card">
+        <view v-for="(item, index) in cases" :key="index" class="case-card" @click="goArticle(item)">
           <view class="case-header">
             <image v-if="item.logo_url" :src="item.logo_url" class="case-logo" mode="aspectFill"></image>
             <view v-else class="case-logo-placeholder">🏆</view>
@@ -112,7 +121,7 @@
         <text class="footer-icon">📞</text>
         <view>
           <text class="footer-label">联系我们</text>
-          <text class="footer-value">400-888-6688</text>
+          <text class="footer-value">{{ footerContact.phone }}</text>
         </view>
       </view>
       <view class="footer-links">
@@ -127,9 +136,10 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
-// Mock Data
-const announcements = ref([
+// ===== 默认 Mock 数据 =====
+const DEFAULT_ANNOUNCEMENTS = [
   {
     type: '政策',
     title: '关于2025年柑肉回收补贴政策说明',
@@ -144,9 +154,9 @@ const announcements = ref([
     doc_number: 'XH-2025-002',
     image_url: ''
   }
-]);
+];
 
-const cases = ref([
+const DEFAULT_CASES = [
   {
     title: '双水镇柑肉无害化处理示范点',
     trade_data: '年处理量 5000 吨',
@@ -159,20 +169,94 @@ const cases = ref([
     description: '采用烘干制粉工艺，开发柑肉饲料添加剂，提升附加值。',
     logo_url: ''
   }
-]);
+];
 
-const currentAnnouncement = ref(announcements.value[0]);
+// ===== 响应式状态 =====
+const adConfig = ref({
+  show: true,
+  imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1000&auto=format&fit=crop',
+  text: '诚招环保设备合作商 / 优质果渣出售',
+  link: '/pages/common/ad-detail'
+});
 
-// Methods
+const announcements = ref([...DEFAULT_ANNOUNCEMENTS]);
+const cases = ref([...DEFAULT_CASES]);
+const currentAnnouncement = ref(DEFAULT_ANNOUNCEMENTS[0]);
+const footerContact = ref({
+  phone: '400-888-6688',
+  email: 'contact@xunguohs.com',
+  address: '广东省江门市新会区陈皮产业园'
+});
+
+// ===== onShow：每次进入页面均从缓存拉取最新数据 =====
+onShow(() => {
+  try {
+    // 读取 CMS 基础配置（包含广告位 + 联系方式）
+    const cmsSettings = uni.getStorageSync('cms_settings');
+    if (cmsSettings) {
+      if (cmsSettings.adConfig) {
+        Object.assign(adConfig.value, cmsSettings.adConfig);
+      }
+      if (cmsSettings.basicConfig) {
+        const bc = cmsSettings.basicConfig;
+        if (bc.phone) footerContact.value.phone = bc.phone;
+        if (bc.email) footerContact.value.email = bc.email;
+        if (bc.address) footerContact.value.address = bc.address;
+        // 将 basicConfig 中的公告文本解析为 announcements 数组
+        if (bc.topAnnouncements) {
+          const lines = bc.topAnnouncements.split('\n').filter(l => l.trim());
+          if (lines.length > 0) {
+            const parsed = lines.map((line, i) => ({
+              type: '公告',
+              title: line.trim(),
+              summary: '',
+              doc_number: `XH-${new Date().getFullYear()}-${String(i + 1).padStart(3, '0')}`,
+              image_url: ''
+            }));
+            announcements.value = parsed;
+            currentAnnouncement.value = parsed[0];
+          }
+        }
+      }
+    }
+
+    // 读取 CMS 文章列表（cms/edit.vue 保存至 cms_articles）
+    const cmsArticles = uni.getStorageSync('cms_articles');
+    if (cmsArticles && cmsArticles.length > 0) {
+      // 将 cms_articles 映射为首页 announcements 格式（优先覆盖）
+      const mapped = cmsArticles.map((a, i) => ({
+        type: '文章',
+        title: a.title,
+        summary: a.content ? a.content.replace(/<[^>]+>/g, '').slice(0, 60) + '...' : '',
+        doc_number: `ART-${String(i + 1).padStart(3, '0')}`,
+        image_url: a.coverUrl || '',
+        _raw: a
+      }));
+      announcements.value = [...mapped, ...announcements.value];
+      currentAnnouncement.value = announcements.value[0];
+    }
+  } catch (e) {
+    console.warn('[Index] 读取 CMS 缓存失败', e);
+  }
+});
+
+// ===== 跳转文章详情 =====
+const goArticle = (item) => {
+  if (!item || !item.title) return;
+  // 将文章数据存入临时缓存，详情页读取展示
+  try {
+    uni.setStorageSync('article_current', item._raw || item);
+  } catch (e) {}
+  uni.navigateTo({ url: '/pages/index/article' });
+};
+
+// ===== 通用导航 =====
 const navigateTo = (url) => {
   uni.navigateTo({
-    url: url,
+    url,
     fail: (err) => {
       console.error('Navigation failed:', err);
-      uni.showToast({
-        title: '跳转失败，请重试',
-        icon: 'none'
-      });
+      uni.showToast({ title: '跳转失败，请重试', icon: 'none' });
     }
   });
 };
@@ -182,10 +266,7 @@ const navigateToProcessor = () => {
     url: '/pages/processor/dashboard/index',
     fail: (err) => {
       console.error('跳转处理商工作台失败:', err);
-      uni.showToast({
-        title: '跳转失败，请重试',
-        icon: 'none'
-      });
+      uni.showToast({ title: '跳转失败，请重试', icon: 'none' });
     }
   });
 };
@@ -437,6 +518,50 @@ const navigateToProcessor = () => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 广告位样式 */
+.ad-banner-section {
+  margin: 0 30rpx 40rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  position: relative;
+  height: 200rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.08);
+}
+
+.ad-image {
+  width: 100%;
+  height: 100%;
+  background-color: #eee;
+}
+
+.ad-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  padding: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.ad-text {
+  color: white;
+  font-size: 26rpx;
+  font-weight: bold;
+  text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.5);
+}
+
+.ad-badge {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  backdrop-filter: blur(4px);
 }
 
 /* 案例卡片 */

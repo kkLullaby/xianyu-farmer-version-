@@ -6740,6 +6740,7 @@ exports.n = n;
 exports.o = o;
 exports.onHide = onHide;
 exports.onLaunch = onLaunch;
+exports.onMounted = onMounted;
 exports.onShow = onShow;
 exports.ref = ref;
 exports.t = t;

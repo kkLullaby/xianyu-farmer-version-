@@ -219,6 +219,46 @@
   overflow: hidden;
 }
 
+/* 广告位样式 */
+.ad-banner-section.data-v-83a5a03c {
+  margin: 0 30rpx 40rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  position: relative;
+  height: 200rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.08);
+}
+.ad-image.data-v-83a5a03c {
+  width: 100%;
+  height: 100%;
+  background-color: #eee;
+}
+.ad-overlay.data-v-83a5a03c {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  padding: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.ad-text.data-v-83a5a03c {
+  color: white;
+  font-size: 26rpx;
+  font-weight: bold;
+  text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.5);
+}
+.ad-badge.data-v-83a5a03c {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  backdrop-filter: blur(4px);
+}
+
 /* 案例卡片 */
 .case-card.data-v-83a5a03c {
   background: #f9f9f9;

@@ -5,6 +5,7 @@ if (!Math) {
   "./pages/index/index.js";
   "./pages/login/index.js";
   "./pages/profile/index.js";
+  "./pages/index/article.js";
   "./pages/farmer/dashboard/index.js";
   "./pages/farmer/report/create.js";
   "./pages/farmer/report/list.js";
@@ -22,6 +23,7 @@ if (!Math) {
   "./pages/admin/users/index.js";
   "./pages/admin/audit/index.js";
   "./pages/admin/cms/index.js";
+  "./pages/admin/cms/edit.js";
   "./pages/admin/arbitration/index.js";
   "./pages/admin/settings/index.js";
   "./pages/admin/statistics/index.js";

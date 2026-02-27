@@ -26,14 +26,14 @@
               <view class="title-row">
                 <text class="source-label bg-recycler">🚛 回收商</text>
                 <text class="tag tag-recycler">
-                  {{ gradeLabels[item.grade] }}柑
+                  {{ item.goods_type }}
                 </text>
               </view>
-              <text class="request-no">求购编号：{{ item.request_no }}</text>
+              <text class="request-no">求购编号：{{ item.id }}</text>
             </view>
             <view class="header-right">
-              <text class="valid-text" :class="{ 'long-term': !item.valid_until }">
-                {{ item.valid_until ? `有效期至 ${item.valid_until}` : '长期有效' }}
+              <text class="valid-text" :class="{ 'long-term': item.deadline === '长期有效' }">
+                {{ item.deadline ? `有效期至 ${item.deadline}` : '长期有效' }}
               </text>
             </view>
           </view>
@@ -49,17 +49,33 @@
               <text class="value">{{ item.contact_phone }}</text>
             </view>
             <view class="contact-item">
-              <text class="label">回收商：</text>
-              <text class="value">{{ item.buyer_name }}</text>
+              <text class="label">收货地址：</text>
+              <text class="value">{{ item.address }}</text>
             </view>
             <view class="contact-item">
               <text class="label">需求量：</text>
-              <text class="value">{{ item.weight_kg }} 斤</text>
+              <text class="value">{{ item.weight }} {{ item.unit }}</text>
             </view>
             <view class="contact-item">
               <text class="label">单价：</text>
-              <text class="value">{{ item.price }} 元/斤</text>
+              <text class="value">{{ item.price }} 元/{{ item.unit }}</text>
             </view>
+          </view>
+
+          <view class="price-box price-box-recycler">
+            <view class="price-row">
+              <text class="price-label">买方出价：</text>
+              <text class="price-original">{{ item.price }} 元/{{ item.unit }}</text>
+            </view>
+            <view class="price-row">
+              <text class="price-label">平台服务费：</text>
+              <text class="price-fee">{{ item.commissionRate ? item.commissionRate + '%' : '¥0/' + item.unit }}</text>
+            </view>
+            <view class="price-row">
+              <text class="price-label">预估到手：</text>
+              <text class="price-final">{{ calcFarmerPrice(item) }} 元/{{ item.unit }}</text>
+            </view>
+            <text class="price-tip">* 扣除平台服务费后预估到手价</text>
           </view>
 
           <view class="notes" v-if="item.notes">
@@ -84,14 +100,14 @@
               <view class="title-row">
                 <text class="source-label bg-processor">🏭 处理商</text>
                 <text class="tag tag-processor">
-                  {{ gradeLabels[item.grade] }} {{ citrusLabels[item.citrus_type] }}
+                  {{ item.goods_type }}
                 </text>
               </view>
-              <text class="request-no">求购编号：{{ item.request_no }}</text>
+              <text class="request-no">求购编号：{{ item.id }}</text>
             </view>
             <view class="header-right">
-              <text class="valid-text" :class="{ 'long-term': !item.valid_until }">
-                {{ item.valid_until ? `有效期至 ${item.valid_until}` : '长期有效' }}
+              <text class="valid-text" :class="{ 'long-term': item.deadline === '长期有效' }">
+                {{ item.deadline ? `有效期至 ${item.deadline}` : '长期有效' }}
               </text>
             </view>
           </view>
@@ -101,17 +117,33 @@
             <view class="info-grid">
               <view class="info-item">
                 <text class="label">需求量：</text>
-                <text class="highlight-processor">{{ item.weight_kg }} 斤</text>
+                <text class="highlight-processor">{{ item.weight }} {{ item.unit }}</text>
               </view>
               <view class="info-item">
                 <text class="label">单价：</text>
-                <text class="highlight-processor">{{ item.price }} 元/斤</text>
+                <text class="highlight-processor">{{ item.price }} 元/{{ item.unit }}</text>
               </view>
               <view class="info-item full-width">
                 <text class="label">📍 收货地址：</text>
-                <text class="value">{{ item.location_address }}</text>
+                <text class="value">{{ item.address }}</text>
               </view>
             </view>
+          </view>
+
+          <view class="price-box price-box-processor">
+            <view class="price-row">
+              <text class="price-label">买方出价：</text>
+              <text class="price-original">{{ item.price }} 元/{{ item.unit }}</text>
+            </view>
+            <view class="price-row">
+              <text class="price-label">平台服务费：</text>
+              <text class="price-fee">{{ item.commissionRate ? item.commissionRate + '%' : '¥0/' + item.unit }}</text>
+            </view>
+            <view class="price-row">
+              <text class="price-label">预估到手：</text>
+              <text class="price-final-purple">{{ calcFarmerPrice(item) }} 元/{{ item.unit }}</text>
+            </view>
+            <text class="price-tip">* 扣除平台服务费后预估到手价</text>
           </view>
 
           <view class="contact-box">
@@ -124,8 +156,8 @@
               <text class="value">{{ item.contact_phone }}</text>
             </view>
             <view class="contact-item">
-              <text class="label">处理商：</text>
-              <text class="value">{{ item.buyer_name }}</text>
+              <text class="label">收货地址：</text>
+              <text class="value">{{ item.address }}</text>
             </view>
           </view>
 
@@ -146,8 +178,25 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 const currentTab = ref(0);
+
+/**
+ * 计算农户到手价
+ * 比例抽成: farmerPrice = price × (1 - commissionRate / 100)
+ * 固定抽成: farmerPrice = price - commissionFee
+ */
+const calcFarmerPrice = (item) => {
+  const price = Number(item.price);
+  if (item.commissionRate) {
+    return (price * (1 - item.commissionRate / 100)).toFixed(2);
+  }
+  if (item.commissionFee) {
+    return (price - item.commissionFee).toFixed(2);
+  }
+  return price.toFixed(2);
+};
 
 // --- 公共方法 ---
 const contactBuyer = (phone) => {
@@ -159,74 +208,78 @@ const contactBuyer = (phone) => {
   });
 };
 
-const gradeLabels = {
-  'grade1': '一级品',
-  'grade2': '二级品',
-  'grade3': '三级品',
-  'offgrade': '等外级',
-  'any': '不限品级'
-};
-
-const citrusLabels = {
-  'mandarin': '柑橘',
-  'orange': '橙子',
-  'pomelo': '柚子',
-  'tangerine': '橘子',
-  'any': '不限种类'
-};
-
-// --- Tab 0: 回收商数据 (仅保留 source_type: recycler) ---
+// --- Tab 0: 回收商数据 ---
 const merchantList = ref([
   {
-    id: 2,
-    source_type: 'recycler',
-    request_no: 'REQ20260227002',
-    grade: 'grade2',
-    citrus_type: 'orange',
-    weight_kg: 2000,
-    price: '0.5',
-    location_address: '四川省眉山市丹棱县',
+    id: 'DEM20260227002',
+    source: 'merchant',
+    goods_type: '茶枝柑',
+    weight: 2000,
+    unit: '斤',
+    price: 0.5,
+    deadline: '2026-03-01',
     contact_name: '李老板',
     contact_phone: '13900139000',
-    buyer_name: '李记农产品回收',
-    valid_until: null,
+    address: '四川省眉山市丹棱县',
+    commissionRate: 10,
     notes: '量大从优，上门收货。'
   },
   {
-    id: 3,
-    source_type: 'recycler',
-    request_no: 'REQ20260227003',
-    grade: 'any',
-    citrus_type: 'pomelo',
-    weight_kg: 10000,
-    price: '0.3',
-    location_address: '重庆市奉节县',
+    id: 'DEM20260227003',
+    source: 'merchant',
+    goods_type: '柚子皮',
+    weight: 10000,
+    unit: '斤',
+    price: 0.3,
+    deadline: '长期有效',
     contact_name: '王师傅',
     contact_phone: '13700137000',
-    buyer_name: '奉节果皮回收站',
-    valid_until: '2026-03-01',
+    address: '重庆市奉节县',
+    commissionRate: 10,
     notes: '只要柚子皮，果肉不要。'
   }
 ]);
 
-// --- Tab 1: 处理商数据 (从原数组剥离，仅保留 source_type: processor) ---
+// --- Tab 1: 处理商数据 ---
 const processorList = ref([
   {
-    id: 1,
-    source_type: 'processor',
-    request_no: 'REQ20260227001',
-    grade: 'grade1',
-    citrus_type: 'mandarin',
-    weight_kg: 5000,
-    price: '0.8',
-    location_address: '四川省成都市蒲江县柑橘处理中心',
+    id: 'DEM20260227001',
+    source: 'processor',
+    goods_type: '柑肉原料',
+    weight: 8,
+    unit: '吨',
+    price: 800,
+    deadline: '2026-03-15',
     contact_name: '张经理',
     contact_phone: '13800138000',
-    buyer_name: '绿源果业处理厂',
-    valid_until: '2026-03-15',
+    address: '四川省成都市蒲江县柑橘处理中心',
+    commissionRate: 8,
     notes: '需要新鲜采摘，无腐烂，可上门收货。'
   }
 ]);
+
+const loadGlobalDemandList = () => {
+  const globalList = uni.getStorageSync('global_demand_list') || [];
+  if (!Array.isArray(globalList) || globalList.length === 0) return;
+
+  merchantList.value = globalList
+    .filter(item => item.source === 'merchant')
+    .map(item => ({
+      ...item,
+      commissionRate: item.commissionRate || 10
+    }));
+
+  processorList.value = globalList
+    .filter(item => item.source === 'processor')
+    .map(item => ({
+      ...item,
+      commissionRate: item.commissionRate || 8
+    }));
+};
+
+onShow(() => {
+  loadGlobalDemandList();
+});
 </script>
 
 <style scoped>
@@ -400,6 +453,52 @@ const processorList = ref([
 
 .notes { margin-bottom: 24rpx; }
 .notes-text { color: #666; font-size: 26rpx; }
+
+/* 价格盒子 */
+.price-box {
+  padding: 20rpx;
+  border-radius: 12rpx;
+  margin-bottom: 24rpx;
+}
+
+.price-box-recycler {
+  background: #fff8f0;
+  border-left: 6rpx solid #FF9800;
+}
+
+.price-box-processor {
+  background: #f8f0ff;
+  border-left: 6rpx solid #9b59b6;
+}
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.price-label { font-size: 26rpx; color: #666; }
+.price-original { font-size: 26rpx; color: #333; }
+.price-fee { font-size: 26rpx; color: #e74c3c; }
+
+.price-final {
+  font-size: 32rpx;
+  color: #FF9800;
+  font-weight: bold;
+}
+
+.price-final-purple {
+  font-size: 32rpx;
+  color: #9b59b6;
+  font-weight: bold;
+}
+
+.price-tip {
+  font-size: 22rpx;
+  color: #bbb;
+  display: block;
+  margin-top: 4rpx;
+}
 
 .action-row { display: flex; justify-content: flex-end; }
 .action-btn {

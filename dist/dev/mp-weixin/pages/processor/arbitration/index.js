@@ -45,6 +45,15 @@ const _sfc_main = {
         created_at: "2026-01-05 10:00"
       }
     ]);
+    const loadArbitrationList = () => {
+      const globalList = common_vendor.index.getStorageSync("global_arbitration_list") || [];
+      if (!Array.isArray(globalList) || globalList.length === 0)
+        return;
+      arbitrationList.value = globalList.filter((item) => item.role === "处理商");
+    };
+    common_vendor.onShow(() => {
+      loadArbitrationList();
+    });
     const toggleForm = () => {
       showForm.value = !showForm.value;
       if (!showForm.value) {
@@ -62,12 +71,21 @@ const _sfc_main = {
       const newItem = {
         id: "ARB" + Date.now(),
         order_no: form.value.order_no,
+        applicant: "处理商用户",
+        role: "处理商",
+        reason: form.value.dispute_type,
         dispute_type: form.value.dispute_type,
         description: form.value.description,
         status: "pending",
         result: null,
+        verdict_party: null,
+        verdict_opinion: null,
+        verdict_time: null,
         created_at: (/* @__PURE__ */ new Date()).toLocaleString("zh-CN").replace(/\//g, "-")
       };
+      const globalList = common_vendor.index.getStorageSync("global_arbitration_list") || [];
+      globalList.unshift(newItem);
+      common_vendor.index.setStorageSync("global_arbitration_list", globalList);
       arbitrationList.value.unshift(newItem);
       common_vendor.index.showToast({ title: "仲裁申请已提交", icon: "success" });
       toggleForm();

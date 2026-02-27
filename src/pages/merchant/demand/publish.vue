@@ -48,6 +48,34 @@
         </view>
 
         <view class="form-group">
+          <text class="label">联系人</text>
+          <input
+            class="input"
+            placeholder="请输入联系人姓名"
+            v-model="formData.contact_name"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="label">联系电话</text>
+          <input
+            type="number"
+            class="input"
+            placeholder="请输入联系电话"
+            v-model="formData.contact_phone"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="label">收货地址</text>
+          <input
+            class="input"
+            placeholder="请输入收货地址"
+            v-model="formData.address"
+          />
+        </view>
+
+        <view class="form-group">
           <text class="label">详细说明</text>
           <textarea 
             class="textarea" 
@@ -73,6 +101,9 @@ const formData = ref({
   weight: '',
   price: '',
   deadline: '',
+  contact_name: '',
+  contact_phone: '',
+  address: '',
   description: ''
 });
 
@@ -85,13 +116,32 @@ const bindDateChange = (e) => {
 };
 
 const submitDemand = () => {
-  if (!formData.value.variety || !formData.value.weight || !formData.value.price) {
+  if (!formData.value.variety || !formData.value.weight || !formData.value.price || !formData.value.contact_name || !formData.value.contact_phone || !formData.value.address) {
     return uni.showToast({ title: '请填写完整信息', icon: 'none' });
   }
 
   isSubmitting.value = true;
   
   setTimeout(() => {
+    const newItem = {
+      id: 'DEM' + Date.now(),
+      source: 'merchant',
+      goods_type: formData.value.variety,
+      weight: Number(formData.value.weight),
+      unit: '斤',
+      price: Number(formData.value.price),
+      deadline: formData.value.deadline || '长期有效',
+      contact_name: formData.value.contact_name,
+      contact_phone: formData.value.contact_phone,
+      address: formData.value.address,
+      commissionRate: 10,
+      description: formData.value.description || ''
+    };
+
+    const currentList = uni.getStorageSync('global_demand_list') || [];
+    currentList.unshift(newItem);
+    uni.setStorageSync('global_demand_list', currentList);
+
     isSubmitting.value = false;
     uni.showToast({ title: '发布成功', icon: 'success' });
     setTimeout(() => uni.navigateBack(), 1500);

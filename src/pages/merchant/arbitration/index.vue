@@ -83,6 +83,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 const showForm = ref(false);
 const disputeTypes = ['重量争议', '质量不符', '货款纠纷', '合同违约', '运输损耗', '其他'];
@@ -130,6 +131,16 @@ const arbitrationList = ref([
   }
 ]);
 
+const loadArbitrationList = () => {
+  const globalList = uni.getStorageSync('global_arbitration_list') || [];
+  if (!Array.isArray(globalList) || globalList.length === 0) return;
+  arbitrationList.value = globalList.filter(item => item.role === '回收商');
+};
+
+onShow(() => {
+  loadArbitrationList();
+});
+
 const toggleForm = () => {
   showForm.value = !showForm.value;
   if (!showForm.value) {
@@ -149,12 +160,23 @@ const submitForm = () => {
   const newItem = {
     id: 'ARB' + Date.now(),
     order_no: form.value.order_no,
+    applicant: '回收商用户',
+    role: '回收商',
+    reason: form.value.dispute_type,
     dispute_type: form.value.dispute_type,
     description: form.value.description,
     status: 'pending',
     result: null,
+    verdict_party: null,
+    verdict_opinion: null,
+    verdict_time: null,
     created_at: new Date().toLocaleString('zh-CN').replace(/\//g, '-')
   };
+
+  const globalList = uni.getStorageSync('global_arbitration_list') || [];
+  globalList.unshift(newItem);
+  uni.setStorageSync('global_arbitration_list', globalList);
+
   arbitrationList.value.unshift(newItem);
   uni.showToast({ title: '仲裁申请已提交', icon: 'success' });
   toggleForm();

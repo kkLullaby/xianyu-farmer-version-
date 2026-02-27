@@ -1,0 +1,6 @@
+<view class="container data-v-a0c596fa"><view class="form-section data-v-a0c596fa"><view class="form-card data-v-a0c596fa"><view class="card-title-row data-v-a0c596fa"><text class="card-title data-v-a0c596fa">文章标题</text></view><input class="input data-v-a0c596fa" placeholder="请输入文章标题" value="{{a}}" bindinput="{{b}}"/></view><view class="form-card data-v-a0c596fa"><view class="card-title-row data-v-a0c596fa"><text class="card-title data-v-a0c596fa">封面图片</text></view><input class="input data-v-a0c596fa" placeholder="请输入封面图片 URL（16:9 比例最佳）" value="{{c}}" bindinput="{{d}}"/><view wx:if="{{e}}" class="preview-box data-v-a0c596fa"><text class="preview-label data-v-a0c596fa">封面预览：</text><image class="preview-img data-v-a0c596fa" src="{{f}}" mode="aspectFill"></image></view></view><view class="form-card editor-card data-v-a0c596fa"><view class="card-title-row data-v-a0c596fa"><text class="card-title data-v-a0c596fa">Markdown 正文</text><text class="hint data-v-a0c596fa">支持 Markdown 语法</text></view><block wx:if="{{r0}}"><textarea class="markdown-textarea data-v-a0c596fa" placeholder="支持 Markdown 语法编写文章...
+
+# 一级标题
+## 二级标题
+**加粗文字**
+- 列表项" maxlength="{{g}}" value="{{h}}" bindinput="{{i}}"/></block></view></view><view class="btn-area data-v-a0c596fa"><button class="btn-publish data-v-a0c596fa" bindtap="{{j}}">发布文章</button></view></view>
