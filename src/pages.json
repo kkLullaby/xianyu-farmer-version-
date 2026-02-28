@@ -37,6 +37,12 @@
       "style": {
         "navigationBarTitleText": "编辑地址"
       }
+    },
+    {
+      "path": "pages/profile/intentions/index",
+      "style": {
+        "navigationBarTitleText": "我的意向"
+      }
     }
   ],
   "subPackages": [
@@ -69,12 +75,6 @@
           }
         },
         {
-          "path": "merchant-demand/index",
-          "style": {
-            "navigationBarTitleText": "回收商求购"
-          }
-        },
-        {
           "path": "demand-hall/index",
           "style": {
             "navigationBarTitleText": "求购大厅"
@@ -90,6 +90,12 @@
           "path": "arbitration/index",
           "style": {
             "navigationBarTitleText": "仲裁中心"
+          }
+        },
+        {
+          "path": "report/detail",
+          "style": {
+            "navigationBarTitleText": "申报详情"
           }
         }
       ]
@@ -132,6 +138,12 @@
           "path": "orders/detail",
           "style": {
             "navigationBarTitleText": "订单详情"
+          }
+        },
+        {
+          "path": "intentions/index",
+          "style": {
+            "navigationBarTitleText": "收到的意向"
           }
         }
       ]
@@ -228,6 +240,12 @@
           "path": "orders/detail",
           "style": {
             "navigationBarTitleText": "订单详情"
+          }
+        },
+        {
+          "path": "intentions/index",
+          "style": {
+            "navigationBarTitleText": "收到的意向"
           }
         }
       ]

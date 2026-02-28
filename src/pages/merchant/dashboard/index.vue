@@ -15,6 +15,10 @@
           <text class="card-title text-gold">📦 订单管理</text>
           <text class="card-desc">管理订单与交易流程，跟踪订单状态</text>
         </view>
+        <view class="card border-orange" @click="navigateTo('/pages/merchant/intentions/index')">
+          <text class="card-title text-orange">📨 收到的意向</text>
+          <text class="card-desc">查看农户报价意向，接受后自动生成订单</text>
+        </view>
       </view>
     </view>
 
@@ -27,13 +31,13 @@
           <text class="card-title text-orange">📢 发布求购</text>
           <text class="card-desc">发布收购需求，吸引农户/处理商供应</text>
         </view>
-        <view class="card border-green" @click="navigateTo('/pages/processor/supply/index')">
+        <view class="card border-green" @click="navigateTo('/pages/farmer/supply/index')">
           <text class="card-title text-green">🌾 货源供应大厅</text>
           <text class="card-desc">查看农户货源信息，对接采购渠道</text>
         </view>
-        <view class="card border-blue" @click="navigateTo('/pages/processor/orders/index')">
-          <text class="card-title text-blue">🏭 处理商需求大厅</text>
-          <text class="card-desc">对接处理商采购需求，发现合作机会</text>
+        <view class="card border-blue" @click="navigateTo('/pages/merchant/demand/publish')">
+          <text class="card-title text-blue">📢 发布求购需求</text>
+          <text class="card-desc">发布回收需求信息，吸引更多供应商</text>
         </view>
       </view>
     </view>
@@ -58,10 +62,24 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 const userInfo = ref({
-  name: '测试回收商',
+  name: '回收商老板',
   role: 'merchant'
+});
+
+const roleNameMap = {
+  farmer: '农户朋友',
+  merchant: '回收商老板',
+  processor: '处理商企业',
+  admin: '管理员'
+};
+
+onShow(() => {
+  const role = uni.getStorageSync('current_role') || 'merchant';
+  userInfo.value.role = role;
+  userInfo.value.name = roleNameMap[role] || '回收商老板';
 });
 
 const navigateTo = (url) => {

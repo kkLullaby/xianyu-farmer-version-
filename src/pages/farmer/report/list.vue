@@ -133,10 +133,7 @@ const getStatusClass = (status) => {
 
 // Actions
 const viewDetail = (item) => {
-  uni.showToast({
-    title: '查看详情功能开发中',
-    icon: 'none'
-  });
+  uni.navigateTo({ url: './detail?id=' + item.id });
 };
 
 const deleteReport = (id) => {

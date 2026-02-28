@@ -1,7 +1,7 @@
-<template>
+﻿<template>
   <view class="container">
     <view class="header">
-      <text class="title">🌾 处理商求购大厅</text>
+      <text class="title">🌾 处理商需求大厅</text>
       <text class="desc">查看处理商发布的柑橘果肉收购需求</text>
     </view>
 
@@ -18,12 +18,12 @@
     </view>
 
     <view class="list-container">
-      <view class="demand-card" v-for="(item, index) in filteredList" :key="item.id">
+      <view class="demand-card" v-for="(item, index) in filteredList" :key="item.id || index">
         <view class="card-header">
-          <text class="buyer-name">{{ item.buyer_name }}</text>
+          <text class="buyer-name">{{ fuzzName(item.buyer_name) }}</text>
           <text class="deadline-tag">截止: {{ item.deadline }}</text>
         </view>
-        
+
         <view class="card-body">
           <view class="info-row">
             <text class="label">需求品种：</text>
@@ -50,14 +50,39 @@
 
         <view class="card-footer">
           <view class="actions">
-            <button class="btn btn-call" size="mini" @click="makeCall(item.phone)">📞 联系买家</button>
-            <button class="btn btn-primary" size="mini" @click="handleAccept(item)">🚀 立即接单</button>
+            <button class="btn btn-intention" size="mini" @click="openIntentionPopup(item)">📨 发起意向</button>
           </view>
         </view>
       </view>
 
       <view v-if="filteredList.length === 0" class="empty-state">
-        <text class="empty-text">暂无符合条件的求购需求</text>
+        <text class="empty-text">暂无符合条件的收购需求</text>
+      </view>
+    </view>
+
+    <view class="mask" v-if="showPopup" @click="closePopup"></view>
+    <view class="intention-popup" v-if="showPopup">
+      <view class="popup-header">
+        <text class="popup-title">📨 发起报价意向</text>
+        <text class="popup-sub">对象：{{ popupItem.buyer_name ? fuzzName(popupItem.buyer_name) : '' }}</text>
+      </view>
+      <view class="popup-body">
+        <view class="popup-row">
+          <text class="popup-label">我的报价（元/吨）</text>
+          <input class="popup-input" type="digit" v-model="intentionForm.price" placeholder="请输入您的报价" />
+        </view>
+        <view class="popup-row">
+          <text class="popup-label">预估重量（吨）</text>
+          <input class="popup-input" type="digit" v-model="intentionForm.weight" placeholder="请输入预估重量" />
+        </view>
+        <view class="popup-row">
+          <text class="popup-label">期望交货日期</text>
+          <input class="popup-input" type="text" v-model="intentionForm.date" placeholder="例：2026-03-15" />
+        </view>
+      </view>
+      <view class="popup-actions">
+        <button class="btn-pop-cancel" @click="closePopup">取消</button>
+        <button class="btn-pop-confirm" @click="submitIntention">发送意向</button>
       </view>
     </view>
   </view>
@@ -65,45 +90,78 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 const currentTab = ref(0);
+const showPopup = ref(false);
+const popupItem = ref({});
+const intentionForm = ref({ price: '', weight: '', date: '' });
 
-// Mock Data
-const demandList = ref([
+const fuzzPhone = (phone) => {
+  if (!phone) return '***';
+  return String(phone).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+};
+
+const fuzzName = (name) => {
+  if (!name) return '***处理厂';
+  return name.charAt(0) + '氏处理厂';
+};
+
+const originalMockList = [
   {
-    id: 1,
+    id: 'SUP-MOCK-001',
     buyer_name: '新会生物科技处理厂',
     variety: '柑肉原料',
     weight: 50,
     price: 300,
     has_transport: true,
-    phone: '0750-6688999',
-    deadline: '2024-04-01',
+    phone: '07506688999',
+    deadline: '2026-04-01',
     description: '急需大量新鲜柑肉原料，要求无霉变，提供专业运输车辆上门拉货。'
   },
   {
-    id: 2,
+    id: 'SUP-MOCK-002',
     buyer_name: '绿源有机肥加工中心',
     variety: '果渣/废果',
     weight: 20,
     price: 150,
     has_transport: false,
     phone: '13800138000',
-    deadline: '2024-03-30',
+    deadline: '2026-03-30',
     description: '长期收购加工后的果渣，需农户自行送货至双水镇加工点。'
   },
   {
-    id: 3,
+    id: 'SUP-MOCK-003',
     buyer_name: '陈皮村深加工基地',
     variety: '陈皮原料',
     weight: 10,
     price: 800,
     has_transport: true,
     phone: '13900139000',
-    deadline: '2024-04-15',
+    deadline: '2026-04-15',
     description: '高价收购优质二红皮原料，品质要求高，现场结款。'
   }
-]);
+];
+
+const demandList = ref([]);
+
+onShow(() => {
+  const globalList = uni.getStorageSync('global_demand_list') || [];
+  const processorDemands = globalList
+    .filter(i => i._role === 'processor')
+    .map(item => ({
+      id: item.id,
+      buyer_name: item.submitter || '处理商',
+      variety: item.goods_type || item.variety || '柑肉原料',
+      weight: item.weight || 0,
+      price: item.price || 0,
+      has_transport: item.has_transport || false,
+      phone: item.contact_phone || '',
+      deadline: item.deadline || item.create_time || '',
+      description: item.description || ''
+    }));
+  demandList.value = [...processorDemands, ...originalMockList];
+});
 
 const filteredList = computed(() => {
   let list = [...demandList.value];
@@ -115,25 +173,42 @@ const filteredList = computed(() => {
   return list;
 });
 
-const makeCall = (phone) => {
-  uni.makePhoneCall({
-    phoneNumber: phone
-  });
+const openIntentionPopup = (item) => {
+  popupItem.value = item;
+  intentionForm.value = { price: '', weight: '', date: '' };
+  showPopup.value = true;
 };
 
-const handleAccept = (item) => {
-  uni.showModal({
-    title: '确认接单',
-    content: `确定要接下 ${item.buyer_name} 的采购订单吗？接单后请尽快联系买家确认交货细节。`,
-    success: (res) => {
-      if (res.confirm) {
-        uni.showToast({
-          title: '接单成功',
-          icon: 'success'
-        });
-      }
-    }
-  });
+const closePopup = () => {
+  showPopup.value = false;
+};
+
+const submitIntention = () => {
+  if (!intentionForm.value.price) {
+    uni.showToast({ title: '请填写报价', icon: 'none' });
+    return;
+  }
+  if (!intentionForm.value.weight) {
+    uni.showToast({ title: '请填写预估重量', icon: 'none' });
+    return;
+  }
+  const intention = {
+    id: 'INT' + Date.now(),
+    target_merchant_id: popupItem.value.id,
+    target_name: popupItem.value.buyer_name,
+    sender_name: uni.getStorageSync('current_user_name') || '农户用户',
+    sender_phone: uni.getStorageSync('current_user_phone') || '13800000000',
+    price: intentionForm.value.price,
+    weight: intentionForm.value.weight,
+    date: intentionForm.value.date,
+    status: 'pending',
+    create_time: new Date().toLocaleString('zh-CN')
+  };
+  const list = uni.getStorageSync('global_intentions') || [];
+  list.push(intention);
+  uni.setStorageSync('global_intentions', list);
+  showPopup.value = false;
+  uni.showToast({ title: '意向已发送', icon: 'success' });
 };
 </script>
 
@@ -180,7 +255,7 @@ const handleAccept = (item) => {
 }
 
 .filter-item.active {
-  color: #EF6C00;
+  color: #2E7D32;
   font-weight: bold;
 }
 
@@ -195,7 +270,7 @@ const handleAccept = (item) => {
   border-radius: 20rpx;
   padding: 30rpx;
   box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
-  border-left: 8rpx solid #EF6C00;
+  border-left: 8rpx solid #2E7D32;
 }
 
 .card-header {
@@ -238,7 +313,7 @@ const handleAccept = (item) => {
 }
 
 .highlight {
-  color: #EF6C00;
+  color: #2E7D32;
   font-weight: bold;
 }
 
@@ -291,14 +366,8 @@ const handleAccept = (item) => {
   line-height: 60rpx;
 }
 
-.btn-call {
-  background: white;
-  color: #1B3A24;
-  border: 1rpx solid #1B3A24;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #EF6C00, #F57C00);
+.btn-intention {
+  background: linear-gradient(135deg, #2E7D32, #43A047);
   color: white;
   border: none;
 }
@@ -308,5 +377,98 @@ const handleAccept = (item) => {
   padding: 100rpx 0;
   color: #999;
   font-size: 28rpx;
+}
+
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+}
+
+.intention-popup {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 40rpx 40rpx 60rpx;
+  z-index: 101;
+}
+
+.popup-header {
+  margin-bottom: 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  padding-bottom: 24rpx;
+}
+
+.popup-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.popup-sub {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.popup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  margin-bottom: 40rpx;
+}
+
+.popup-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.popup-label {
+  font-size: 28rpx;
+  color: #555;
+}
+
+.popup-input {
+  background: #F5F7FA;
+  border-radius: 12rpx;
+  padding: 18rpx 24rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.popup-actions {
+  display: flex;
+  gap: 24rpx;
+}
+
+.btn-pop-cancel {
+  flex: 1;
+  background: #f5f5f5;
+  color: #666;
+  border: none;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  line-height: 80rpx;
+  height: 80rpx;
+}
+
+.btn-pop-confirm {
+  flex: 2;
+  background: linear-gradient(135deg, #2E7D32, #43A047);
+  color: white;
+  border: none;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  line-height: 80rpx;
+  height: 80rpx;
 }
 </style>

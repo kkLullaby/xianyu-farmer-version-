@@ -8,20 +8,22 @@ if (!Math) {
   "./pages/index/article.js";
   "./pages/profile/address/list.js";
   "./pages/profile/address/edit.js";
+  "./pages/profile/intentions/index.js";
   "./pages/farmer/dashboard/index.js";
   "./pages/farmer/report/create.js";
   "./pages/farmer/report/list.js";
   "./pages/farmer/nearby/index.js";
-  "./pages/farmer/merchant-demand/index.js";
   "./pages/farmer/demand-hall/index.js";
   "./pages/farmer/supply/index.js";
   "./pages/farmer/arbitration/index.js";
+  "./pages/farmer/report/detail.js";
   "./pages/merchant/dashboard/index.js";
   "./pages/merchant/demand/publish.js";
   "./pages/merchant/orders/index.js";
   "./pages/merchant/finance/index.js";
   "./pages/merchant/arbitration/index.js";
   "./pages/merchant/orders/detail.js";
+  "./pages/merchant/intentions/index.js";
   "./pages/admin/dashboard/index.js";
   "./pages/admin/users/index.js";
   "./pages/admin/audit/index.js";
@@ -36,6 +38,7 @@ if (!Math) {
   "./pages/processor/orders/index.js";
   "./pages/processor/arbitration/index.js";
   "./pages/processor/orders/detail.js";
+  "./pages/processor/intentions/index.js";
 }
 const _sfc_main = {
   __name: "App",

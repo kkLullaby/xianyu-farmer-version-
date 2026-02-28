@@ -83,7 +83,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShow, onLoad } from '@dcloudio/uni-app';
 
 const showForm = ref(false);
 const disputeTypes = ['质量不符', '重量争议', '合同违约', '货款纠纷', '原料污染', '其他'];
@@ -92,6 +92,14 @@ const form = ref({
   order_no: '',
   dispute_type: '',
   description: ''
+});
+
+onLoad((options) => {
+  const orderNo = options?.order_no ? decodeURIComponent(options.order_no) : '';
+  if (orderNo) {
+    form.value.order_no = orderNo;
+    showForm.value = true;
+  }
 });
 
 const statusLabel = {

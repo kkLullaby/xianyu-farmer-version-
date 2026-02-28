@@ -43,6 +43,13 @@
         </view>
         <text class="arrow">></text>
       </view>
+      <view class="list-item" @click="goToIntentions">
+        <view class="item-content">
+          <text class="item-title">📨 我的意向</text>
+          <text class="item-desc">查看已发起的所有报价意向及状态</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
       <view class="list-item" @click="handleComingSoon">
         <view class="item-content">
           <text class="item-title">⭐ 我的收藏</text>
@@ -150,8 +157,12 @@ const goToAddress = () => {
   uni.navigateTo({ url: '/pages/profile/address/list' });
 };
 
+const goToIntentions = () => {
+  uni.navigateTo({ url: '/pages/profile/intentions/index' });
+};
+
 const handleComingSoon = () => {
-  uni.showToast({ title: '功能开发中', icon: 'none' });
+  uni.showToast({ title: '该功能将在正式版开放', icon: 'none' });
 };
 
 const callAdmin = () => {

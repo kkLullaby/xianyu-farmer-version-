@@ -4,8 +4,19 @@ const _sfc_main = {
   __name: "index",
   setup(__props) {
     const userInfo = common_vendor.ref({
-      name: "测试农户",
+      name: "农户朋友",
       role: "farmer"
+    });
+    const roleNameMap = {
+      farmer: "农户朋友",
+      merchant: "回收商老板",
+      processor: "处理商企业",
+      admin: "管理员"
+    };
+    common_vendor.onShow(() => {
+      const role = common_vendor.index.getStorageSync("current_role") || "farmer";
+      userInfo.value.role = role;
+      userInfo.value.name = roleNameMap[role] || "农户朋友";
     });
     const navigateTo = (url) => {
       common_vendor.index.navigateTo({
@@ -19,9 +30,10 @@ const _sfc_main = {
         b: common_vendor.o(($event) => navigateTo("/pages/farmer/report/create")),
         c: common_vendor.o(($event) => navigateTo("/pages/farmer/report/list")),
         d: common_vendor.o(($event) => navigateTo("/pages/farmer/demand-hall/index")),
-        e: common_vendor.o(($event) => navigateTo("/pages/farmer/nearby/index")),
-        f: common_vendor.o(($event) => navigateTo("/pages/farmer/arbitration/index")),
-        g: common_vendor.o(($event) => navigateTo("/pages/profile/index"))
+        e: common_vendor.o(($event) => navigateTo("/pages/farmer/supply/index")),
+        f: common_vendor.o(($event) => navigateTo("/pages/farmer/nearby/index")),
+        g: common_vendor.o(($event) => navigateTo("/pages/farmer/arbitration/index")),
+        h: common_vendor.o(($event) => navigateTo("/pages/profile/index"))
       };
     };
   }

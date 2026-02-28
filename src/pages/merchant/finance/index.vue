@@ -57,7 +57,7 @@ const transactions = ref([
 
 const handleWithdraw = () => {
   uni.showToast({
-    title: '提现功能开发中',
+    title: '该功能将在正式版开放',
     icon: 'none'
   });
 };

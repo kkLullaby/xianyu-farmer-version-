@@ -64,6 +64,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 const tabs = ['全部', '待发货', '运输中', '已入库'];
 const currentTab = ref(0);
@@ -101,6 +102,13 @@ const orders = ref([
     created_at: '2024-03-15'
   }
 ]);
+
+onShow(() => {
+  const stored = uni.getStorageSync('global_order_list') || [];
+  if (stored.length > 0) {
+    orders.value = stored;
+  }
+});
 
 const filteredOrders = computed(() => {
   if (currentTab.value === 0) return orders.value;

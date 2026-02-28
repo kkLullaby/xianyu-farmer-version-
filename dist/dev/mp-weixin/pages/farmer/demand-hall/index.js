@@ -43,6 +43,8 @@ const _sfc_main = {
         id: "INT-" + Date.now(),
         target_merchant_id: currentTarget.value.id,
         target_name: currentTarget.value.name,
+        sender_name: common_vendor.index.getStorageSync("current_user_name") || "测试用户",
+        sender_phone: common_vendor.index.getStorageSync("current_user_phone") || "13800000000",
         price: Number(intentionForm.value.price),
         weight: Number(intentionForm.value.weight),
         date: intentionForm.value.date || "待协商",

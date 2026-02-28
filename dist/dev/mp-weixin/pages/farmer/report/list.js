@@ -54,10 +54,7 @@ const _sfc_main = {
       return `status-${status}`;
     };
     const viewDetail = (item) => {
-      common_vendor.index.showToast({
-        title: "查看详情功能开发中",
-        icon: "none"
-      });
+      common_vendor.index.navigateTo({ url: "./detail?id=" + item.id });
     };
     const deleteReport = (id) => {
       common_vendor.index.showModal({
@@ -93,7 +90,7 @@ const _sfc_main = {
             f: common_vendor.t(item.goods_type),
             g: common_vendor.t(item.address),
             h: common_vendor.t(item.create_time),
-            i: common_vendor.o(($event) => viewDetail(), item.id),
+            i: common_vendor.o(($event) => viewDetail(item), item.id),
             j: item.status === "draft"
           }, item.status === "draft" ? {
             k: common_vendor.o(($event) => deleteReport(item.id), item.id)

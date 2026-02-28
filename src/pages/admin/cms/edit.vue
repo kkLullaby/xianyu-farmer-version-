@@ -41,11 +41,31 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
+
+const editingId = ref(null);
 
 const form = ref({
   title: '',
   coverUrl: '',
   content: ''
+});
+
+onLoad((options) => {
+  if (options && options.id) {
+    editingId.value = options.id;
+    try {
+      const list = uni.getStorageSync('cms_articles') || [];
+      const found = list.find(a => String(a.id) === String(options.id));
+      if (found) {
+        form.value.title = found.title || '';
+        form.value.coverUrl = found.coverUrl || '';
+        form.value.content = found.content || '';
+      }
+    } catch (e) {
+      console.warn('[CMS] 回显文章失败', e);
+    }
+  }
 });
 
 const handlePublish = () => {
@@ -59,6 +79,7 @@ const handlePublish = () => {
   }
 
   const article = {
+    id: editingId.value || ('CMS' + Date.now()),
     title: form.value.title,
     coverUrl: form.value.coverUrl,
     content: form.value.content,
@@ -67,7 +88,16 @@ const handlePublish = () => {
 
   try {
     const list = uni.getStorageSync('cms_articles') || [];
-    list.unshift(article);
+    if (editingId.value) {
+      const idx = list.findIndex(a => String(a.id) === String(editingId.value));
+      if (idx !== -1) {
+        list.splice(idx, 1, article);
+      } else {
+        list.unshift(article);
+      }
+    } else {
+      list.unshift(article);
+    }
     uni.setStorageSync('cms_articles', list);
   } catch (e) {
     console.warn('[CMS] 保存文章失败', e);

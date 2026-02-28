@@ -15,6 +15,10 @@
           <text class="card-title text-gold">📦 订单管理</text>
           <text class="card-desc">采购订单与收货管理，跟踪订单状态</text>
         </view>
+        <view class="card border-blue" @click="navigateTo('/pages/processor/intentions/index')">
+          <text class="card-title text-blue">📨 收到的意向</text>
+          <text class="card-desc">查看供应商报价意向，接受后自动生成采购订单</text>
+        </view>
       </view>
     </view>
 
@@ -54,10 +58,24 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 const userInfo = ref({
-  name: '测试处理商',
+  name: '处理商企业',
   role: 'processor'
+});
+
+const roleNameMap = {
+  farmer: '农户朋友',
+  merchant: '回收商老板',
+  processor: '处理商企业',
+  admin: '管理员'
+};
+
+onShow(() => {
+  const role = uni.getStorageSync('current_role') || 'processor';
+  userInfo.value.role = role;
+  userInfo.value.name = roleNameMap[role] || '处理商企业';
 });
 
 const navigateTo = (url) => {

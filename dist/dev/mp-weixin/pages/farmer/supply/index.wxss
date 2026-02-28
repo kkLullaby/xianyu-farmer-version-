@@ -35,7 +35,7 @@
   position: relative;
 }
 .filter-item.active.data-v-dd3a9fa7 {
-  color: #EF6C00;
+  color: #2E7D32;
   font-weight: bold;
 }
 .list-container.data-v-dd3a9fa7 {
@@ -48,7 +48,7 @@
   border-radius: 20rpx;
   padding: 30rpx;
   box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
-  border-left: 8rpx solid #EF6C00;
+  border-left: 8rpx solid #2E7D32;
 }
 .card-header.data-v-dd3a9fa7 {
   display: flex;
@@ -84,7 +84,7 @@
   flex: 1;
 }
 .highlight.data-v-dd3a9fa7 {
-  color: #EF6C00;
+  color: #2E7D32;
   font-weight: bold;
 }
 .price.data-v-dd3a9fa7 {
@@ -129,13 +129,8 @@
   padding: 0 30rpx;
   line-height: 60rpx;
 }
-.btn-call.data-v-dd3a9fa7 {
-  background: white;
-  color: #1B3A24;
-  border: 1rpx solid #1B3A24;
-}
-.btn-primary.data-v-dd3a9fa7 {
-  background: linear-gradient(135deg, #EF6C00, #F57C00);
+.btn-intention.data-v-dd3a9fa7 {
+  background: linear-gradient(135deg, #2E7D32, #43A047);
   color: white;
   border: none;
 }
@@ -144,4 +139,85 @@
   padding: 100rpx 0;
   color: #999;
   font-size: 28rpx;
+}
+.mask.data-v-dd3a9fa7 {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+}
+.intention-popup.data-v-dd3a9fa7 {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 40rpx 40rpx 60rpx;
+  z-index: 101;
+}
+.popup-header.data-v-dd3a9fa7 {
+  margin-bottom: 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  padding-bottom: 24rpx;
+}
+.popup-title.data-v-dd3a9fa7 {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.popup-sub.data-v-dd3a9fa7 {
+  font-size: 26rpx;
+  color: #999;
+}
+.popup-body.data-v-dd3a9fa7 {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  margin-bottom: 40rpx;
+}
+.popup-row.data-v-dd3a9fa7 {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+.popup-label.data-v-dd3a9fa7 {
+  font-size: 28rpx;
+  color: #555;
+}
+.popup-input.data-v-dd3a9fa7 {
+  background: #F5F7FA;
+  border-radius: 12rpx;
+  padding: 18rpx 24rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+.popup-actions.data-v-dd3a9fa7 {
+  display: flex;
+  gap: 24rpx;
+}
+.btn-pop-cancel.data-v-dd3a9fa7 {
+  flex: 1;
+  background: #f5f5f5;
+  color: #666;
+  border: none;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  line-height: 80rpx;
+  height: 80rpx;
+}
+.btn-pop-confirm.data-v-dd3a9fa7 {
+  flex: 2;
+  background: linear-gradient(135deg, #2E7D32, #43A047);
+  color: white;
+  border: none;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  line-height: 80rpx;
+  height: 80rpx;
 }

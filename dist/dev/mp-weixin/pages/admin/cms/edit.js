@@ -3,10 +3,27 @@ const common_vendor = require("../../../common/vendor.js");
 const _sfc_main = {
   __name: "edit",
   setup(__props) {
+    const editingId = common_vendor.ref(null);
     const form = common_vendor.ref({
       title: "",
       coverUrl: "",
       content: ""
+    });
+    common_vendor.onLoad((options) => {
+      if (options && options.id) {
+        editingId.value = options.id;
+        try {
+          const list = common_vendor.index.getStorageSync("cms_articles") || [];
+          const found = list.find((a) => String(a.id) === String(options.id));
+          if (found) {
+            form.value.title = found.title || "";
+            form.value.coverUrl = found.coverUrl || "";
+            form.value.content = found.content || "";
+          }
+        } catch (e) {
+          console.warn("[CMS] 回显文章失败", e);
+        }
+      }
     });
     const handlePublish = () => {
       if (!form.value.title.trim()) {
@@ -18,6 +35,7 @@ const _sfc_main = {
         return;
       }
       const article = {
+        id: editingId.value || "CMS" + Date.now(),
         title: form.value.title,
         coverUrl: form.value.coverUrl,
         content: form.value.content,
@@ -25,7 +43,16 @@ const _sfc_main = {
       };
       try {
         const list = common_vendor.index.getStorageSync("cms_articles") || [];
-        list.unshift(article);
+        if (editingId.value) {
+          const idx = list.findIndex((a) => String(a.id) === String(editingId.value));
+          if (idx !== -1) {
+            list.splice(idx, 1, article);
+          } else {
+            list.unshift(article);
+          }
+        } else {
+          list.unshift(article);
+        }
         common_vendor.index.setStorageSync("cms_articles", list);
       } catch (e) {
         console.warn("[CMS] 保存文章失败", e);

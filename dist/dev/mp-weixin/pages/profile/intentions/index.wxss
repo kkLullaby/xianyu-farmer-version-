@@ -1,0 +1,111 @@
+
+.container.data-v-8208bda3 {
+  padding: 30rpx;
+  min-height: 100vh;
+  background-color: #FAFAF5;
+}
+.header.data-v-8208bda3 {
+  margin-bottom: 40rpx;
+}
+.title.data-v-8208bda3 {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 10rpx;
+}
+.desc.data-v-8208bda3 {
+  font-size: 26rpx;
+  color: #45664E;
+}
+.list-container.data-v-8208bda3 {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+.intention-card.data-v-8208bda3 {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+.card-top.data-v-8208bda3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+.target-name.data-v-8208bda3 {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #1B3A24;
+}
+.status-badge.data-v-8208bda3 {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-weight: bold;
+}
+.status-pending.data-v-8208bda3 {
+  background-color: #FFF8E1;
+  color: #EF6C00;
+}
+.status-accepted.data-v-8208bda3 {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+.status-rejected.data-v-8208bda3 {
+  background-color: #FFEBEE;
+  color: #C62828;
+}
+.card-body.data-v-8208bda3 {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.info-row.data-v-8208bda3 {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.label.data-v-8208bda3 {
+  font-size: 26rpx;
+  color: #888;
+  width: 160rpx;
+  flex-shrink: 0;
+}
+.value.data-v-8208bda3 {
+  font-size: 28rpx;
+  color: #333;
+}
+.price-text.data-v-8208bda3 {
+  color: #E65100;
+  font-weight: bold;
+}
+.time-text.data-v-8208bda3 {
+  color: #999;
+  font-size: 24rpx;
+}
+.empty-state.data-v-8208bda3 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 40rpx;
+}
+.empty-icon.data-v-8208bda3 {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+.empty-text.data-v-8208bda3 {
+  font-size: 32rpx;
+  color: #666;
+  margin-bottom: 16rpx;
+}
+.empty-hint.data-v-8208bda3 {
+  font-size: 26rpx;
+  color: #aaa;
+  text-align: center;
+  line-height: 1.6;
+}

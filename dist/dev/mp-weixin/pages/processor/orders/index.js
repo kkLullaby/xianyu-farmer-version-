@@ -37,6 +37,12 @@ const _sfc_main = {
         created_at: "2024-03-15"
       }
     ]);
+    common_vendor.onShow(() => {
+      const stored = common_vendor.index.getStorageSync("global_order_list") || [];
+      if (stored.length > 0) {
+        orders.value = stored;
+      }
+    });
     const filteredOrders = common_vendor.computed(() => {
       if (currentTab.value === 0)
         return orders.value;

@@ -65,8 +65,11 @@ const _sfc_main = {
     const goToAddress = () => {
       common_vendor.index.navigateTo({ url: "/pages/profile/address/list" });
     };
+    const goToIntentions = () => {
+      common_vendor.index.navigateTo({ url: "/pages/profile/intentions/index" });
+    };
     const handleComingSoon = () => {
-      common_vendor.index.showToast({ title: "功能开发中", icon: "none" });
+      common_vendor.index.showToast({ title: "该功能将在正式版开放", icon: "none" });
     };
     const callAdmin = () => {
       common_vendor.index.makePhoneCall({
@@ -106,11 +109,12 @@ const _sfc_main = {
         h: common_vendor.t(userInfo.value.balance),
         i: common_vendor.t(userInfo.value.pendingAmount),
         j: common_vendor.o(goToAddress),
-        k: common_vendor.o(handleComingSoon),
+        k: common_vendor.o(goToIntentions),
         l: common_vendor.o(handleComingSoon),
-        m: common_vendor.o(callAdmin),
-        n: common_vendor.o(handleComingSoon),
-        o: common_vendor.o(handleLogout)
+        m: common_vendor.o(handleComingSoon),
+        n: common_vendor.o(callAdmin),
+        o: common_vendor.o(handleComingSoon),
+        p: common_vendor.o(handleLogout)
       });
     };
   }

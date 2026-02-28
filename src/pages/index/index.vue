@@ -254,6 +254,12 @@ const goArticle = (item) => {
 const navigateTo = (url, role) => {
   if (role) {
     uni.setStorageSync('current_role', role);
+    let mockName = '张大伯'; let mockPhone = '13811112222';
+    if (role === 'merchant') { mockName = '李老板'; mockPhone = '13933334444'; }
+    if (role === 'processor') { mockName = '新会处理厂'; mockPhone = '13788889999'; }
+    if (role === 'admin') { mockName = '管理员'; mockPhone = '13600000000'; }
+    uni.setStorageSync('current_user_name', mockName);
+    uni.setStorageSync('current_user_phone', mockPhone);
   }
   uni.navigateTo({
     url,
@@ -267,6 +273,10 @@ const navigateTo = (url, role) => {
 const navigateToProcessor = (role) => {
   if (role) {
     uni.setStorageSync('current_role', role);
+    let mockName = '新会处理厂'; let mockPhone = '13788889999';
+    if (role === 'merchant') { mockName = '李老板'; mockPhone = '13933334444'; }
+    uni.setStorageSync('current_user_name', mockName);
+    uni.setStorageSync('current_user_phone', mockPhone);
   }
   uni.navigateTo({
     url: '/pages/processor/dashboard/index',

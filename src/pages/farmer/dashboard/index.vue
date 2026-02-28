@@ -31,6 +31,10 @@
           <text class="card-title text-blue">📢 求购大厅</text>
           <text class="card-desc">查看回收商与处理商的求购需求</text>
         </view>
+        <view class="card border-dark" @click="navigateTo('/pages/farmer/supply/index')">
+          <text class="card-title text-dark">🌾 处理商需求大厅</text>
+          <text class="card-desc">查看处理商发布的柑橘果肉收购需求</text>
+        </view>
         <view class="card border-green" @click="navigateTo('/pages/farmer/nearby/index')">
           <text class="card-title text-green">🌍 附近处理点</text>
           <text class="card-desc">查找最近的回收/处理点，实时显示位置</text>
@@ -58,10 +62,24 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 
 const userInfo = ref({
-  name: '测试农户',
+  name: '农户朋友',
   role: 'farmer'
+});
+
+const roleNameMap = {
+  farmer: '农户朋友',
+  merchant: '回收商老板',
+  processor: '处理商企业',
+  admin: '管理员'
+};
+
+onShow(() => {
+  const role = uni.getStorageSync('current_role') || 'farmer';
+  userInfo.value.role = role;
+  userInfo.value.name = roleNameMap[role] || '农户朋友';
 });
 
 const navigateTo = (url) => {

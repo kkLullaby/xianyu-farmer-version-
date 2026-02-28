@@ -249,6 +249,24 @@ const submitVerdict = () => {
   const globalList = arbitrationList.value.map(item => ({ ...item }));
   uni.setStorageSync('global_arbitration_list', globalList);
 
+  // Write verdict result back to the related order in global_order_list
+  if (target && target.order_no) {
+    const orderList = uni.getStorageSync('global_order_list') || [];
+    const orderIdx = orderList.findIndex(o => o.order_no === target.order_no || String(o.id) === target.order_no);
+    if (orderIdx !== -1) {
+      orderList[orderIdx].arbitration_verdict = partyLabels[verdictForm.value.party];
+      orderList[orderIdx].arbitration_opinion = verdictForm.value.opinion;
+      orderList[orderIdx].arbitration_time = target.verdict_time;
+      orderList[orderIdx].status = '仲裁完结';
+      orderList[orderIdx].timeline = orderList[orderIdx].timeline || [];
+      orderList[orderIdx].timeline.unshift({
+        time: target.verdict_time,
+        desc: '平台仲裁完成，责任方：' + partyLabels[verdictForm.value.party]
+      });
+      uni.setStorageSync('global_order_list', orderList);
+    }
+  }
+
   showPanel.value = false;
   uni.showToast({ title: '裁决已生效', icon: 'success' });
 };

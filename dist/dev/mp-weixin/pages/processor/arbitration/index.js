@@ -10,6 +10,13 @@ const _sfc_main = {
       dispute_type: "",
       description: ""
     });
+    common_vendor.onLoad((options) => {
+      const orderNo = (options == null ? void 0 : options.order_no) ? decodeURIComponent(options.order_no) : "";
+      if (orderNo) {
+        form.value.order_no = orderNo;
+        showForm.value = true;
+      }
+    });
     const statusLabel = {
       pending: "待处理",
       processing: "处理中",

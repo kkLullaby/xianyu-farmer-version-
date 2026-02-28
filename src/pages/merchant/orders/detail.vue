@@ -14,7 +14,7 @@
       </view>
       <view class="info-row">
         <text class="label">联系电话</text>
-        <text class="value link" @click="callPhone(order.farmer_phone)">{{ order.farmer_phone }}</text>
+        <text class="value link" @click="callPhone(order.farmer_phone)">{{ order.farmer_phone || '暂无电话' }}</text>
       </view>
       <view class="info-row">
         <text class="label">回收地址</text>
@@ -152,13 +152,32 @@ const statusTip = computed(() => {
 });
 
 const fetchOrderDetail = async (id) => {
+  const stored = uni.getStorageSync('global_order_list') || [];
+  const found = stored.find(o => String(o.id) === String(id) || o.order_no === id);
+  if (found) {
+    order.value = { ...order.value, ...found };
+    return;
+  }
   try {
     const res = await request({ url: `/api/merchant/orders/${id}`, method: 'GET' });
     if (res && res.data) {
       order.value = res.data;
+    } else {
+      useMockData(id);
     }
   } catch (e) {
     useMockData(id);
+  }
+};
+
+const persistOrderStatus = (newStatus, timelineDesc) => {
+  const stored = uni.getStorageSync('global_order_list') || [];
+  const idx = stored.findIndex(o => String(o.id) === String(order.value.id) || o.order_no === order.value.order_no);
+  if (idx !== -1) {
+    stored[idx].status = newStatus;
+    stored[idx].timeline = stored[idx].timeline || [];
+    stored[idx].timeline.unshift({ time: new Date().toLocaleString('zh-CN').replace(/\//g, '-'), desc: timelineDesc });
+    uni.setStorageSync('global_order_list', stored);
   }
 };
 
@@ -193,6 +212,7 @@ onLoad((options) => {
 });
 
 const callPhone = (phone) => {
+  if (!phone) { uni.showToast({ title: '暂无联系方式', icon: 'none' }); return; }
   uni.makePhoneCall({
     phoneNumber: phone,
     fail: () => uni.showToast({ title: '拨号失败', icon: 'none' })
@@ -205,8 +225,11 @@ const handleConfirmReceive = () => {
     content: '确认接收此订单并安排取货？',
     success: (res) => {
       if (res.confirm) {
+        const desc = '回收商已接单，安排取货中';
         order.value.status = '进行中';
-        order.value.timeline.unshift({ time: new Date().toLocaleString(), desc: '回收商已接单，安排取货中' });
+        order.value.timeline = order.value.timeline || [];
+        order.value.timeline.unshift({ time: new Date().toLocaleString('zh-CN').replace(/\//g, '-'), desc });
+        persistOrderStatus('进行中', desc);
         uni.showToast({ title: '接单成功', icon: 'success' });
       }
     }
@@ -219,8 +242,11 @@ const handleConfirmShip = () => {
     content: '确认已完成取货？',
     success: (res) => {
       if (res.confirm) {
+        const desc = '回收商已完成取货，订单结束';
         order.value.status = '已完成';
-        order.value.timeline.unshift({ time: new Date().toLocaleString(), desc: '回收商已完成取货，订单结束' });
+        order.value.timeline = order.value.timeline || [];
+        order.value.timeline.unshift({ time: new Date().toLocaleString('zh-CN').replace(/\//g, '-'), desc });
+        persistOrderStatus('已完成', desc);
         uni.showToast({ title: '取货确认成功', icon: 'success' });
       }
     }
@@ -228,7 +254,9 @@ const handleConfirmShip = () => {
 };
 
 const handleArbitration = () => {
-  uni.navigateTo({ url: '/pages/merchant/arbitration/index' });
+  uni.navigateTo({
+    url: '/pages/merchant/arbitration/index?order_no=' + encodeURIComponent(order.value.order_no)
+  });
 };
 </script>
 

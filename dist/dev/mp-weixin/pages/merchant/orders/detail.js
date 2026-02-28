@@ -38,13 +38,31 @@ const _sfc_main = {
       return map[order.value.status] || "";
     });
     const fetchOrderDetail = async (id) => {
+      const stored = common_vendor.index.getStorageSync("global_order_list") || [];
+      const found = stored.find((o) => String(o.id) === String(id) || o.order_no === id);
+      if (found) {
+        order.value = { ...order.value, ...found };
+        return;
+      }
       try {
         const res = await utils_request.request({ url: `/api/merchant/orders/${id}`, method: "GET" });
         if (res && res.data) {
           order.value = res.data;
+        } else {
+          useMockData(id);
         }
       } catch (e) {
         useMockData(id);
+      }
+    };
+    const persistOrderStatus = (newStatus, timelineDesc) => {
+      const stored = common_vendor.index.getStorageSync("global_order_list") || [];
+      const idx = stored.findIndex((o) => String(o.id) === String(order.value.id) || o.order_no === order.value.order_no);
+      if (idx !== -1) {
+        stored[idx].status = newStatus;
+        stored[idx].timeline = stored[idx].timeline || [];
+        stored[idx].timeline.unshift({ time: (/* @__PURE__ */ new Date()).toLocaleString("zh-CN").replace(/\//g, "-"), desc: timelineDesc });
+        common_vendor.index.setStorageSync("global_order_list", stored);
       }
     };
     const useMockData = (id) => {
@@ -76,6 +94,10 @@ const _sfc_main = {
       }
     });
     const callPhone = (phone) => {
+      if (!phone) {
+        common_vendor.index.showToast({ title: "暂无联系方式", icon: "none" });
+        return;
+      }
       common_vendor.index.makePhoneCall({
         phoneNumber: phone,
         fail: () => common_vendor.index.showToast({ title: "拨号失败", icon: "none" })
@@ -87,8 +109,11 @@ const _sfc_main = {
         content: "确认接收此订单并安排取货？",
         success: (res) => {
           if (res.confirm) {
+            const desc = "回收商已接单，安排取货中";
             order.value.status = "进行中";
-            order.value.timeline.unshift({ time: (/* @__PURE__ */ new Date()).toLocaleString(), desc: "回收商已接单，安排取货中" });
+            order.value.timeline = order.value.timeline || [];
+            order.value.timeline.unshift({ time: (/* @__PURE__ */ new Date()).toLocaleString("zh-CN").replace(/\//g, "-"), desc });
+            persistOrderStatus("进行中", desc);
             common_vendor.index.showToast({ title: "接单成功", icon: "success" });
           }
         }
@@ -100,15 +125,20 @@ const _sfc_main = {
         content: "确认已完成取货？",
         success: (res) => {
           if (res.confirm) {
+            const desc = "回收商已完成取货，订单结束";
             order.value.status = "已完成";
-            order.value.timeline.unshift({ time: (/* @__PURE__ */ new Date()).toLocaleString(), desc: "回收商已完成取货，订单结束" });
+            order.value.timeline = order.value.timeline || [];
+            order.value.timeline.unshift({ time: (/* @__PURE__ */ new Date()).toLocaleString("zh-CN").replace(/\//g, "-"), desc });
+            persistOrderStatus("已完成", desc);
             common_vendor.index.showToast({ title: "取货确认成功", icon: "success" });
           }
         }
       });
     };
     const handleArbitration = () => {
-      common_vendor.index.navigateTo({ url: "/pages/merchant/arbitration/index" });
+      common_vendor.index.navigateTo({
+        url: "/pages/merchant/arbitration/index?order_no=" + encodeURIComponent(order.value.order_no)
+      });
     };
     return (_ctx, _cache) => {
       return common_vendor.e({
@@ -117,7 +147,7 @@ const _sfc_main = {
         c: common_vendor.t(common_vendor.unref(statusTip)),
         d: common_vendor.n("status-bg-" + common_vendor.unref(statusKey)),
         e: common_vendor.t(order.value.farmer_name),
-        f: common_vendor.t(order.value.farmer_phone),
+        f: common_vendor.t(order.value.farmer_phone || "暂无电话"),
         g: common_vendor.o(($event) => callPhone(order.value.farmer_phone)),
         h: common_vendor.t(order.value.address),
         i: common_vendor.t(order.value.variety),

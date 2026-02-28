@@ -5,7 +5,8 @@
     "pages/profile/index",
     "pages/index/article",
     "pages/profile/address/list",
-    "pages/profile/address/edit"
+    "pages/profile/address/edit",
+    "pages/profile/intentions/index"
   ],
   "subPackages": [
     {
@@ -15,10 +16,10 @@
         "report/create",
         "report/list",
         "nearby/index",
-        "merchant-demand/index",
         "demand-hall/index",
         "supply/index",
-        "arbitration/index"
+        "arbitration/index",
+        "report/detail"
       ]
     },
     {
@@ -29,7 +30,8 @@
         "orders/index",
         "finance/index",
         "arbitration/index",
-        "orders/detail"
+        "orders/detail",
+        "intentions/index"
       ]
     },
     {
@@ -53,7 +55,8 @@
         "supply/index",
         "orders/index",
         "arbitration/index",
-        "orders/detail"
+        "orders/detail",
+        "intentions/index"
       ]
     }
   ],
