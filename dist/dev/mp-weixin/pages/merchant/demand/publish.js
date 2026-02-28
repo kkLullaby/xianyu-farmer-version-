@@ -44,6 +44,23 @@ const _sfc_main = {
         const currentList = common_vendor.index.getStorageSync("global_demand_list") || [];
         currentList.unshift(newItem);
         common_vendor.index.setStorageSync("global_demand_list", currentList);
+        const auditEntry = {
+          id: "AUD-" + newItem.id,
+          submitter: newItem.contact_name,
+          role_label: "回收商",
+          _role: "merchant",
+          type_label: "回收求购发布",
+          spec: newItem.goods_type,
+          quantity: newItem.weight + " 斤",
+          unit_price: newItem.price,
+          audit_status: "pending",
+          commission_type: null,
+          commission_value: null,
+          created_at: (/* @__PURE__ */ new Date()).toLocaleString()
+        };
+        const auditList = common_vendor.index.getStorageSync("global_audit_list") || [];
+        auditList.unshift(auditEntry);
+        common_vendor.index.setStorageSync("global_audit_list", auditList);
         isSubmitting.value = false;
         common_vendor.index.showToast({ title: "发布成功", icon: "success" });
         setTimeout(() => common_vendor.index.navigateBack(), 1500);

@@ -7,6 +7,15 @@ const _sfc_main = {
     const longitude = common_vendor.ref(113.035);
     const markers = common_vendor.ref([]);
     const publicAddresses = common_vendor.ref([]);
+    const showPopup = common_vendor.ref(false);
+    const currentTarget = common_vendor.ref({});
+    const intentionForm = common_vendor.ref({ price: "", weight: "", date: "" });
+    const fuzzPhone = (phone) => String(phone).replace(/(\d{3})\d{4}(\d{4})/, "$1****$2");
+    const fuzzName = (name, role) => {
+      const surname = name ? name.charAt(0) : "某";
+      return role === "merchant" ? surname + "氏回收站" : surname + "氏处理厂";
+    };
+    const fuzzDetail = () => "（详细地址经平台保护，签约后可见）";
     const initSeedData = () => {
       const existing = common_vendor.index.getStorageSync("global_addresses");
       if (!existing || existing.length === 0) {
@@ -45,14 +54,19 @@ const _sfc_main = {
       const filtered = allAddresses.filter(
         (a) => a.is_public === true && (a.role === "merchant" || a.role === "processor")
       );
-      publicAddresses.value = filtered;
+      publicAddresses.value = filtered.map((item) => ({
+        ...item,
+        phone: fuzzPhone(item.phone),
+        name: fuzzName(item.name, item.role),
+        detail: fuzzDetail()
+      }));
       const mapMarkers = filtered.map((item, index) => ({
         id: index + 1,
         latitude: item.latitude,
         longitude: item.longitude,
-        title: item.name,
+        title: fuzzName(item.name, item.role),
         callout: {
-          content: item.name + (item.role === "merchant" ? "（回收商）" : "（处理商）"),
+          content: fuzzName(item.name, item.role) + (item.role === "merchant" ? "（回收商）" : "（处理商）"),
           display: "ALWAYS",
           fontSize: 12,
           color: "#333333",
@@ -72,13 +86,36 @@ const _sfc_main = {
         longitude.value = filtered[0].longitude;
       }
     });
-    const callPhone = (phoneNumber) => {
-      common_vendor.index.makePhoneCall({
-        phoneNumber,
-        fail: () => {
-          common_vendor.index.showToast({ title: "拨号失败", icon: "none" });
-        }
-      });
+    const openIntentionPopup = (item) => {
+      currentTarget.value = item;
+      intentionForm.value = { price: "", weight: "", date: "" };
+      showPopup.value = true;
+    };
+    const closePopup = () => {
+      showPopup.value = false;
+    };
+    const onDateChange = (e) => {
+      intentionForm.value.date = e.detail.value;
+    };
+    const submitIntention = () => {
+      if (!intentionForm.value.price || !intentionForm.value.weight) {
+        return common_vendor.index.showToast({ title: "请填写单价和重量", icon: "none" });
+      }
+      const entry = {
+        id: "INT-" + Date.now(),
+        target_merchant_id: currentTarget.value.id,
+        target_name: currentTarget.value.name,
+        price: Number(intentionForm.value.price),
+        weight: Number(intentionForm.value.weight),
+        date: intentionForm.value.date || "待协商",
+        status: "pending",
+        create_time: (/* @__PURE__ */ new Date()).toLocaleString()
+      };
+      const list = common_vendor.index.getStorageSync("global_intentions") || [];
+      list.unshift(entry);
+      common_vendor.index.setStorageSync("global_intentions", list);
+      closePopup();
+      common_vendor.index.showToast({ title: "意向已发送，等待商家确认", icon: "success" });
     };
     return (_ctx, _cache) => {
       return common_vendor.e({
@@ -91,14 +128,33 @@ const _sfc_main = {
             b: common_vendor.t(item.role === "merchant" ? "回收商" : "处理商"),
             c: common_vendor.n(item.role === "merchant" ? "badge-merchant" : "badge-processor"),
             d: common_vendor.t(item.region),
-            e: common_vendor.t(item.detail),
-            f: common_vendor.t(item.phone),
-            g: common_vendor.o(($event) => callPhone(item.phone), item.id),
-            h: item.id
+            e: common_vendor.t(item.phone),
+            f: common_vendor.o(($event) => openIntentionPopup(item), item.id),
+            g: item.id
           };
         }),
         e: publicAddresses.value.length === 0
-      }, publicAddresses.value.length === 0 ? {} : {});
+      }, publicAddresses.value.length === 0 ? {} : {}, {
+        f: showPopup.value
+      }, showPopup.value ? {
+        g: common_vendor.o(closePopup)
+      } : {}, {
+        h: showPopup.value
+      }, showPopup.value ? common_vendor.e({
+        i: common_vendor.t(currentTarget.value.name),
+        j: intentionForm.value.price,
+        k: common_vendor.o(($event) => intentionForm.value.price = $event.detail.value),
+        l: intentionForm.value.weight,
+        m: common_vendor.o(($event) => intentionForm.value.weight = $event.detail.value),
+        n: intentionForm.value.date
+      }, intentionForm.value.date ? {
+        o: common_vendor.t(intentionForm.value.date)
+      } : {}, {
+        p: intentionForm.value.date,
+        q: common_vendor.o(onDateChange),
+        r: common_vendor.o(closePopup),
+        s: common_vendor.o(submitIntention)
+      }) : {});
     };
   }
 };

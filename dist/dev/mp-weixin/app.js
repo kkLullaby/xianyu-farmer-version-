@@ -21,6 +21,7 @@ if (!Math) {
   "./pages/merchant/orders/index.js";
   "./pages/merchant/finance/index.js";
   "./pages/merchant/arbitration/index.js";
+  "./pages/merchant/orders/detail.js";
   "./pages/admin/dashboard/index.js";
   "./pages/admin/users/index.js";
   "./pages/admin/audit/index.js";
@@ -34,6 +35,7 @@ if (!Math) {
   "./pages/processor/supply/index.js";
   "./pages/processor/orders/index.js";
   "./pages/processor/arbitration/index.js";
+  "./pages/processor/orders/detail.js";
 }
 const _sfc_main = {
   __name: "App",

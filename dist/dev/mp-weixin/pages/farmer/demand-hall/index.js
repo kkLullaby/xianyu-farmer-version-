@@ -14,13 +14,46 @@ const _sfc_main = {
       }
       return price.toFixed(2);
     };
-    const contactBuyer = (phone) => {
-      common_vendor.index.makePhoneCall({
-        phoneNumber: phone,
-        fail: () => {
-          common_vendor.index.showToast({ title: "拨打电话失败", icon: "none" });
-        }
-      });
+    const fuzzPhone = (phone) => String(phone || "").replace(/(\d{3})\d{4}(\d{4})/, "$1****$2");
+    const fuzzAddress = (addr) => {
+      if (!addr)
+        return "（地址保护中）";
+      const parts = addr.split(/[市县区]/u);
+      return parts.length > 1 ? addr.substring(0, addr.search(/[县区市]/u) + 2) + "（详细地址经平台保护）" : addr.substring(0, 6) + "…（保护）";
+    };
+    const showPopup = common_vendor.ref(false);
+    const currentTarget = common_vendor.ref({});
+    const intentionForm = common_vendor.ref({ price: "", weight: "", date: "" });
+    const openIntentionPopup = (item) => {
+      currentTarget.value = { ...item, name: item.contact_name || item.id };
+      intentionForm.value = { price: "", weight: "", date: "" };
+      showPopup.value = true;
+    };
+    const closePopup = () => {
+      showPopup.value = false;
+    };
+    const onDateChange = (e) => {
+      intentionForm.value.date = e.detail.value;
+    };
+    const submitIntention = () => {
+      if (!intentionForm.value.price || !intentionForm.value.weight) {
+        return common_vendor.index.showToast({ title: "请填写单价和重量", icon: "none" });
+      }
+      const entry = {
+        id: "INT-" + Date.now(),
+        target_merchant_id: currentTarget.value.id,
+        target_name: currentTarget.value.name,
+        price: Number(intentionForm.value.price),
+        weight: Number(intentionForm.value.weight),
+        date: intentionForm.value.date || "待协商",
+        status: "pending",
+        create_time: (/* @__PURE__ */ new Date()).toLocaleString()
+      };
+      const list = common_vendor.index.getStorageSync("global_intentions") || [];
+      list.unshift(entry);
+      common_vendor.index.setStorageSync("global_intentions", list);
+      closePopup();
+      common_vendor.index.showToast({ title: "意向已发送，等待商家确认", icon: "success" });
     };
     const merchantList = common_vendor.ref([
       {
@@ -103,8 +136,8 @@ const _sfc_main = {
             c: common_vendor.t(item.deadline ? `有效期至 ${item.deadline}` : "长期有效"),
             d: item.deadline === "长期有效" ? 1 : "",
             e: common_vendor.t(item.contact_name),
-            f: common_vendor.t(item.contact_phone),
-            g: common_vendor.t(item.address),
+            f: common_vendor.t(fuzzPhone(item.contact_phone)),
+            g: common_vendor.t(fuzzAddress(item.address)),
             h: common_vendor.t(item.weight),
             i: common_vendor.t(item.unit),
             j: common_vendor.t(item.price),
@@ -118,7 +151,7 @@ const _sfc_main = {
           }, item.notes ? {
             r: common_vendor.t(item.notes)
           } : {}, {
-            s: common_vendor.o(($event) => contactBuyer(item.contact_phone), item.id),
+            s: common_vendor.o(($event) => openIntentionPopup(item), item.id),
             t: item.id
           });
         })
@@ -135,24 +168,46 @@ const _sfc_main = {
             f: common_vendor.t(item.unit),
             g: common_vendor.t(item.price),
             h: common_vendor.t(item.unit),
-            i: common_vendor.t(item.address),
+            i: common_vendor.t(fuzzAddress(item.address)),
             j: common_vendor.t(item.price),
             k: common_vendor.t(item.unit),
             l: common_vendor.t(item.commissionRate ? item.commissionRate + "%" : "¥0/" + item.unit),
             m: common_vendor.t(calcFarmerPrice(item)),
             n: common_vendor.t(item.unit),
             o: common_vendor.t(item.contact_name),
-            p: common_vendor.t(item.contact_phone),
-            q: common_vendor.t(item.address),
+            p: common_vendor.t(fuzzPhone(item.contact_phone)),
+            q: common_vendor.t(fuzzAddress(item.address)),
             r: item.notes
           }, item.notes ? {
             s: common_vendor.t(item.notes)
           } : {}, {
-            t: common_vendor.o(($event) => contactBuyer(item.contact_phone), item.id),
+            t: common_vendor.o(($event) => openIntentionPopup(item), item.id),
             v: item.id
           });
         })
-      } : {});
+      } : {}, {
+        k: showPopup.value
+      }, showPopup.value ? {
+        l: common_vendor.o(closePopup)
+      } : {}, {
+        m: showPopup.value
+      }, showPopup.value ? common_vendor.e({
+        n: common_vendor.t(currentTarget.value.name),
+        o: common_vendor.t(currentTarget.value.unit || "斤"),
+        p: intentionForm.value.price,
+        q: common_vendor.o(($event) => intentionForm.value.price = $event.detail.value),
+        r: common_vendor.t(currentTarget.value.unit || "斤"),
+        s: intentionForm.value.weight,
+        t: common_vendor.o(($event) => intentionForm.value.weight = $event.detail.value),
+        v: intentionForm.value.date
+      }, intentionForm.value.date ? {
+        w: common_vendor.t(intentionForm.value.date)
+      } : {}, {
+        x: intentionForm.value.date,
+        y: common_vendor.o(onDateChange),
+        z: common_vendor.o(closePopup),
+        A: common_vendor.o(submitIntention)
+      }) : {});
     };
   }
 };

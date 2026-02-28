@@ -22,15 +22,46 @@
               {{ item.role === 'merchant' ? '回收商' : '处理商' }}
             </text>
           </view>
-          <text class="address">{{ item.region }} {{ item.detail }}</text>
+          <text class="address">{{ item.region }}</text>
           <text class="phone-text">📞 {{ item.phone }}</text>
         </view>
-        <button class="call-btn" size="mini" @click="callPhone(item.phone)">联系</button>
+        <button class="intention-btn" size="mini" @click="openIntentionPopup(item)">发起意向</button>
       </view>
 
       <view class="empty-state" v-if="publicAddresses.length === 0">
         <text class="empty-icon">📍</text>
         <text class="empty-text">暂无公开的回收/处理点</text>
+      </view>
+    </view>
+
+    <view class="popup-mask" v-if="showPopup" @click="closePopup"></view>
+    <view class="intention-popup" v-if="showPopup">
+      <view class="popup-header">
+        <text class="popup-title">发起交易意向</text>
+        <text class="popup-sub">向 {{ currentTarget.name }} 报价</text>
+      </view>
+      <view class="popup-form">
+        <view class="form-item">
+          <text class="form-label">意向单价（元/斤）</text>
+          <input class="form-input" type="digit" v-model="intentionForm.price" placeholder="请输入意向单价" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">预计重量（斤）</text>
+          <input class="form-input" type="number" v-model="intentionForm.weight" placeholder="请输入预计重量" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">期望交接日期</text>
+          <picker mode="date" :value="intentionForm.date" @change="onDateChange">
+            <view class="picker-view">
+              <text v-if="intentionForm.date">{{ intentionForm.date }}</text>
+              <text v-else class="picker-placeholder">请选择日期</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+      <view class="popup-actions">
+        <button class="pop-cancel" @click="closePopup">取消</button>
+        <button class="pop-confirm" @click="submitIntention">提交意向</button>
       </view>
     </view>
   </view>
@@ -44,6 +75,16 @@ const latitude = ref(22.5431);
 const longitude = ref(113.0350);
 const markers = ref([]);
 const publicAddresses = ref([]);
+const showPopup = ref(false);
+const currentTarget = ref({});
+const intentionForm = ref({ price: '', weight: '', date: '' });
+
+const fuzzPhone = (phone) => String(phone).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+const fuzzName = (name, role) => {
+  const surname = name ? name.charAt(0) : '某';
+  return role === 'merchant' ? surname + '氏回收站' : surname + '氏处理厂';
+};
+const fuzzDetail = () => '（详细地址经平台保护，签约后可见）';
 
 const initSeedData = () => {
   const existing = uni.getStorageSync('global_addresses');
@@ -84,15 +125,20 @@ onShow(() => {
   const filtered = allAddresses.filter(
     a => a.is_public === true && (a.role === 'merchant' || a.role === 'processor')
   );
-  publicAddresses.value = filtered;
+  publicAddresses.value = filtered.map(item => ({
+    ...item,
+    phone: fuzzPhone(item.phone),
+    name: fuzzName(item.name, item.role),
+    detail: fuzzDetail()
+  }));
 
   const mapMarkers = filtered.map((item, index) => ({
     id: index + 1,
     latitude: item.latitude,
     longitude: item.longitude,
-    title: item.name,
+    title: fuzzName(item.name, item.role),
     callout: {
-      content: item.name + (item.role === 'merchant' ? '（回收商）' : '（处理商）'),
+        content: fuzzName(item.name, item.role) + (item.role === 'merchant' ? '（回收商）' : '（处理商）'),
       display: 'ALWAYS',
       fontSize: 12,
       color: '#333333',
@@ -115,13 +161,35 @@ onShow(() => {
   }
 });
 
-const callPhone = (phoneNumber) => {
-  uni.makePhoneCall({
-    phoneNumber: phoneNumber,
-    fail: () => {
-      uni.showToast({ title: '拨号失败', icon: 'none' });
-    }
-  });
+const openIntentionPopup = (item) => {
+  currentTarget.value = item;
+  intentionForm.value = { price: '', weight: '', date: '' };
+  showPopup.value = true;
+};
+
+const closePopup = () => { showPopup.value = false; };
+
+const onDateChange = (e) => { intentionForm.value.date = e.detail.value; };
+
+const submitIntention = () => {
+  if (!intentionForm.value.price || !intentionForm.value.weight) {
+    return uni.showToast({ title: '请填写单价和重量', icon: 'none' });
+  }
+  const entry = {
+    id: 'INT-' + Date.now(),
+    target_merchant_id: currentTarget.value.id,
+    target_name: currentTarget.value.name,
+    price: Number(intentionForm.value.price),
+    weight: Number(intentionForm.value.weight),
+    date: intentionForm.value.date || '待协商',
+    status: 'pending',
+    create_time: new Date().toLocaleString()
+  };
+  const list = uni.getStorageSync('global_intentions') || [];
+  list.unshift(entry);
+  uni.setStorageSync('global_intentions', list);
+  closePopup();
+  uni.showToast({ title: '意向已发送，等待商家确认', icon: 'success' });
 };
 </script>
 
@@ -221,11 +289,86 @@ const callPhone = (phoneNumber) => {
   color: #999;
 }
 
-.call-btn {
-  background-color: #2E7D32;
+.intention-btn {
+  background-color: #1565C0;
   color: white;
   margin: 0;
   flex-shrink: 0;
+}
+
+.popup-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+}
+
+.intention-popup {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 40rpx;
+  z-index: 101;
+}
+
+.popup-header { margin-bottom: 30rpx; }
+.popup-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.popup-sub { font-size: 26rpx; color: #666; }
+
+.popup-form { margin-bottom: 30rpx; }
+.form-item { margin-bottom: 24rpx; }
+.form-label {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 12rpx;
+}
+.form-input {
+  width: 100%;
+  background: #F5F7FA;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+  border: 2rpx solid #E0E0E0;
+}
+.picker-view {
+  background: #F5F7FA;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  font-size: 28rpx;
+  border: 2rpx solid #E0E0E0;
+}
+.picker-placeholder { color: #999; }
+
+.popup-actions {
+  display: flex;
+  gap: 20rpx;
+}
+.pop-cancel {
+  flex: 1;
+  background: #F5F5F5;
+  color: #666;
+  border-radius: 12rpx;
+  border: none;
+  font-size: 28rpx;
+}
+.pop-confirm {
+  flex: 2;
+  background: #1565C0;
+  color: #fff;
+  border-radius: 12rpx;
+  border: none;
+  font-size: 28rpx;
+  font-weight: bold;
 }
 
 .empty-state {

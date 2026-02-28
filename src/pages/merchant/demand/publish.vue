@@ -142,6 +142,24 @@ const submitDemand = () => {
     currentList.unshift(newItem);
     uni.setStorageSync('global_demand_list', currentList);
 
+    const auditEntry = {
+      id: 'AUD-' + newItem.id,
+      submitter: newItem.contact_name,
+      role_label: '回收商',
+      _role: 'merchant',
+      type_label: '回收求购发布',
+      spec: newItem.goods_type,
+      quantity: newItem.weight + ' 斤',
+      unit_price: newItem.price,
+      audit_status: 'pending',
+      commission_type: null,
+      commission_value: null,
+      created_at: new Date().toLocaleString()
+    };
+    const auditList = uni.getStorageSync('global_audit_list') || [];
+    auditList.unshift(auditEntry);
+    uni.setStorageSync('global_audit_list', auditList);
+
     isSubmitting.value = false;
     uni.showToast({ title: '发布成功', icon: 'success' });
     setTimeout(() => uni.navigateBack(), 1500);

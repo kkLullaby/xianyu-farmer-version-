@@ -158,6 +158,24 @@ const submitForm = () => {
   globalList.unshift(newReport);
   uni.setStorageSync('global_report_list', globalList);
 
+  const auditEntry = {
+    id: 'AUD-' + newReport.id,
+    submitter: newReport.submitter,
+    role_label: '农户',
+    _role: 'farmer',
+    type_label: '柑肉处理申报',
+    spec: newReport.goods_type,
+    quantity: newReport.weight + ' 斤',
+    unit_price: 0,
+    audit_status: 'pending',
+    commission_type: null,
+    commission_value: null,
+    created_at: newReport.create_time
+  };
+  const auditList = uni.getStorageSync('global_audit_list') || [];
+  auditList.unshift(auditEntry);
+  uni.setStorageSync('global_audit_list', auditList);
+
   // 模拟提交请求
   setTimeout(() => {
     isSubmitting.value = false;

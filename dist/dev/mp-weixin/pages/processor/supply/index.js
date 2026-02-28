@@ -3,6 +3,41 @@ const common_vendor = require("../../../common/vendor.js");
 const _sfc_main = {
   __name: "index",
   setup(__props) {
+    const fuzzLocation = (loc) => loc ? loc.replace(/([\u9547\u8857\u9053\u5c71\u4e61].*)/u, "（具体地址经平台保护）") : "地址保护中";
+    const showPopup = common_vendor.ref(false);
+    const currentTarget = common_vendor.ref({});
+    const intentionForm = common_vendor.ref({ price: "", weight: "", date: "" });
+    const openIntentionPopup = (item) => {
+      currentTarget.value = item;
+      intentionForm.value = { price: "", weight: "", date: "" };
+      showPopup.value = true;
+    };
+    const closePopup = () => {
+      showPopup.value = false;
+    };
+    const onDateChange = (e) => {
+      intentionForm.value.date = e.detail.value;
+    };
+    const submitIntention = () => {
+      if (!intentionForm.value.price || !intentionForm.value.weight) {
+        return common_vendor.index.showToast({ title: "请填写单价和重量", icon: "none" });
+      }
+      const entry = {
+        id: "INT-" + Date.now(),
+        target_merchant_id: currentTarget.value.id,
+        target_name: currentTarget.value.provider,
+        price: Number(intentionForm.value.price),
+        weight: Number(intentionForm.value.weight),
+        date: intentionForm.value.date || "待协商",
+        status: "pending",
+        create_time: (/* @__PURE__ */ new Date()).toLocaleString()
+      };
+      const list = common_vendor.index.getStorageSync("global_intentions") || [];
+      list.unshift(entry);
+      common_vendor.index.setStorageSync("global_intentions", list);
+      closePopup();
+      common_vendor.index.showToast({ title: "意向已发送，等待商家确认", icon: "success" });
+    };
     const currentTab = common_vendor.ref(0);
     const supplyList = common_vendor.ref([
       {
@@ -45,17 +80,6 @@ const _sfc_main = {
       const type = currentTab.value === 1 ? "farmer" : "merchant";
       return supplyList.value.filter((item) => item.type === type);
     });
-    const makeCall = (phone) => {
-      common_vendor.index.makePhoneCall({
-        phoneNumber: phone
-      });
-    };
-    const handlePurchase = (item) => {
-      common_vendor.index.showToast({
-        title: "意向已提交",
-        icon: "success"
-      });
-    };
     return (_ctx, _cache) => {
       return common_vendor.e({
         a: currentTab.value === 0 ? 1 : "",
@@ -72,15 +96,34 @@ const _sfc_main = {
             d: common_vendor.t(item.provider),
             e: common_vendor.t(item.weight),
             f: common_vendor.t(item.price),
-            g: common_vendor.t(item.location),
+            g: common_vendor.t(fuzzLocation(item.location)),
             h: common_vendor.t(item.date),
-            i: common_vendor.o(($event) => makeCall(item.phone), item.id),
-            j: common_vendor.o(($event) => handlePurchase(), item.id),
-            k: item.id
+            i: common_vendor.o(($event) => openIntentionPopup(item), item.id),
+            j: item.id
           };
         }),
         h: common_vendor.unref(filteredList).length === 0
-      }, common_vendor.unref(filteredList).length === 0 ? {} : {});
+      }, common_vendor.unref(filteredList).length === 0 ? {} : {}, {
+        i: showPopup.value
+      }, showPopup.value ? {
+        j: common_vendor.o(closePopup)
+      } : {}, {
+        k: showPopup.value
+      }, showPopup.value ? common_vendor.e({
+        l: common_vendor.t(currentTarget.value.provider),
+        m: intentionForm.value.price,
+        n: common_vendor.o(($event) => intentionForm.value.price = $event.detail.value),
+        o: intentionForm.value.weight,
+        p: common_vendor.o(($event) => intentionForm.value.weight = $event.detail.value),
+        q: intentionForm.value.date
+      }, intentionForm.value.date ? {
+        r: common_vendor.t(intentionForm.value.date)
+      } : {}, {
+        s: intentionForm.value.date,
+        t: common_vendor.o(onDateChange),
+        v: common_vendor.o(closePopup),
+        w: common_vendor.o(submitIntention)
+      }) : {});
     };
   }
 };

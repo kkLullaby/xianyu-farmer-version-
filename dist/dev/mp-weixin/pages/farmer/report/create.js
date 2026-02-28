@@ -63,6 +63,23 @@ const _sfc_main = {
       const globalList = common_vendor.index.getStorageSync("global_report_list") || [];
       globalList.unshift(newReport);
       common_vendor.index.setStorageSync("global_report_list", globalList);
+      const auditEntry = {
+        id: "AUD-" + newReport.id,
+        submitter: newReport.submitter,
+        role_label: "农户",
+        _role: "farmer",
+        type_label: "柑肉处理申报",
+        spec: newReport.goods_type,
+        quantity: newReport.weight + " 斤",
+        unit_price: 0,
+        audit_status: "pending",
+        commission_type: null,
+        commission_value: null,
+        created_at: newReport.create_time
+      };
+      const auditList = common_vendor.index.getStorageSync("global_audit_list") || [];
+      auditList.unshift(auditEntry);
+      common_vendor.index.setStorageSync("global_audit_list", auditList);
       setTimeout(() => {
         isSubmitting.value = false;
         common_vendor.index.showToast({

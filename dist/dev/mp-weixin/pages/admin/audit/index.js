@@ -75,8 +75,14 @@ const _sfc_main = {
         _isGlobal: true
       }));
       farmerList.value = [...mappedGlobalList, ...originalFarmerMockList];
+      const auditList = common_vendor.index.getStorageSync("global_audit_list") || [];
+      const merchantFromStorage = auditList.filter((i) => i._role === "merchant").map((item) => ({ ...item }));
+      const processorFromStorage = auditList.filter((i) => i._role === "processor").map((item) => ({ ...item }));
+      merchantPublishList.value = [...merchantFromStorage, ...originalMerchantMockList];
+      processorPublishList.value = [...processorFromStorage, ...originalProcessorMockList];
     });
-    const merchantPublishList = common_vendor.ref([
+    const merchantPublishList = common_vendor.ref([]);
+    const originalMerchantMockList = [
       {
         id: "AUD20260226004",
         submitter: "李记回收",
@@ -103,8 +109,9 @@ const _sfc_main = {
         commission_value: 0.03,
         created_at: "2026-02-24 08:45"
       }
-    ]);
-    const processorPublishList = common_vendor.ref([
+    ];
+    const processorPublishList = common_vendor.ref([]);
+    const originalProcessorMockList = [
       {
         id: "AUD20260227006",
         submitter: "绿源果业",
@@ -131,7 +138,7 @@ const _sfc_main = {
         commission_value: 8,
         created_at: "2026-02-22 16:00"
       }
-    ]);
+    ];
     const currentList = common_vendor.computed(() => {
       if (currentTab.value === 0)
         return farmerList.value;

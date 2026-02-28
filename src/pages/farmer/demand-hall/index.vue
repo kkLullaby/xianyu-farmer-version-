@@ -46,11 +46,11 @@
             </view>
             <view class="contact-item">
               <text class="label">联系电话：</text>
-              <text class="value">{{ item.contact_phone }}</text>
+              <text class="value">{{ fuzzPhone(item.contact_phone) }}</text>
             </view>
             <view class="contact-item">
               <text class="label">收货地址：</text>
-              <text class="value">{{ item.address }}</text>
+              <text class="value">{{ fuzzAddress(item.address) }}</text>
             </view>
             <view class="contact-item">
               <text class="label">需求量：</text>
@@ -83,8 +83,8 @@
           </view>
 
           <view class="action-row">
-            <button class="action-btn btn-recycler" @click="contactBuyer(item.contact_phone)">
-              💬 联系买家
+            <button class="action-btn btn-recycler" @click="openIntentionPopup(item)">
+              💬 发起意向
             </button>
           </view>
         </view>
@@ -125,7 +125,7 @@
               </view>
               <view class="info-item full-width">
                 <text class="label">📍 收货地址：</text>
-                <text class="value">{{ item.address }}</text>
+                <text class="value">{{ fuzzAddress(item.address) }}</text>
               </view>
             </view>
           </view>
@@ -153,11 +153,11 @@
             </view>
             <view class="contact-item">
               <text class="label">联系电话：</text>
-              <text class="value">{{ item.contact_phone }}</text>
+              <text class="value">{{ fuzzPhone(item.contact_phone) }}</text>
             </view>
             <view class="contact-item">
               <text class="label">收货地址：</text>
-              <text class="value">{{ item.address }}</text>
+              <text class="value">{{ fuzzAddress(item.address) }}</text>
             </view>
           </view>
 
@@ -166,11 +166,42 @@
           </view>
 
           <view class="action-row">
-            <button class="action-btn btn-processor" @click="contactBuyer(item.contact_phone)">
-              💬 联系买家
+            <button class="action-btn btn-processor" @click="openIntentionPopup(item)">
+              💬 发起意向
             </button>
           </view>
         </view>
+      </view>
+    </view>
+
+    <view class="popup-mask" v-if="showPopup" @click="closePopup"></view>
+    <view class="intention-popup" v-if="showPopup">
+      <view class="popup-header">
+        <text class="popup-title">发起交易意向</text>
+        <text class="popup-sub">向 {{ currentTarget.name }} 协商供货意向</text>
+      </view>
+      <view class="popup-form">
+        <view class="form-item">
+          <text class="form-label">意向单价（元/{{ currentTarget.unit || '斤' }}）</text>
+          <input class="form-input" type="digit" v-model="intentionForm.price" placeholder="请输入你的报价" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">预计重量（{{ currentTarget.unit || '斤' }}）</text>
+          <input class="form-input" type="number" v-model="intentionForm.weight" placeholder="请输入预计重量" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">期望交接日期</text>
+          <picker mode="date" :value="intentionForm.date" @change="onDateChange">
+            <view class="picker-view">
+              <text v-if="intentionForm.date">{{ intentionForm.date }}</text>
+              <text v-else class="picker-placeholder">请选择日期</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+      <view class="popup-actions">
+        <button class="pop-cancel" @click="closePopup">取消</button>
+        <button class="pop-confirm" @click="submitIntention">提交意向</button>
       </view>
     </view>
   </view>
@@ -198,15 +229,47 @@ const calcFarmerPrice = (item) => {
   return price.toFixed(2);
 };
 
-// --- 公共方法 ---
-const contactBuyer = (phone) => {
-  uni.makePhoneCall({
-    phoneNumber: phone,
-    fail: () => {
-      uni.showToast({ title: '拨打电话失败', icon: 'none' });
-    }
-  });
+const fuzzPhone = (phone) => String(phone || '').replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+const fuzzAddress = (addr) => {
+  if (!addr) return '（地址保护中）';
+  const parts = addr.split(/[市县区]/u);
+  return parts.length > 1 ? addr.substring(0, addr.search(/[县区市]/u) + 2) + '（详细地址经平台保护）' : addr.substring(0, 6) + '…（保护）';
 };
+
+const showPopup = ref(false);
+const currentTarget = ref({});
+const intentionForm = ref({ price: '', weight: '', date: '' });
+
+const openIntentionPopup = (item) => {
+  currentTarget.value = { ...item, name: item.contact_name || item.id };
+  intentionForm.value = { price: '', weight: '', date: '' };
+  showPopup.value = true;
+};
+const closePopup = () => { showPopup.value = false; };
+const onDateChange = (e) => { intentionForm.value.date = e.detail.value; };
+const submitIntention = () => {
+  if (!intentionForm.value.price || !intentionForm.value.weight) {
+    return uni.showToast({ title: '请填写单价和重量', icon: 'none' });
+  }
+  const entry = {
+    id: 'INT-' + Date.now(),
+    target_merchant_id: currentTarget.value.id,
+    target_name: currentTarget.value.name,
+    price: Number(intentionForm.value.price),
+    weight: Number(intentionForm.value.weight),
+    date: intentionForm.value.date || '待协商',
+    status: 'pending',
+    create_time: new Date().toLocaleString()
+  };
+  const list = uni.getStorageSync('global_intentions') || [];
+  list.unshift(entry);
+  uni.setStorageSync('global_intentions', list);
+  closePopup();
+  uni.showToast({ title: '意向已发送，等待商家确认', icon: 'success' });
+};
+
+// --- 公共方法 ---
+const contactBuyer = () => {};
 
 // --- Tab 0: 回收商数据 ---
 const merchantList = ref([
@@ -514,4 +577,72 @@ onShow(() => {
 }
 .btn-processor { background-color: #9b59b6; }
 .btn-recycler { background-color: #FF9800; }
+
+.popup-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+}
+.intention-popup {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 40rpx;
+  z-index: 101;
+}
+.popup-header { margin-bottom: 30rpx; }
+.popup-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #1B3A24;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.popup-sub { font-size: 26rpx; color: #666; }
+.popup-form { margin-bottom: 30rpx; }
+.form-item { margin-bottom: 24rpx; }
+.form-label {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 12rpx;
+}
+.form-input {
+  width: 100%;
+  background: #F5F7FA;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+  border: 2rpx solid #E0E0E0;
+}
+.picker-view {
+  background: #F5F7FA;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  font-size: 28rpx;
+  border: 2rpx solid #E0E0E0;
+}
+.picker-placeholder { color: #999; }
+.popup-actions { display: flex; gap: 20rpx; }
+.pop-cancel {
+  flex: 1;
+  background: #F5F5F5;
+  color: #666;
+  border-radius: 12rpx;
+  border: none;
+  font-size: 28rpx;
+}
+.pop-confirm {
+  flex: 2;
+  background: #2E7D32;
+  color: #fff;
+  border-radius: 12rpx;
+  border: none;
+  font-size: 28rpx;
+  font-weight: bold;
+}
 </style>

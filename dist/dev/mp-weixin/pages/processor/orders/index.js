@@ -43,11 +43,8 @@ const _sfc_main = {
       const statusMap = ["全部", "待发货", "运输中", "已入库"];
       return orders.value.filter((item) => item.status === statusMap[currentTab.value]);
     });
-    const handleOrder = (item) => {
-      common_vendor.index.showToast({
-        title: `查看订单: ${item.order_no}`,
-        icon: "none"
-      });
+    const goToDetail = (id) => {
+      common_vendor.index.navigateTo({ url: "./detail?id=" + id });
     };
     return (_ctx, _cache) => {
       return common_vendor.e({
@@ -70,7 +67,7 @@ const _sfc_main = {
             e: common_vendor.t(item.weight),
             f: common_vendor.t(item.delivery_date),
             g: common_vendor.t(item.created_at),
-            h: common_vendor.o(($event) => handleOrder(item), item.id),
+            h: common_vendor.o(($event) => goToDetail(item.id), item.id),
             i: item.id
           };
         }),

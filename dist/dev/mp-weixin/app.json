@@ -28,7 +28,8 @@
         "demand/publish",
         "orders/index",
         "finance/index",
-        "arbitration/index"
+        "arbitration/index",
+        "orders/detail"
       ]
     },
     {
@@ -51,7 +52,8 @@
         "demand/publish",
         "supply/index",
         "orders/index",
-        "arbitration/index"
+        "arbitration/index",
+        "orders/detail"
       ]
     }
   ],

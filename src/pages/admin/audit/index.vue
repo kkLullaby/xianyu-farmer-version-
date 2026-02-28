@@ -211,9 +211,21 @@ onShow(() => {
     _isGlobal: true
   }));
   farmerList.value = [...mappedGlobalList, ...originalFarmerMockList];
+
+  const auditList = uni.getStorageSync('global_audit_list') || [];
+  const merchantFromStorage = auditList
+    .filter(i => i._role === 'merchant')
+    .map(item => ({ ...item }));
+  const processorFromStorage = auditList
+    .filter(i => i._role === 'processor')
+    .map(item => ({ ...item }));
+  merchantPublishList.value = [...merchantFromStorage, ...originalMerchantMockList];
+  processorPublishList.value = [...processorFromStorage, ...originalProcessorMockList];
 });
 
-const merchantPublishList = ref([
+const merchantPublishList = ref([]);
+
+const originalMerchantMockList = [
   {
     id: 'AUD20260226004',
     submitter: '李记回收',
@@ -240,9 +252,11 @@ const merchantPublishList = ref([
     commission_value: 0.03,
     created_at: '2026-02-24 08:45'
   }
-]);
+];
 
-const processorPublishList = ref([
+const processorPublishList = ref([]);
+
+const originalProcessorMockList = [
   {
     id: 'AUD20260227006',
     submitter: '绿源果业',
@@ -269,7 +283,7 @@ const processorPublishList = ref([
     commission_value: 8,
     created_at: '2026-02-22 16:00'
   }
-]);
+];
 
 const currentList = computed(() => {
   if (currentTab.value === 0) return farmerList.value;

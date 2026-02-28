@@ -112,7 +112,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { request } from '@/utils/request.js';
+import request from '@/utils/request.js';
 
 const order = ref({
   id: '',

@@ -49,7 +49,7 @@
         <view class="card-footer">
           <text class="time">{{ item.created_at }}</text>
           <view class="actions">
-            <button class="btn btn-primary" size="mini" @click="handleOrder(item)">处理订单</button>
+            <button class="btn btn-primary" size="mini" @click="goToDetail(item.id)">处理订单</button>
           </view>
         </view>
       </view>
@@ -108,10 +108,8 @@ const filteredOrders = computed(() => {
   return orders.value.filter(item => item.status === statusMap[currentTab.value]);
 });
 
-const handleOrder = (item) => {
-  uni.navigateTo({
-    url: '/pages/merchant/orders/detail?id=' + item.id
-  });
+const goToDetail = (id) => {
+  uni.navigateTo({ url: './detail?id=' + id });
 };
 </script>
 

@@ -89,8 +89,8 @@ const request = (options = {}) => {
   });
 };
 
-// Convenience methods
-export default {
+// Convenience methods — merged onto request function so it is both callable and has .get/.post helpers
+Object.assign(request, {
   get: (url, data, options = {}) => request({ ...options, url, data, method: 'GET' }),
   post: (url, data, options = {}) => request({ ...options, url, data, method: 'POST' }),
   put: (url, data, options = {}) => request({ ...options, url, data, method: 'PUT' }),
@@ -142,4 +142,6 @@ export default {
       });
     });
   }
-};
+});
+
+export default request;
