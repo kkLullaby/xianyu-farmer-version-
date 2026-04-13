@@ -165,8 +165,9 @@ const fetchOrderDetail = async (id) => {
   }
   try {
     const res = await request({ url: `/api/processor/orders/${id}`, method: 'GET' });
-    if (res && res.data) {
-      order.value = res.data;
+    // ✅ request.js 已剥壳 { code, msg, data }，res 直接就是 order 数据对象
+    if (res) {
+      order.value = res;
     } else {
       useMockData(id);
     }

@@ -461,7 +461,7 @@
         </ul>
     </nav>
 
-    <div id="content-area" style="padding: 40px 60px;">
+    <div id="content-area">
         <!-- ====== 首页 ====== -->
         <div id="homepage-content" style="animation: fadeIn 0.6s;">
         
@@ -580,7 +580,22 @@
                             "循果环生"是新会区首个合规柑肉回收对接平台，为柑橘产业链提供透明、安全、高效的回收处理服务。
                         </p>
                     </div>
-                </div>\n                \n                <!-- 底部分割线和链接 -->\n                <div style=\"border-top: 1px solid rgba(255,255,255,0.15); padding-top: 24px; text-align: center;\">\n                    <p style=\"margin: 0 0 12px 0; font-size: 12px; color: #A5D6A7;\">\n                        © 2025 循果环生 · 新会陈皮产业数字化管理系统\n                    </p>\n                    <div style=\"display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; font-size: 12px;\">\n                        <a href=\"privacy-policy.html\" style=\"color: #81C784; text-decoration: none; transition: color 0.3s;\" onmouseover=\"this.style.color='#A5D6A7'\" onmouseout=\"this.style.color='#81C784'\">隐私政策</a>\n                        <span style=\"color: rgba(255,255,255,0.2);\">|</span>\n                        <a href=\"service-agreement.html\" style=\"color: #81C784; text-decoration: none; transition: color 0.3s;\" onmouseover=\"this.style.color='#A5D6A7'\" onmouseout=\"this.style.color='#81C784'\">服务协议</a>\n                        <span style=\"color: rgba(255,255,255,0.2);\">|</span>\n                        <span style=\"color: #A5D6A7;\">版本 v1.0</span>\n                    </div>\n                </div>\n            </div>
+                </div>
+                
+                <!-- 底部分割线和链接 -->
+                <div style="border-top: 1px solid rgba(255,255,255,0.15); padding-top: 24px; text-align: center;">
+                    <p style="margin: 0 0 12px 0; font-size: 12px; color: #A5D6A7;">
+                        © 2025 循果环生 · 新会陈皮产业数字化管理系统
+                    </p>
+                    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; font-size: 12px;">
+                        <a href="privacy-policy.html" style="color: #81C784; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#A5D6A7'" onmouseout="this.style.color='#81C784'">隐私政策</a>
+                        <span style="color: rgba(255,255,255,0.2);">|</span>
+                        <a href="service-agreement.html" style="color: #81C784; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#A5D6A7'" onmouseout="this.style.color='#81C784'">服务协议</a>
+                        <span style="color: rgba(255,255,255,0.2);">|</span>
+                        <span style="color: #A5D6A7;">版本 v1.0</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -708,8 +723,8 @@
     </style>
 
     <script src="main_code.js"></script>
-    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="auth.js"></script>
+    <script src="userProfile.js"></script>
     <script>
     // 首页内容加载
     let announcementsList = []; // 全局公告列表
@@ -740,7 +755,7 @@
                     </div>
                     <h3 style="margin: 0 0 14px 0; font-size: 22px; color: #2c3e50; font-weight: bold; line-height: 1.5;">${a.title}</h3>
                     ${a.summary ? `<p style="margin: 0 0 auto 0; font-size: 15px; color: #555; line-height: 1.8;">${a.summary}</p>` : ''}
-                    ${a.link ? `<a href="${a.link}" target="_blank" style="display: inline-block; margin-top: 18px; color: ${typeColors[a.type]||'#2E7D32'}; text-decoration: none; font-weight: 600; font-size: 15px; border-bottom: 2px solid ${typeColors[a.type]||'#2E7D32'};">查看详情 →</a>` : ''}
+                    ${a.link_url ? `<a href="${a.link_url}" target="_blank" style="display: inline-block; margin-top: 18px; color: ${typeColors[a.type]||'#2E7D32'}; text-decoration: none; font-weight: 600; font-size: 15px; border-bottom: 2px solid ${typeColors[a.type]||'#2E7D32'};">查看详情 →</a>` : ''}
                 </div>
             </div>
         `;
@@ -760,7 +775,10 @@
             ? 'http://localhost:4000' : window.location.origin;
         
         // 加载公告
-        fetch(`${API}/api/cms/announcements?active=1`).then(r => r.json()).then(data => {
+        fetch(`${API}/api/cms/announcements?active=1`).then(r => r.json()).then(json => {
+            // ✅ 兼容统一格式 { code, msg, data: [...] }
+            const data = (json && json.code === 200 && Array.isArray(json.data)) ? json.data
+                        : (Array.isArray(json) ? json : []);
             const typeIcons = { policy: '📜', subsidy: '💰', platform: '📢' };
             
             // 保存公告列表并重置索引
@@ -788,7 +806,10 @@
         }).catch(() => {});
         
         // 加载案例 - 改进卡片样式
-        fetch(`${API}/api/cms/cases?active=1`).then(r => r.json()).then(data => {
+        fetch(`${API}/api/cms/cases?active=1`).then(r => r.json()).then(json => {
+            // ✅ 兼容统一格式 { code, msg, data: [...] }
+            const data = (json && json.code === 200 && Array.isArray(json.data)) ? json.data
+                        : (Array.isArray(json) ? json : []);
             const container = document.getElementById('case-cards');
             if (data.length === 0) {
                 container.innerHTML = `
@@ -818,7 +839,10 @@
         }).catch(() => {});
         
         // 加载广告 - 改进卡片样式
-        fetch(`${API}/api/cms/ads?active=1`).then(r => r.json()).then(data => {
+        fetch(`${API}/api/cms/ads?active=1`).then(r => r.json()).then(json => {
+            // ✅ 兼容统一格式 { code, msg, data: [...] }
+            const data = (json && json.code === 200 && Array.isArray(json.data)) ? json.data
+                        : (Array.isArray(json) ? json : []);
             const container = document.getElementById('ad-cards');
             if (data.length === 0) {
                 container.innerHTML = `
@@ -843,7 +867,9 @@
         }).catch(() => {});
         
         // 加载底部信息 - 使用textContent避免HTML注入，确保文本正确显示
-        fetch(`${API}/api/cms/site-info`).then(r => r.json()).then(info => {
+        fetch(`${API}/api/cms/site-info`).then(r => r.json()).then(json => {
+            // ✅ 兼容统一格式 { code, msg, data: { phone, license, about } }
+            const info = (json && json.code === 200 && json.data) ? json.data : (json || {});
             if (info.phone) {
                 const phoneEl = document.getElementById('footer-phone');
                 if (phoneEl) phoneEl.textContent = info.phone;
@@ -854,7 +880,15 @@
             }
             if (info.about) {
                 const aboutEl = document.getElementById('footer-about');
-                if (aboutEl) aboutEl.textContent = info.about;
+                if (aboutEl) {
+                    // ✅ 同时处理字面量 \n 字符串（用户手动输入的）和真实换行符
+                    const escaped = info.about
+                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const formatted = escaped
+                        .replace(/\\n/g, '<br>')   // 字面量 \n 字符串 → <br>
+                        .replace(/\n/g, '<br>');    // 真实换行符 → <br>
+                    aboutEl.innerHTML = formatted;
+                }
             }
         }).catch(err => console.log('底部信息加载失败:', err));
     }
@@ -904,5 +938,39 @@
         modal.onclick = function(e) {if(e.target===modal) modal.style.display='none';};
     });
     </script>
+
+    <!-- ======= 意向投递模态框 ======= -->
+    <div id="intention-submit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;padding:28px 24px;width:92%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative;max-height:90vh;overflow-y:auto;">
+            <button onclick="authSystem.closeIntentionModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;cursor:pointer;color:#999;">✕</button>
+            <h2 style="margin:0 0 6px;font-size:18px;color:#2d3436;">📋 发起意向</h2>
+            <p id="intention-modal-target" style="margin:0 0 20px;font-size:13px;color:#999;border-bottom:1px solid #f0f0f0;padding-bottom:12px;"></p>
+            <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:14px;font-weight:600;color:#555;margin-bottom:6px;">预估供货量（斤）<span style="color:#e74c3c;">*</span></label>
+                <input id="intention-weight" type="number" min="1" placeholder="例如：500" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;outline:none;" />
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:14px;font-weight:600;color:#555;margin-bottom:6px;">期望交收日期</label>
+                <input id="intention-date" type="date" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;outline:none;" />
+            </div>
+            <div style="margin-bottom:24px;">
+                <label style="display:block;font-size:14px;font-weight:600;color:#555;margin-bottom:6px;">补充说明</label>
+                <textarea id="intention-notes" rows="3" placeholder="品种、产地、质量情况等…" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;resize:vertical;outline:none;"></textarea>
+            </div>
+            <div style="display:flex;gap:12px;">
+                <button onclick="authSystem.closeIntentionModal()" style="flex:1;padding:12px;border:1.5px solid #ddd;border-radius:8px;background:#f8f9fa;color:#666;cursor:pointer;font-size:15px;">取消</button>
+                <button onclick="authSystem.submitIntention()" style="flex:2;padding:12px;border:none;border-radius:8px;background:var(--citrus-orange,#e67e22);color:#fff;cursor:pointer;font-size:15px;font-weight:bold;">确认提交</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= 意向列表模态框（需求方查看） ======= -->
+    <div id="intention-list-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;padding:28px 24px;width:92%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative;max-height:85vh;overflow-y:auto;">
+            <button onclick="authSystem.closeIntentionListModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;cursor:pointer;color:#999;">✕</button>
+            <h2 style="margin:0 0 18px;font-size:18px;color:#2d3436;">📩 收到的意向</h2>
+            <div id="intention-list-body" style="min-height:80px;"></div>
+        </div>
+    </div>
 </body>
 </html>

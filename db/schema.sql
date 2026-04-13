@@ -338,3 +338,19 @@ CREATE TABLE IF NOT EXISTS cms_site_info (
     updated_by INTEGER,
     updated_at DATETIME DEFAULT (datetime('now'))
 );
+
+-- 意向投递表
+CREATE TABLE IF NOT EXISTS intentions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    applicant_id INTEGER NOT NULL,           -- 投递人 user.id
+    applicant_name TEXT,                     -- 投递人姓名（冗余存储）
+    target_type TEXT NOT NULL,               -- 'farmer_report' | 'recycler_request' | 'processor_request'
+    target_id INTEGER NOT NULL,              -- 目标记录 id
+    target_no TEXT,                          -- 目标编号（冗余存储，方便展示）
+    target_name TEXT,                        -- 目标标题/名称
+    estimated_weight REAL,                   -- 预估重量（斤）
+    expected_date TEXT,                      -- 期望交收日期
+    notes TEXT,                              -- 备注
+    status TEXT NOT NULL DEFAULT 'pending',  -- pending / accepted / rejected
+    created_at DATETIME DEFAULT (datetime('now', 'localtime'))
+);

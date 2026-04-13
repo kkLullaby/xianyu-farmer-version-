@@ -1,13 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const http = require('http'); // Import http for socket.io
+const http = require('http');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Server } = require("socket.io"); // Import socket.io
 const { sendOtpSms } = require('./smsClient');
 const multer = require('multer');
 
@@ -160,8 +159,7 @@ async function initDb() {
 
 // --------- Express API ---------
 const app = express();
-const server = http.createServer(app); // Create HTTP server
-const io = new Server(server, { cors: { origin: "*" } }); // Init Socket.IO
+const server = http.createServer(app);
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -200,15 +198,25 @@ app.use((req, res, next) => {
 });
 
 // JWT 鉴权中间件
+// ⚠️ 注意：此中间件通过 app.use('/api', ...) 挂载，
+//    Express 会自动剥离 /api 前缀，所以 req.path 里不含 /api！
+//    例如：请求 /api/login → 中间件内 req.path = '/login'
 const authMiddleware = (req, res, next) => {
-    // 排除不需要鉴权的路由
-    const publicRoutes = ['/health', '/init', '/api/auth/request-otp', '/api/auth/register-phone', '/api/register', '/api/login'];
-    if (publicRoutes.includes(req.path) || req.path.startsWith('/uploads')) {
+    // 排除不需要鉴权的路由（路径已被 Express 剥离 /api 前缀！）
+    const publicRoutes = ['/health', '/init', '/auth/request-otp', '/auth/register-phone', '/register', '/login'];
+    // CMS 内容读接口（首页展示，游客可见）
+    const publicPrefixes = ['/cms/', '/farmer-nearby'];
+    if (
+        publicRoutes.includes(req.path) ||
+        req.path.startsWith('/uploads') ||
+        (req.method === 'GET' && publicPrefixes.some(p => req.path.startsWith(p)))
+    ) {
         return next();
     }
 
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.warn(`[Auth] 401 拒绝: ${req.method} ${req.originalUrl} (req.path=${req.path}, 无 Bearer Token)`);
         return res.status(401).json({ error: '未授权，请先登录' });
     }
 
@@ -218,6 +226,7 @@ const authMiddleware = (req, res, next) => {
         req.user = decoded; // 将用户信息挂载到 req 上
         next();
     } catch (err) {
+        console.warn(`[Auth] 401 Token无效: ${req.method} ${req.originalUrl}`);
         return res.status(401).json({ error: 'Token 无效或已过期' });
     }
 };
@@ -1107,258 +1116,6 @@ app.delete('/api/processor-requests/:id', (req, res) => {
         });
 });
 
-// ========== Socket.IO Chat ==========
-io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id);
-
-    // Join a chat room defined by report ID
-    socket.on('join_room', (room) => {
-        socket.join(room);
-        console.log(`User ${socket.id} joined room ${room}`);
-    });
-
-    // Send a message
-    socket.on('send_message', (data) => {
-        // data: { report_id, sender_id, receiver_id, content }
-        const { report_id, sender_id, receiver_id, content } = data;
-        const db = openDb();
-        db.run(`INSERT INTO chat_messages (report_id, sender_id, receiver_id, content) VALUES (?, ?, ?, ?)`,
-            [report_id, sender_id, receiver_id, content], function(err) {
-                db.close();
-                if (err) return console.error(err);
-                
-                const msg = {
-                    id: this.lastID,
-                    report_id, sender_id, receiver_id, content,
-                    created_at: new Date().toISOString(),
-                    is_read: 0
-                };
-                // Broadcast to room (including sender for now, or use broadcast.to for others)
-                io.to(`report_${report_id}`).emit('receive_message', msg);
-                
-                // Also could emit a notification event to specific user room if we tracked user sockets
-            });
-    });
-
-    // Get chat history
-    socket.on('get_history', (report_id, callback) => {
-        const db = openDb();
-        db.all(`SELECT * FROM chat_messages WHERE report_id = ? ORDER BY created_at ASC`, [report_id], (err, rows) => {
-            db.close();
-            if (callback) callback(rows || []);
-        });
-    });
-
-    // Mark as read
-    socket.on('mark_read', (data) => {
-        const { report_id, user_id } = data; // user_id is the one READING (so receiver_id = user_id)
-        const db = openDb();
-        db.run(`UPDATE chat_messages SET is_read = 1 WHERE report_id = ? AND receiver_id = ?`, [report_id, user_id], (err) => {
-            db.close();
-        });
-    });
-    
-    // Check unread count for a user
-    socket.on('check_unread', (user_id, callback) => {
-         const db = openDb();
-         db.all(`SELECT report_id, COUNT(*) as count FROM chat_messages WHERE receiver_id = ? AND is_read = 0 GROUP BY report_id`, [user_id], (err, rows) => {
-             db.close();
-             if (callback) callback(rows || []);
-         });
-    });
-
-    // ===== Purchase Request Chat =====
-    
-    // Join request chat room
-    socket.on('join_request_room', (data) => {
-        const { request_id } = data;
-        socket.join(`request_${request_id}`);
-        console.log(`Socket ${socket.id} joined request room: request_${request_id}`);
-    });
-    
-    // Send message for purchase request
-    socket.on('send_request_message', (data) => {
-        const { request_id, sender_id, content, content_type } = data;
-        const db = openDb();
-        
-        // First get the request info
-        db.get(`SELECT recycler_id FROM recycler_requests WHERE id = ?`, [request_id], (err, request) => {
-            if (err || !request) {
-                db.close();
-                return console.error('Request not found:', err);
-            }
-            
-            // 确定接收者：如果发送者是回收商，需要找到对话中的农户
-            let receiver_id;
-            if (String(sender_id) === String(request.recycler_id)) {
-                // 回收商发送，需要找到这个对话中的农户
-                // 从消息历史中找出最近的非回收商发送者
-                db.get(`SELECT DISTINCT sender_id FROM request_chat_messages 
-                        WHERE request_id = ? AND sender_id != ? 
-                        ORDER BY created_at DESC LIMIT 1`, 
-                    [request_id, request.recycler_id], (err3, lastMsg) => {
-                    
-                    receiver_id = lastMsg ? lastMsg.sender_id : request.recycler_id;
-                    saveChatMessage();
-                });
-            } else {
-                // 农户发送，接收者是回收商
-                receiver_id = request.recycler_id;
-                saveChatMessage();
-            }
-            
-            function saveChatMessage() {
-                // Get sender name
-                db.get(`SELECT full_name FROM users WHERE id = ?`, [sender_id], (err2, sender) => {
-                    const sender_name = sender ? sender.full_name : 'Unknown';
-                    
-                    db.run(`INSERT INTO request_chat_messages (request_id, sender_id, receiver_id, content, content_type) VALUES (?, ?, ?, ?, ?)`,
-                        [request_id, sender_id, receiver_id, content, content_type || 'text'], function(err4) {
-                        db.close();
-                        if (err4) return console.error(err4);
-                        
-                        const msg = {
-                            id: this.lastID,
-                            request_id, sender_id, receiver_id, content,
-                            content_type: content_type || 'text',
-                            sender_name,
-                            created_at: new Date().toISOString(),
-                            is_read: 0
-                        };
-                        io.to(`request_${request_id}`).emit('receive_request_message', msg);
-                    });
-                });
-            }
-        });
-    });
-
-    // Get request chat history
-    socket.on('get_request_history', (data, callback) => {
-        const { request_id } = data;
-        const db = openDb();
-        db.all(`SELECT rcm.*, u.full_name as sender_name 
-                FROM request_chat_messages rcm
-                JOIN users u ON rcm.sender_id = u.id
-                WHERE rcm.request_id = ? 
-                ORDER BY rcm.created_at ASC`, [request_id], (err, rows) => {
-            db.close();
-            if (callback) callback(rows || []);
-        });
-    });
-
-    // Mark request messages as read
-    socket.on('mark_request_read', (data) => {
-        const { request_id, user_id } = data;
-        const db = openDb();
-        db.run(`UPDATE request_chat_messages SET is_read = 1 WHERE request_id = ? AND receiver_id = ?`, [request_id, user_id], (err) => {
-            db.close();
-        });
-    });
-    
-    // Check unread request messages
-    socket.on('check_request_unread', (user_id, callback) => {
-         const db = openDb();
-         db.all(`SELECT request_id, COUNT(*) as count FROM request_chat_messages WHERE receiver_id = ? AND is_read = 0 GROUP BY request_id`, [user_id], (err, rows) => {
-             db.close();
-             if (callback) callback(rows || []);
-         });
-    });
-
-    // ===== Processor Request Chat (处理商求购聊天) =====
-    
-    // Join processor request chat room
-    socket.on('join_processor_room', (data) => {
-        const { request_id } = data;
-        socket.join(`processor_${request_id}`);
-        console.log(`Socket ${socket.id} joined processor room: processor_${request_id}`);
-    });
-    
-    // Send message for processor request
-    socket.on('send_processor_message', (data) => {
-        const { request_id, sender_id, content, content_type } = data;
-        console.log('[Socket send_processor_message] data:', data);
-        console.log('[Socket send_processor_message] content_type:', content_type);
-        const db = openDb();
-        
-        // Get the processor request info
-        db.get(`SELECT processor_id FROM processor_requests WHERE id = ?`, [request_id], (err, request) => {
-            if (err || !request) {
-                db.close();
-                return console.error('Processor request not found:', err);
-            }
-            
-            // 确定接收者
-            let receiver_id;
-            if (String(sender_id) === String(request.processor_id)) {
-                // 处理商发送，找对话中的农户或回收商
-                db.get(`SELECT DISTINCT sender_id FROM processor_chat_messages 
-                        WHERE request_id = ? AND sender_id != ? 
-                        ORDER BY created_at DESC LIMIT 1`, 
-                    [request_id, request.processor_id], (err2, lastMsg) => {
-                    receiver_id = lastMsg ? lastMsg.sender_id : request.processor_id;
-                    saveProcessorMessage();
-                });
-            } else {
-                // 农户或回收商发送，接收者是处理商
-                receiver_id = request.processor_id;
-                saveProcessorMessage();
-            }
-            
-            function saveProcessorMessage() {
-                db.get(`SELECT full_name FROM users WHERE id = ?`, [sender_id], (err3, sender) => {
-                    const sender_name = sender ? sender.full_name : 'Unknown';
-                    
-                    db.run(`INSERT INTO processor_chat_messages (request_id, sender_id, receiver_id, content, content_type) VALUES (?, ?, ?, ?, ?)`,
-                        [request_id, sender_id, receiver_id, content, content_type || 'text'], function(err4) {
-                        db.close();
-                        if (err4) return console.error(err4);
-                        
-                        const msg = {
-                            id: this.lastID,
-                            request_id, sender_id, receiver_id, content,
-                            content_type: content_type || 'text',
-                            sender_name,
-                            created_at: new Date().toISOString(),
-                            is_read: 0
-                        };
-                        console.log('[Socket send_processor_message] Emitting message:', msg);
-                        console.log('[Socket send_processor_message] content_type in msg:', msg.content_type);
-                        io.to(`processor_${request_id}`).emit('receive_processor_message', msg);
-                    });
-                });
-            }
-        });
-    });
-
-    // Get processor chat history
-    socket.on('get_processor_history', (data, callback) => {
-        const { request_id } = data;
-        const db = openDb();
-        db.all(`SELECT pcm.*, u.full_name as sender_name 
-                FROM processor_chat_messages pcm
-                JOIN users u ON pcm.sender_id = u.id
-                WHERE pcm.request_id = ? 
-                ORDER BY pcm.created_at ASC`, [request_id], (err, rows) => {
-            db.close();
-            if (callback) callback(rows || []);
-        });
-    });
-
-    // Mark processor messages as read
-    socket.on('mark_processor_read', (data) => {
-        const { request_id, user_id } = data;
-        const db = openDb();
-        db.run(`UPDATE processor_chat_messages SET is_read = 1 WHERE request_id = ? AND receiver_id = ?`, [request_id, user_id], (err) => {
-            db.close();
-        });
-    });
-
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-    });
-});
-
-// ============ File Upload API ============
 
 // Upload files for arbitration
 app.post('/api/upload-arbitration-files', upload.array('files', 20), (req, res) => {
@@ -1899,14 +1656,196 @@ app.post('/api/arbitration-requests/:id/pay-penalty', upload.single('proof'), (r
     });
 });
 
+// ─────────────────────────────────────────────
+// 意向投递 API
+// ─────────────────────────────────────────────
+
+// POST /api/intentions — 提交意向
+app.post('/api/intentions', (req, res) => {
+    const { applicant_id, applicant_name, target_type, target_id, target_no, target_name, estimated_weight, expected_date, notes } = req.body;
+    if (!applicant_id || !target_type || !target_id) {
+        return res.status(400).json({ code: 400, msg: '缺少必填参数', data: null });
+    }
+    const db = openDb();
+    // 防重复：同一用户对同一目标只能提交一次（pending 状态）
+    db.get(
+        `SELECT id FROM intentions WHERE applicant_id = ? AND target_type = ? AND target_id = ? AND status = 'pending'`,
+        [applicant_id, target_type, target_id],
+        (err, row) => {
+            if (err) { db.close(); return res.status(500).json({ code: 500, msg: err.message, data: null }); }
+            if (row) { db.close(); return res.status(409).json({ code: 409, msg: '您已提交过意向，请等待对方回复', data: null }); }
+            db.run(
+                `INSERT INTO intentions (applicant_id, applicant_name, target_type, target_id, target_no, target_name, estimated_weight, expected_date, notes)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [applicant_id, applicant_name || '', target_type, target_id, target_no || '', target_name || '', estimated_weight || null, expected_date || null, notes || ''],
+                function(err2) {
+                    db.close();
+                    if (err2) return res.status(500).json({ code: 500, msg: err2.message, data: null });
+                    res.json({ code: 200, msg: '意向提交成功', data: { id: this.lastID } });
+                }
+            );
+        }
+    );
+});
+
+// GET /api/intentions — 查询意向列表
+//   ?applicant_id=X        → 查询我提交的意向
+//   ?target_type=X&target_id=Y  → 查询某需求收到的所有意向（需求方使用）
+app.get('/api/intentions', (req, res) => {
+    const { applicant_id, target_type, target_id } = req.query;
+    const db = openDb();
+    let sql, params;
+    if (applicant_id) {
+        sql = `SELECT * FROM intentions WHERE applicant_id = ? ORDER BY created_at DESC`;
+        params = [applicant_id];
+    } else if (target_type && target_id) {
+        sql = `SELECT * FROM intentions WHERE target_type = ? AND target_id = ? ORDER BY created_at DESC`;
+        params = [target_type, target_id];
+    } else {
+        db.close();
+        return res.status(400).json({ code: 400, msg: '请提供 applicant_id 或 target_type+target_id', data: null });
+    }
+    db.all(sql, params, (err, rows) => {
+        db.close();
+        if (err) return res.status(500).json({ code: 500, msg: err.message, data: null });
+        res.json({ code: 200, msg: 'ok', data: rows });
+    });
+});
+
+// PATCH /api/intentions/:id/status — 更新意向状态（需求方操作：接受/拒绝）
+// 当 status='accepted' 时，自动在 orders 表生成一笔真实订单
+app.patch('/api/intentions/:id/status', (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!['accepted', 'rejected', 'pending'].includes(status)) {
+        return res.status(400).json({ code: 400, msg: '无效状态值', data: null });
+    }
+
+    const db = openDb();
+
+    // 1. 先拉取意向详情
+    db.get(`SELECT * FROM intentions WHERE id = ?`, [id], (err, intention) => {
+        if (err) { db.close(); return res.status(500).json({ code: 500, msg: err.message, data: null }); }
+        if (!intention) { db.close(); return res.status(404).json({ code: 404, msg: '意向记录不存在', data: null }); }
+
+        // 若不是接受操作，直接更新状态即可
+        if (status !== 'accepted') {
+            db.run(`UPDATE intentions SET status = ? WHERE id = ?`, [status, id], function(e2) {
+                db.close();
+                if (e2) return res.status(500).json({ code: 500, msg: e2.message, data: null });
+                res.json({ code: 200, msg: '状态已更新', data: null });
+            });
+            return;
+        }
+
+        // ── 接受意向：查目标表 → 生成订单 ──────────────────────────────────
+        const { applicant_id, target_type, target_id, estimated_weight } = intention;
+
+        // 根据 target_type 确定目标表和字段
+        let targetTableSql = '';
+        if (target_type === 'farmer_report') {
+            targetTableSql = `SELECT farmer_id, recycler_id, weight_kg FROM farmer_reports WHERE id = ?`;
+        } else if (target_type === 'recycler_request') {
+            targetTableSql = `SELECT recycler_id FROM recycler_requests WHERE id = ?`;
+        } else if (target_type === 'processor_request') {
+            targetTableSql = `SELECT processor_id FROM processor_requests WHERE id = ?`;
+        } else {
+            db.close();
+            return res.status(400).json({ code: 400, msg: '不支持的意向目标类型', data: null });
+        }
+
+        db.get(targetTableSql, [target_id], (err2, target) => {
+            if (err2 || !target) {
+                db.close();
+                return res.status(500).json({ code: 500, msg: err2 ? err2.message : '目标记录不存在', data: null });
+            }
+
+            // 推导 farmer_id / recycler_id（orders 表复用 recycler_id 存放处理商 ID）
+            let farmer_id, recycler_id;
+            if (target_type === 'farmer_report') {
+                // 投递人是回收商/处理商，目标是农户的申报
+                farmer_id  = target.farmer_id;
+                recycler_id = applicant_id;
+            } else if (target_type === 'recycler_request') {
+                // 投递人是农户，目标是回收商求购
+                farmer_id  = applicant_id;
+                recycler_id = target.recycler_id;
+            } else {
+                // processor_request: 投递人是农户或回收商
+                farmer_id  = applicant_id;
+                recycler_id = target.processor_id;
+            }
+
+            const weight    = estimated_weight || (target.weight_kg) || 0;
+            const order_no  = `ORD-${Date.now()}`;
+            const orderStatus = 'pending_ship';
+
+            const insertSql = `INSERT INTO orders (order_no, farmer_id, recycler_id, weight_kg, status, notes)
+                                VALUES (?, ?, ?, ?, ?, ?)`;
+            const notes = `由意向 #${id} 自动生成（${intention.target_no || target_type}）`;
+
+            db.run(insertSql, [order_no, farmer_id, recycler_id, weight, orderStatus, notes], function(err3) {
+                if (err3) {
+                    db.close();
+                    return res.status(500).json({ code: 500, msg: '创建订单失败: ' + err3.message, data: null });
+                }
+                const order_id = this.lastID;
+
+                // 更新意向状态
+                db.run(`UPDATE intentions SET status = 'accepted' WHERE id = ?`, [id], (err4) => {
+                    db.close();
+                    if (err4) return res.status(500).json({ code: 500, msg: err4.message, data: null });
+                    res.json({
+                        code: 200,
+                        msg: '意向已接受，订单已自动生成',
+                        data: { order_no, order_id }
+                    });
+                });
+            });
+        });
+    });
+});
+
 // Start server
 const PORT = process.env.PORT || 4000;
+
+// 自动迁移：每次启动都执行，确保新表存在
+async function runMigrations() {
+    const db = openDb();
+    const migrations = [
+        `CREATE TABLE IF NOT EXISTS intentions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            applicant_id INTEGER NOT NULL,
+            applicant_name TEXT,
+            target_type TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            target_no TEXT,
+            target_name TEXT,
+            estimated_weight REAL,
+            expected_date TEXT,
+            notes TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at DATETIME DEFAULT (datetime('now', 'localtime'))
+        )`
+    ];
+    for (const sql of migrations) {
+        await new Promise((resolve, reject) => {
+            db.run(sql, (err) => { if (err) reject(err); else resolve(); });
+        });
+    }
+    db.close();
+    console.log('[migrations] Done');
+}
+
 if (require.main === module) {
     (async () => {
         if (process.argv.includes('--init')) {
             console.log('Initializing DB...');
             try { await initDb(); } catch (e) { console.error(e); process.exit(1); }
         }
+
+        // 每次启动运行增量迁移
+        try { await runMigrations(); } catch (e) { console.error('[migrations] Error:', e.message); }
 
         server.listen(PORT, () => {
             console.log(`Server listening on http://localhost:${PORT}`);

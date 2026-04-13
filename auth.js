@@ -3,6 +3,12 @@
  */
 
 // ====== 身份信息管理 ======
+// ====== 防飞单脱敏工具 ======
+const fuzzPhone = (phone) => {
+    if (!phone) return '暂无联系方式';
+    return String(phone).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+};
+
 const authSystem = {
     // API 基础 URL - 动态获取当前域名和端口
     get API_BASE() {
@@ -18,178 +24,13 @@ const authSystem = {
 
     // ====== 个人中心（电商风格聚合入口）======
     showPersonalCenter() {
-        // 隐藏首页内容
-        const homepageContent = document.getElementById('homepage-content');
-        if (homepageContent) {
-            homepageContent.style.display = 'none';
+        // [Refactor] 逻辑已全面迁移至 userProfile.js
+        if (typeof userProfileSystem !== 'undefined' && userProfileSystem.render) {
+            userProfileSystem.render();
+        } else {
+            console.error('[authSystem] userProfileSystem is not loaded.');
+            this.showAlert('系统升级加载中，请刷新页面', 'warning');
         }
-        
-        const container = document.getElementById('content-area');
-        const role = this.currentUser.role;
-
-        let content = `
-            <div style="animation: fadeIn 0.5s;">
-                <h1 class="page-title">🧭 个人中心 - ${this.currentUser.name}</h1>
-                <p style="color: var(--text-medium); margin-top: -20px; margin-bottom: 30px;">一站式管理您的全部业务功能</p>
-        `;
-
-        if (role === 'admin') {
-            content += `
-                <!-- 管理员功能区 -->
-                <div style="margin-bottom: 30px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--text-dark); font-size: 18px;">📊 管理中心</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                        <div class="glass-card" onclick="authSystem.navigateTo('user-management')" style="padding: 20px; border-left: 5px solid var(--primary-green); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--primary-green); font-size: 16px;">👥 用户管理</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">管理所有用户账户，审核、禁用、删除等操作</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('audit-reports')" style="padding: 20px; border-left: 5px solid var(--citrus-gold); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--citrus-gold); font-size: 16px;">📝 申报审核</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">审核农户的处理申报，核实处理数据和文件</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('data-stats')" style="padding: 20px; border-left: 5px solid var(--primary-light); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--primary-light); font-size: 16px;">📈 数据统计</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">查看平台各类数据，处理量、用户活跃度等</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('cms-center')" style="padding: 20px; border-left: 5px solid #1565C0; cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: #1565C0; font-size: 16px;">📰 公告编辑中心</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">编辑首页政策公告、案例展示与合作商推荐</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('arbitration-management')" style="padding: 20px; border-left: 5px solid #e74c3c; cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: #e74c3c; font-size: 16px;">⚖️ 仲裁管理</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">处理订单纠纷，查看仲裁请求并做出裁决</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('system-settings')" style="padding: 20px; border-left: 5px solid var(--text-medium); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--text-medium); font-size: 16px;">⚙️ 系统设置</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">配置平台参数，管理处理点、费用等</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        if (role === 'farmer') {
-            content += `
-                <!-- 农户功能区 -->
-                <div style="margin-bottom: 30px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--text-dark); font-size: 18px;">📦 申报与处理</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                        <div class="glass-card" onclick="authSystem.navigateTo('new-report')" style="padding: 20px; border-left: 5px solid var(--citrus-orange); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--citrus-orange); font-size: 16px;">📝 发起申报</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">申报新的柑肉处理，获取处理凭证和记录</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('my-reports')" style="padding: 20px; border-left: 5px solid var(--citrus-gold); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--citrus-gold); font-size: 16px;">📋 申报记录</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">查看所有申报历史，跟踪申报状态</p>
-                        </div>
-                        <div class="glass-card" onclick="window.location.href='farmer-nearby-recyclers.html'" style="padding: 20px; border-left: 5px solid var(--primary-light); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--primary-light); font-size: 16px;">🌍 附近处理点</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">查找距离最近的处理点，实时显示最近的回收商</p>
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-bottom: 30px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--text-dark); font-size: 18px;">🤝 交易与供需</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                        <div class="glass-card" onclick="authSystem.navigateTo('recycler-demands')" style="padding: 20px; border-left: 5px solid var(--citrus-gold); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--citrus-gold); font-size: 16px;">📢 回收商求购</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">查看回收商发布的收购需求，寻找最佳买家</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        if (role === 'recycler') {
-            content += `
-                <!-- 回收商功能区 -->
-                <div style="margin-bottom: 30px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--text-dark); font-size: 18px;">📦 交易管理</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                        <div class="glass-card" onclick="authSystem.navigateTo('my-orders')" style="padding: 20px; border-left: 5px solid var(--citrus-gold); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--citrus-gold); font-size: 16px;">📦 订单管理</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">管理订单与交易流程，跟踪订单状态</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('finance')" style="padding: 20px; border-left: 5px solid #1B3A24; cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: #1B3A24; font-size: 16px;">💰 财务中心</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">查看账单与结算，管理财务信息</p>
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-bottom: 30px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--text-dark); font-size: 18px;">🌾 供需协作</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                        <div class="glass-card" onclick="authSystem.navigateTo('farmer-supplies')" style="padding: 20px; border-left: 5px solid var(--primary-green); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--primary-green); font-size: 16px;">🌾 农户供应</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">对接农户供应，查看农户货源信息</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('publish-demand')" style="padding: 20px; border-left: 5px solid var(--citrus-orange); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--citrus-orange); font-size: 16px;">📢 发布求购</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">发布收购需求，吸引农户供应</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('processor-demands')" style="padding: 20px; border-left: 5px solid #1565C0; cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: #1565C0; font-size: 16px;">🏭 处理商需求</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">对接处理商订单，查看采购需求</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        if (role === 'processor') {
-            content += `
-                <!-- 处理商功能区 -->
-                <div style="margin-bottom: 30px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--text-dark); font-size: 18px;">📦 采购管理</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                        <div class="glass-card" onclick="authSystem.navigateTo('my-orders')" style="padding: 20px; border-left: 5px solid var(--citrus-gold); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--citrus-gold); font-size: 16px;">📦 订单管理</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">采购订单与收货管理，跟踪订单状态</p>
-                        </div>
-                        <div class="glass-card" onclick="authSystem.navigateTo('publish-demand')" style="padding: 20px; border-left: 5px solid var(--citrus-orange); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--citrus-orange); font-size: 16px;">📢 发布求购</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">发布原料采购需求，吸引供应商</p>
-                        </div>
-                    </div>
-                </div>
-                <div style="margin-bottom: 30px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--text-dark); font-size: 18px;">🌾 货源协作</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                        <div class="glass-card" onclick="authSystem.navigateTo('supply-sources')" style="padding: 20px; border-left: 5px solid var(--primary-green); cursor: pointer; transition: all 0.3s;">
-                            <h4 style="margin: 0 0 8px 0; color: var(--primary-green); font-size: 16px;">🌾 货源供应</h4>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-medium);">对接农户/回收商货源，查看供应信息</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // 通用功能区
-        content += `
-            <div style="margin-bottom: 20px;">
-                <h3 style="margin: 0 0 15px 0; color: var(--text-dark); font-size: 18px;">⚖️ 售后与账户</h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-center')" style="padding: 20px; border-left: 5px solid #e74c3c; cursor: pointer; transition: all 0.3s;">
-                        <h4 style="margin: 0 0 8px 0; color: #e74c3c; font-size: 16px;">⚖️ 仲裁中心</h4>
-                        <p style="margin: 0; font-size: 13px; color: var(--text-medium);">提交仲裁申请，查看仲裁进度和结果</p>
-                    </div>
-                    <div class="glass-card" onclick="authSystem.navigateTo('my-account')" style="padding: 20px; border-left: 5px solid #455A64; cursor: pointer; transition: all 0.3s;">
-                        <h4 style="margin: 0 0 8px 0; color: #455A64; font-size: 16px;">👤 我的账户</h4>
-                        <p style="margin: 0; font-size: 13px; color: var(--text-medium);">账户信息与安全设置，修改密码等</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <style>
-            .glass-card:hover {
-                transform: translateY(-4px);
-                box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-            }
-        </style>
-        `;
-
-        container.innerHTML = content;
     },
 
     // ====== 公告编辑中心（管理员）======
@@ -399,14 +240,22 @@ const authSystem = {
         const formData = new FormData();
         formData.append('file', input.files[0]);
         try {
-            const res = await fetch(`${this.API_BASE}/api/cms/upload`, { method: 'POST', body: formData });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || '上传失败');
-            document.getElementById(targetInputId).value = data.url;
-            const preview = document.getElementById(previewId);
-            preview.style.display = 'block';
-            preview.innerHTML = `<img src="${this.API_BASE}${data.url}" style="max-width: 240px; border-radius: 10px; border: 1px solid #eee;" />`;
-            this.showAlert('图片上传成功', 'success');
+            const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+            const headers = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const res = await fetch(`${this.API_BASE}/api/cms/upload`, { method: 'POST', headers, body: formData });
+            const json = await res.json();
+            // ✅ 兼容统一格式 { code, msg, data: { url } }
+            if (json && json.code === 200 && json.data) {
+                const imageUrl = json.data.url;
+                document.getElementById(targetInputId).value = imageUrl;
+                const preview = document.getElementById(previewId);
+                preview.style.display = 'block';
+                preview.innerHTML = `<img src="${this.API_BASE}${imageUrl}" style="max-width: 240px; border-radius: 10px; border: 1px solid #eee;" />`;
+                this.showAlert('图片上传成功', 'success');
+            } else {
+                throw new Error((json && (json.msg || json.error)) || '上传失败');
+            }
         } catch (err) {
             this.showAlert(err.message, 'error');
         }
@@ -415,9 +264,12 @@ const authSystem = {
     async loadCmsAnnouncements() {
         const list = document.getElementById('cms-ann-list');
         list.innerHTML = '<p style="color:#888;">加载中...</p>';
-        const res = await fetch(`${this.API_BASE}/api/cms/announcements`);
-        const data = await res.json();
-        if (!Array.isArray(data) || data.length === 0) {
+        const res = await this.authFetch(`/api/cms/announcements`);
+        const json = res;
+        // ✅ 兼容统一格式 { code, msg, data: [...] }
+        const data = (json && json.code === 200 && Array.isArray(json.data)) ? json.data
+                    : (Array.isArray(json) ? json : []);
+        if (data.length === 0) {
             list.innerHTML = '<div class="glass-card" style="padding:20px;">暂无公告数据</div>';
             return;
         }
@@ -435,7 +287,10 @@ const authSystem = {
     },
 
     fillCmsAnnouncement(id) {
-        fetch(`${this.API_BASE}/api/cms/announcements`).then(r => r.json()).then(list => {
+        fetch(`${this.API_BASE}/api/cms/announcements`).then(r => r.json()).then(raw => {
+            // ✅ 兼容统一格式
+            const list = (raw && raw.code === 200 && Array.isArray(raw.data)) ? raw.data
+                        : (Array.isArray(raw) ? raw : []);
             const item = list.find(i => i.id === id);
             if (!item) return;
             this.cmsState.annId = id;
@@ -467,7 +322,8 @@ const authSystem = {
         };
         const url = this.cmsState.annId ? `${this.API_BASE}/api/cms/announcements/${this.cmsState.annId}` : `${this.API_BASE}/api/cms/announcements`;
         const method = this.cmsState.annId ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) return this.showAlert(data.error || '保存失败', 'error');
         this.showAlert('公告已保存', 'success');
@@ -481,16 +337,20 @@ const authSystem = {
 
     async deleteCmsAnnouncement(id) {
         if (!confirm('确认删除该公告？')) return;
-        const res = await fetch(`${this.API_BASE}/api/cms/announcements/${id}`, { method: 'DELETE' });
+        const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+        const res = await fetch(`${this.API_BASE}/api/cms/announcements/${id}`, { method: 'DELETE', headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) } });
         if (res.ok) { this.showAlert('已删除', 'success'); this.loadCmsAnnouncements(); }
     },
 
     async loadCmsCases() {
         const list = document.getElementById('cms-case-list');
         list.innerHTML = '<p style="color:#888;">加载中...</p>';
-        const res = await fetch(`${this.API_BASE}/api/cms/cases`);
-        const data = await res.json();
-        if (!Array.isArray(data) || data.length === 0) {
+        const res = await this.authFetch(`/api/cms/cases`);
+        const json = res;
+        // ✅ 兼容统一格式 { code, msg, data: [...] }
+        const data = (json && json.code === 200 && Array.isArray(json.data)) ? json.data
+                    : (Array.isArray(json) ? json : []);
+        if (data.length === 0) {
             list.innerHTML = '<div class="glass-card" style="padding:20px;">暂无案例数据</div>';
             return;
         }
@@ -508,7 +368,10 @@ const authSystem = {
     },
 
     fillCmsCase(id) {
-        fetch(`${this.API_BASE}/api/cms/cases`).then(r => r.json()).then(list => {
+        fetch(`${this.API_BASE}/api/cms/cases`).then(r => r.json()).then(raw => {
+            // ✅ 兼容统一格式
+            const list = (raw && raw.code === 200 && Array.isArray(raw.data)) ? raw.data
+                        : (Array.isArray(raw) ? raw : []);
             const item = list.find(i => i.id === id);
             if (!item) return;
             this.cmsState.caseId = id;
@@ -545,7 +408,8 @@ const authSystem = {
         };
         const url = this.cmsState.caseId ? `${this.API_BASE}/api/cms/cases/${this.cmsState.caseId}` : `${this.API_BASE}/api/cms/cases`;
         const method = this.cmsState.caseId ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) return this.showAlert(data.error || '保存失败', 'error');
         this.showAlert('案例已保存', 'success');
@@ -559,16 +423,20 @@ const authSystem = {
 
     async deleteCmsCase(id) {
         if (!confirm('确认删除该案例？')) return;
-        const res = await fetch(`${this.API_BASE}/api/cms/cases/${id}`, { method: 'DELETE' });
+        const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+        const res = await fetch(`${this.API_BASE}/api/cms/cases/${id}`, { method: 'DELETE', headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) } });
         if (res.ok) { this.showAlert('已删除', 'success'); this.loadCmsCases(); }
     },
 
     async loadCmsAds() {
         const list = document.getElementById('cms-ad-list');
         list.innerHTML = '<p style="color:#888;">加载中...</p>';
-        const res = await fetch(`${this.API_BASE}/api/cms/ads`);
-        const data = await res.json();
-        if (!Array.isArray(data) || data.length === 0) {
+        const res = await this.authFetch(`/api/cms/ads`);
+        const json = res;
+        // ✅ 兼容统一格式 { code, msg, data: [...] }
+        const data = (json && json.code === 200 && Array.isArray(json.data)) ? json.data
+                    : (Array.isArray(json) ? json : []);
+        if (data.length === 0) {
             list.innerHTML = '<div class="glass-card" style="padding:20px;">暂无广告数据</div>';
             return;
         }
@@ -586,7 +454,10 @@ const authSystem = {
     },
 
     fillCmsAd(id) {
-        fetch(`${this.API_BASE}/api/cms/ads`).then(r => r.json()).then(list => {
+        fetch(`${this.API_BASE}/api/cms/ads`).then(r => r.json()).then(raw => {
+            // ✅ 兼容统一格式
+            const list = (raw && raw.code === 200 && Array.isArray(raw.data)) ? raw.data
+                        : (Array.isArray(raw) ? raw : []);
             const item = list.find(i => i.id === id);
             if (!item) return;
             this.cmsState.adId = id;
@@ -618,7 +489,8 @@ const authSystem = {
         };
         const url = this.cmsState.adId ? `${this.API_BASE}/api/cms/ads/${this.cmsState.adId}` : `${this.API_BASE}/api/cms/ads`;
         const method = this.cmsState.adId ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) return this.showAlert(data.error || '保存失败', 'error');
         this.showAlert('广告已保存', 'success');
@@ -632,13 +504,16 @@ const authSystem = {
 
     async deleteCmsAd(id) {
         if (!confirm('确认删除该广告？')) return;
-        const res = await fetch(`${this.API_BASE}/api/cms/ads/${id}`, { method: 'DELETE' });
+        const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+        const res = await fetch(`${this.API_BASE}/api/cms/ads/${id}`, { method: 'DELETE', headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) } });
         if (res.ok) { this.showAlert('已删除', 'success'); this.loadCmsAds(); }
     },
 
     async loadCmsSiteInfo() {
-        const res = await fetch(`${this.API_BASE}/api/cms/site-info`);
-        const info = await res.json();
+        const res = await this.authFetch(`/api/cms/site-info`);
+        const json = res;
+        // ✅ 兼容统一格式
+        const info = (json && json.code === 200) ? (json.data || {}) : (json || {});
         if (info.phone) document.getElementById('cms-info-phone').value = info.phone;
         if (info.license) document.getElementById('cms-info-license').value = info.license;
         if (info.about) document.getElementById('cms-info-about').value = info.about;
@@ -650,7 +525,8 @@ const authSystem = {
             license: document.getElementById('cms-info-license').value,
             about: document.getElementById('cms-info-about').value
         };
-        const res = await fetch(`${this.API_BASE}/api/cms/site-info`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+        const res = await fetch(`${this.API_BASE}/api/cms/site-info`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) return this.showAlert(data.error || '保存失败', 'error');
         this.showAlert('底部信息已保存', 'success');
@@ -663,9 +539,82 @@ const authSystem = {
     // 当前登录用户信息
     currentUser: null,
 
-    // Socket.io 实例
-    socket: null,
-    unreadCounts: {},
+    /**
+     * ✅ 统一 HTTP 请求封装 (authFetch)
+     * - 自动从 currentUser 读取 JWT Token，注入 Authorization 头
+     * - 自动解包后端统一格式 { code, msg, data }
+     * - code !== 200 时，弹出 Toast(msg) 并 throw Error，阻断后续业务逻辑
+     * @param {string} url       - 相对路径（/api/xxx）或完整 URL
+     * @param {Object} options   - fetch 原始选项（method, body, headers 等）
+     * @returns {Promise<any>}   - 成功时返回剥壳后的 data 字段
+     */
+    async authFetch(url, options = {}) {
+        // ✅ 优先从 localStorage 读取持久化 Token，兜底从内存读
+        const token = localStorage.getItem('agri_token') || this.currentUser?.token;
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        // 不覆盖 FormData（文件上传场景）
+        if (options.body instanceof FormData) {
+            delete headers['Content-Type'];
+        }
+
+        const fullUrl = url.startsWith('http') ? url : `${this.API_BASE}${url}`;
+        const response = await fetch(fullUrl, { ...options, headers });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            const text = await response.text();
+            // 404 不存在的端点：降级为 warn，不打断 UI
+            if (response.status === 404) {
+                console.warn(`[authFetch 404] 端点不存在: ${fullUrl}`);
+                return null;
+            }
+            const msg = `服务器错误 (${response.status})`;
+            this.showAlert(msg, 'error');
+            throw new Error(`${msg}: ${text.slice(0, 120)}`);
+        }
+
+        const json = await response.json();
+
+        // 识别后端统一格式 { code, msg, data }
+        if (json && typeof json === 'object' && 'code' in json && 'data' in json) {
+            if (json.code === 200) {
+                return json.data;         // ✅ 剥壳，业务层直接拿数据
+            } else if (json.code === 404) {
+                // 404 JSON 格式：同样降级为 warn，不打断 UI
+                console.warn(`[authFetch 404] ${fullUrl}:`, json.msg);
+                return null;
+            } else if (json.code === 401) {
+                // ✅ 401：清除失效 token，引导重新登录，不弹通用 Toast（避免误报风暴）
+                console.error('🚨 [401 Intercepted] 被拦截的 API 路径:', fullUrl, '\n完整响应:', json);
+                localStorage.removeItem('agri_token');
+                sessionStorage.removeItem('currentUser');
+                this.currentUser = null;
+                this.showAlert('登录已过期，请重新登录', 'warning');
+                setTimeout(() => this.openLoginModal?.(), 1500);
+                throw new Error('Unauthorized');
+            } else {
+                console.error('🚨 [authFetch Error] API 路径:', fullUrl, '\ncode:', json.code, '\nmsg:', json.msg, '\n完整响应:', json);
+                const errMsg = json.msg || '请求失败';
+                this.showAlert(errMsg, 'error');
+                throw new Error(errMsg);  // 阻断执行
+            }
+        }
+
+        // 兼容旧式裸返回（非 { code, msg, data } 格式）
+        if (!response.ok) {
+            console.error('🚨 [authFetch Non-OK] API 路径:', fullUrl, '\nHTTP Status:', response.status, '\n响应体:', json);
+            const errMsg = (json && (json.error || json.msg)) || `请求失败 (${response.status})`;
+            this.showAlert(errMsg, 'error');
+            throw new Error(errMsg);
+        }
+        return json;
+    },
 
     // OTP 计时器句柄
     otpTimer: null,
@@ -681,17 +630,39 @@ const authSystem = {
         this.bindLoginEvents();
         this.bindRegisterEvents();
         this.initSlider();
-        if (this.currentUser) this.initSocket();
         console.log('[AuthSystem] Initialized successfully');
     },
     
     // 检查是否已登录
     checkLoginStatus() {
+        // ✅ 优先校验 localStorage 中的持久化 token 是否存在
+        const storedToken = localStorage.getItem('agri_token');
         const savedUser = sessionStorage.getItem('currentUser');
+
         if (savedUser) {
-            this.currentUser = JSON.parse(savedUser);
-            this.updateSidebar(this.currentUser.role);
-            this.updateUserButton();
+            try {
+                const parsed = JSON.parse(savedUser);
+                // 若 sessionStorage 里的 currentUser 没有 token 字段（旧数据），清除 stale session
+                if (!parsed.token && !storedToken) {
+                    sessionStorage.removeItem('currentUser');
+                    console.warn('[AuthSystem] Stale session without token cleared');
+                    return;
+                }
+                // 用 localStorage 里的 token 补全（若内存中没有）
+                if (!parsed.token && storedToken) {
+                    parsed.token = storedToken;
+                }
+                this.currentUser = parsed;
+                // 同步 token 到内存
+                if (storedToken && !this.currentUser.token) {
+                    this.currentUser.token = storedToken;
+                }
+                this.updateSidebar(this.currentUser.role);
+                this.updateNavbar();
+            } catch (e) {
+                sessionStorage.removeItem('currentUser');
+                localStorage.removeItem('agri_token');
+            }
         }
     },
     
@@ -842,62 +813,89 @@ const authSystem = {
     
     // 处理登录逻辑
     async handleLogin() {
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value.trim();
-        
-        if (!username || !password) {
-            this.showAlert('请输入用户名和密码', 'warning');
-            return;
-        }
-        
+        // 防止表单默认提交行为（如外部被 form 包裹时）
         try {
-            // 调用后端 API 登录
-            const response = await fetch(`${this.API_BASE}/api/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                this.showAlert(data.error || '登录失败', 'error');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!username || !password) {
+                this.showAlert('请输入用户名和密码', 'warning');
                 return;
             }
-            
-            // 登录成功，保存用户信息
+
+            const payload = { username, password };
+            console.log('🚀 [Login] 发起登录请求，Payload:', payload, '\nAPI:', `${this.API_BASE}/api/login`);
+
+            // ⚠️ 登录必须用原生 fetch，不能用 authFetch（未登录时无 Token）
+            const response = await fetch(`${this.API_BASE}/api/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            console.log('📥 [Login] 接口返回 HTTP Status:', response.status, response.statusText);
+
+            // 检查是否返回了 JSON
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('❌ [Login] 服务器返回了非 JSON 响应:', text.slice(0, 200));
+                this.showAlert(`服务器异常 (${response.status})，请检查后端是否启动`, 'error');
+                return;
+            }
+
+            const data = await response.json();
+            console.log('📦 [Login] 接口返回 Data:', data);
+
+            // ✅ 后端统一格式：{ code, msg, data: { id, username, role, full_name, token } }
+            //    兼容旧式裸返回（data 直接含字段）
+            if (!response.ok) {
+                const errMsg = (data && (data.msg || data.error)) || '登录失败';
+                console.warn('⚠️ [Login] HTTP 非 2xx，错误信息:', errMsg);
+                this.showAlert(errMsg, 'error');
+                return;
+            }
+
+            const user = (data && data.data) ? data.data : data;
+            console.log('👤 [Login] 解析后的 user 对象:', user);
+
+            if (!user || !user.token) {
+                console.error('❌ [Login] user 对象无效或缺少 token 字段！user:', user);
+                this.showAlert('登录响应格式异常，请联系管理员', 'error');
+                return;
+            }
+
+            // 登录成功，保存用户信息（含 token）
             this.currentUser = {
-                id: data.id,
-                username: data.username,
-                role: data.role,
-                name: data.full_name,
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                name: user.full_name,
+                token: user.token,
                 loginTime: new Date().toLocaleString('zh-CN')
             };
-            
-            // 保存到 sessionStorage
+
+            // ✅ 双重持久化：localStorage（跨标签/刷新）+ sessionStorage（向后兼容）
+            localStorage.setItem('agri_token', user.token);
             sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-            
-            // 连接 Socket
-            this.initSocket();
+            console.log('✅ [Login] Token 已写入 localStorage:', localStorage.getItem('agri_token')?.slice(0, 20) + '...');
+
 
             // 更新UI
             this.updateNavbar();
-            
+
             // 显示欢迎信息
             this.showAlert(`登录成功！欢迎 ${this.currentUser.name}`, 'success');
-            
+
             // 关闭登录弹窗
             this.closeLoginModal();
-            
+
             // 更新侧边栏和用户信息，保持在首页
             this.updateSidebar(this.currentUser.role);
-            this.updateUserButton();
-            
-        } catch (error) {
-            console.error('登录错误:', error);
-            this.showAlert('网络错误，请检查后端服务是否启动', 'error');
+
+        } catch (err) {
+            console.error('❌ [Login] 登录过程发生 JS 异常:', err);
+            this.showAlert(`登录失败：${err.message || '未知错误，请查看控制台'}`, 'error');
         }
     },
     
@@ -1021,6 +1019,8 @@ const authSystem = {
     // 退出登录
     logout() {
         if (confirm('确认要退出登录吗？')) {
+            // ✅ 清除双重持久化存储
+            localStorage.removeItem('agri_token');
             sessionStorage.removeItem('currentUser');
             this.currentUser = null;
             this.updateNavbar();
@@ -1429,6 +1429,14 @@ const authSystem = {
     
     // 页面导航
     navigateTo(page) {
+        // ✅ 路由守卫：除首页外，所有内页必须已登录
+        const publicPages = ['homepage'];
+        if (!publicPages.includes(page) && !this.currentUser) {
+            this.showAlert('请先登录后再操作', 'warning');
+            this.openLoginModal();
+            return;
+        }
+
         const container = document.getElementById('content-area');
         const homepageContent = document.getElementById('homepage-content');
         
@@ -1712,29 +1720,14 @@ const authSystem = {
         };
 
         try {
-            const resp = await fetch(`${this.API_BASE}/api/farmer-reports`, {
+            await this.authFetch(`/api/farmer-reports`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            
-            // Handle non-JSON response (e.g., 413 Payload Too Large, 500 Server Error HTML)
-            const contentType = resp.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                const text = await resp.text();
-                throw new Error(`Server Error (${resp.status}): ${text.slice(0, 100)}`);
-            }
-
-            const data = await resp.json();
-            if (!resp.ok) {
-                this.showAlert(data.error || '申报失败', 'error');
-                return;
-            }
             this.showAlert(status === 'draft' ? '草稿已保存' : '申报已发布', 'success');
             setTimeout(() => this.navigateTo('my-reports'), 1000);
         } catch (err) {
             console.error('Submit report error:', err);
-            this.showAlert(`请求失败: ${err.message}`, 'error');
         }
     },
 
@@ -1760,9 +1753,9 @@ const authSystem = {
             const listDiv = document.getElementById('report-list');
             listDiv.innerHTML = '<p style="color:#888;">加载中...</p>';
             try {
-                const resp = await fetch(`${this.API_BASE}/api/farmer-reports?farmer_id=${this.currentUser.id}&status=${status}`);
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error || '加载失败');
+                // ✅ 使用 authFetch：自动注入 Token + 自动剥壳 { code, msg, data }
+                const rows = await this.authFetch(`/api/farmer-reports?farmer_id=${this.currentUser.id}&status=${status}`);
+                const data = Array.isArray(rows) ? rows : [];
                 if (!data.length) {
                     listDiv.innerHTML = '<p style="color:#888;">暂无申报记录</p>';
                     return;
@@ -1781,7 +1774,7 @@ const authSystem = {
                             地址：${r.location_address}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                            ${r.status === 'accepted' ? `<button data-action="chat" data-id="${r.id}" data-uid="${r.recycler_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 联系回收商</button>` : ''}
+                            ${r.status === 'accepted' ? `<button data-action="intention" data-id="${r.id}" data-uid="${r.recycler_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>` : ''}
                             ${r.status === 'draft' ? `<button data-action="publish" data-id="${r.id}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">发布</button>` : ''}
                             ${(r.status === 'draft' || r.status === 'pending') ? `<button data-action="edit" data-id="${r.id}" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">编辑</button>` : ''}
                             ${r.status === 'draft' ? `<button data-action="delete" data-id="${r.id}" style="background:#fab1a0;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">删除</button>` : ''}
@@ -1831,22 +1824,20 @@ const authSystem = {
                 
                 // 获取农户供应
                 if (source === 'all' || source === 'farmer') {
-                    const farmerResp = await fetch(`${this.API_BASE}/api/farmer-supplies`);
-                    const farmerData = await farmerResp.json();
-                    if (farmerResp.ok && farmerData.length) {
+                    const farmerData = await this.authFetch(`/api/farmer-supplies`);
+                    if (Array.isArray(farmerData) && farmerData.length) {
                         allItems = allItems.concat(farmerData.map(r => ({...r, source_type: 'farmer'})));
                     }
                 }
                 
                 // 获取回收商供应（这里需要有对应的API）
                 if (source === 'all' || source === 'recycler') {
-                    const recyclerResp = await fetch(`${this.API_BASE}/api/recycler-supplies`);
-                    if (recyclerResp.ok) {
-                        const recyclerData = await recyclerResp.json();
-                        if (recyclerData.length) {
+                    try {
+                        const recyclerData = await this.authFetch(`/api/recycler-supplies`);
+                        if (Array.isArray(recyclerData) && recyclerData.length) {
                             allItems = allItems.concat(recyclerData.map(r => ({...r, source_type: 'recycler'})));
                         }
-                    }
+                    } catch(e) { /* ignore if no recycler supplies */ }
                 }
                 
                 if (!allItems.length) {
@@ -1888,8 +1879,8 @@ const authSystem = {
                                 ${r.notes ? `<div style="margin-top:8px;font-size:13px;color:#888;">备注：${r.notes}</div>` : ''}
                             </div>
                             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                                <button data-source-action="chat" data-id="${r.id}" data-uid="${isFarmer ? r.farmer_id : r.recycler_id}" data-type="${r.source_type}" style="background:${borderColor};color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">💬 联系${isFarmer ? '农户' : '回收商'}</button>
-                                <a href="tel:${isFarmer ? r.farmer_phone : r.contact_phone}" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;text-decoration:none;">📞 电话</a>
+                                <button data-source-action="intention" data-id="${r.id}" data-uid="${isFarmer ? r.farmer_id : r.recycler_id}" data-type="${r.source_type}" style="background:${borderColor};color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">💬 联系${isFarmer ? '农户' : '回收商'}</button>
+                                <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;text-decoration:none;">📞 电话</a>
                                 ${isFarmer && r.status === 'pending' ? `<button data-source-action="accept" data-id="${r.id}" data-type="farmer" style="background:#2ecc71;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">✅ 接单</button>` : ''}
                             </div>
                         </div>
@@ -1904,18 +1895,17 @@ const authSystem = {
                         const type = btn.dataset.type;
                         const uid = btn.dataset.uid;
                         
-                        if (action === 'chat') {
-                            this.openChat(id, uid);
+                        if (action === 'chat' || action === 'intention') {
+                            const typeMap = { farmer: 'farmer_report', recycler: 'recycler_request' };
+                            this.openIntentionModal({ target_type: typeMap[type] || 'farmer_report', target_id: id, target_no: '', target_name: type === 'farmer' ? '农户供货' : '回收商货源' });
                         } else if (action === 'accept' && type === 'farmer') {
                             if (!confirm('确认接单该货源？')) return;
                             try {
-                                const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${id}/accept`, {
+                                const resp = await this.authFetch(`/api/farmer-reports/${id}/accept`, {
                                     method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ processor_id: this.currentUser.id })
                                 });
-                                if (!resp.ok) throw new Error('接单失败');
-                                this.showAlert('🎉 接单成功！', 'success');
+                                        this.showAlert('🎉 接单成功！', 'success');
                                 loadSources(source);
                             } catch (err) {
                                 this.showAlert(err.message, 'error');
@@ -1979,9 +1969,8 @@ const authSystem = {
                     params.append('recycler_lat', lat);
                     params.append('recycler_lng', lng);
                 }
-                const resp = await fetch(`${this.API_BASE}/api/farmer-supplies?${params.toString()}`);
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error || '加载失败');
+                const rows = await this.authFetch(`/api/farmer-supplies?${params.toString()}`);
+                const data = Array.isArray(rows) ? rows : [];
                 if (!data.length) {
                     listDiv.innerHTML = '<p style="color:#888;">暂无供应信息</p>';
                     return;
@@ -2001,9 +1990,9 @@ const authSystem = {
                             ${r.distance !== null && r.distance !== undefined ? `<br>距离：${this.formatDistance(r.distance)}` : ''}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                            ${r.status === 'accepted' ? `<button data-supply-action="chat" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 联系农户</button>`:''}
+                            ${r.status === 'accepted' ? `<button data-supply-action="intention" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>`:''}
                             ${r.status === 'pending' ? `<button data-supply-action="accept" data-id="${r.id}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">接单</button>` : `<span style='color:#2ecc71;font-weight:bold;'>✔ 已接单</span>`}
-                            <a href="tel:${r.farmer_phone || ''}" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
+                            <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
                         </div>
                     </div>
                 `).join('');
@@ -2029,24 +2018,20 @@ const authSystem = {
                 if (action === 'accept') {
                     if (!confirm('确认接单该农户供应？')) return;
                     try {
-                        const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${id}/status`, {
+                        await this.authFetch(`/api/farmer-reports/${id}/status`, {
                             method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ status: 'accepted', recycler_id: this.currentUser.id })
-                        });
-                        const data = await resp.json();
-                        if (!resp.ok) throw new Error(data.error || '接单失败');
+                            });
                         this.showAlert('接单成功', 'success');
                         this.showFarmerSupplies();
                     } catch (err) {
                         this.showAlert(err.message, 'error');
                     }
-                } else if (action === 'chat') {
-                    this.openChat(item.id, btn.dataset.uid);
+                } else if (action === 'chat' || action === 'intention') {
+                    this.openIntentionModal({ target_type: 'farmer_report', target_id: id, target_no: '', target_name: '农户供货' });
                 }
             };
         });
-        this.updateUnreadIndicators();
     },
 
     // 回收商订单管理
@@ -2124,12 +2109,11 @@ const authSystem = {
             const listDiv = document.getElementById('order-list');
             listDiv.innerHTML = '<p style="color:#888;">加载中...</p>';
             try {
-                let url = `${this.API_BASE}/api/farmer-reports?recycler_id=${this.currentUser.id}`;
+                // ✅ 使用 authFetch：自动注入 Token + 自动剥壳 { code, msg, data }
+                let url = `/api/farmer-reports?recycler_id=${this.currentUser.id}`;
                 if (status !== 'all') url += `&status=${status}`;
-                
-                const resp = await fetch(url);
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error || '加载失败');
+                const rows = await this.authFetch(url);
+                const data = Array.isArray(rows) ? rows : [];
                 
                 if (!data.length) {
                     listDiv.innerHTML = '<p style="color:#888;">暂无订单记录</p>';
@@ -2145,19 +2129,19 @@ const authSystem = {
                             <div style="font-size:13px;color:#888;">${r.created_at}</div>
                         </div>
                         <div style="margin-top:10px;font-size:14px;color:#555;line-height:1.7;">
-                            <strong>农户:</strong> ${r.farmer_name || '未知'} (${r.farmer_phone || '-'})<br>
+                            <strong>农户:</strong> ${r.farmer_name || '未知'} (${fuzzPhone(r.farmer_phone)})<br>
                             回收日期：${r.pickup_date} ｜ 重量：${r.weight_kg} 斤 ｜ 品种：${r.citrus_variety}<br>
                             地址：${r.location_address}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
                              ${r.status === 'accepted' ? `
                                  <button data-order-action="complete" data-id="${r.id}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">✅ 完成交易</button>
-                                 <button data-order-action="chat" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 联系农户</button>
+                                 <button data-order-action="intention" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>
                              ` : ''}
                              ${r.status === 'completed' ? `
-                                 <button data-order-action="chat" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 历史消息</button>
+                                 <button data-order-action="intention" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 历史消息</button>
                              ` : ''}
-                             <a href="tel:${r.farmer_phone || ''}" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
+                             <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
                         </div>
                     </div>
                 `).join('');
@@ -2175,9 +2159,8 @@ const authSystem = {
             listDiv.innerHTML = '<p style="color:#888;">加载中...</p>';
             
             try {
-                const resp = await fetch(`${this.API_BASE}/api/processor-requests?recycler_id=${this.currentUser.id}`);
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error);
+                const rows = await this.authFetch(`/api/processor-requests?recycler_id=${this.currentUser.id}`);
+                const data = Array.isArray(rows) ? rows : [];
                 
                 if (!data || data.length === 0) {
                     listDiv.innerHTML = '<p style="color:#888;">暂无处理商订单，前往<a href="javascript:void(0)" onclick="authSystem.navigateTo(\'processor-demands\')" style="color:var(--primary-green);">处理商需求</a>接单</p>';
@@ -2204,11 +2187,11 @@ const authSystem = {
                             </div>
                         </div>
                         <div style="margin-top:10px;font-size:14px;color:#555;">
-                            <strong>联系人：</strong>${r.contact_name} | ${r.contact_phone}
+                            <strong>联系人：</strong>${r.contact_name} | ${fuzzPhone(r.contact_phone)}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                            <button data-processor-order-action="chat" data-id="${r.id}" data-uid="${r.processor_id}" style="background:#9b59b6;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 联系处理商</button>
-                            <a href="tel:${r.contact_phone}" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
+                            <button data-processor-order-action="intention" data-id="${r.id}" data-uid="${r.processor_id}" style="background:#9b59b6;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>
+                            <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
                         </div>
                     </div>
                 `).join('');
@@ -2219,8 +2202,8 @@ const authSystem = {
                         const action = btn.dataset.processorOrderAction;
                         const id = btn.dataset.id;
                         const uid = btn.dataset.uid;
-                        if (action === 'chat') {
-                            this.openProcessorRequestChat(id, uid);
+                        if (action === 'chat' || action === 'intention') {
+                            this.openIntentionModal({ target_type: 'processor_request', target_id: id, target_no: '', target_name: '处理商求购' });
                         }
                     };
                 });
@@ -2234,9 +2217,9 @@ const authSystem = {
             listDiv.innerHTML = '<p style="color:#888;">加载中...</p>';
             
             try {
-                const resp = await fetch(`${this.API_BASE}/api/recycler-requests?recycler_id=${this.currentUser.id}`);
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error);
+                // ✅ 使用 authFetch：自动注入 Token + 自动剥壳 { code, msg, data }
+                const rows = await this.authFetch(`/api/recycler-requests?recycler_id=${this.currentUser.id}`);
+                const data = Array.isArray(rows) ? rows : [];
                 
                 // 保存到实例变量供编辑使用
                 this.currentDemands = data;
@@ -2285,7 +2268,7 @@ const authSystem = {
                             
                             <div style="background:#f9f9f9;padding:12px;border-radius:8px;margin-bottom:12px;">
                                 <p style="margin:4px 0;"><strong>联系人：</strong>${r.contact_name}</p>
-                                <p style="margin:4px 0;"><strong>联系电话：</strong>${r.contact_phone}</p>
+                                <p style="margin:4px 0;"><strong>联系电话：</strong>${fuzzPhone(r.contact_phone)}</p>
                                 ${r.notes ? `<p style="margin:4px 0;"><strong>备注：</strong>${r.notes}</p>` : ''}
                             </div>
                             
@@ -2295,7 +2278,7 @@ const authSystem = {
                                     <button data-demand-action="delete" data-id="${r.id}" style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">🗑️ 删除</button>
                                 ` : ''}
                                 ${r.status === 'active' ? `
-                                    <button data-demand-action="chat" data-id="${r.id}" style="background:var(--citrus-orange);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">💬 查看咨询</button>
+                                    <button data-demand-action="intention" data-id="${r.id}" style="background:var(--citrus-orange);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">💬 查看咨询</button>
                                     <button data-demand-action="cancel" data-id="${r.id}" style="background:#f39c12;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">⏸️ 取消发布</button>
                                 ` : ''}
                                 ${r.status === 'cancelled' ? `
@@ -2315,16 +2298,13 @@ const authSystem = {
                         if (action === 'edit') {
                             const item = this.currentDemands.find(d => String(d.id) === String(id));
                             this.showPublishDemandForm(item);
-                        } else if (action === 'chat') {
-                            // 回收商查看求购咨询
-                            this.openRequestChat(id, null);
+                        } else if (action === 'chat' || action === 'intention') {
+                            // 回收商查看求购收到的意向
+                            this.viewIntentions('recycler_request', id, '');
                         } else if (action === 'delete') {
                             if (!confirm('确定删除这条求购信息？')) return;
                             try {
-                                const resp = await fetch(`${this.API_BASE}/api/recycler-requests/${id}?recycler_id=${this.currentUser.id}`, {
-                                    method: 'DELETE'
-                                });
-                                if (!resp.ok) throw new Error('删除失败');
+                                await this.authFetch(`/api/recycler-requests/${id}?recycler_id=${this.currentUser.id}`, { method: 'DELETE' });
                                 this.showAlert('已删除', 'success');
                                 loadMyDemands();
                             } catch (err) {
@@ -2333,12 +2313,10 @@ const authSystem = {
                         } else if (action === 'cancel' || action === 'reactivate') {
                             const newStatus = action === 'cancel' ? 'cancelled' : 'active';
                             try {
-                                const resp = await fetch(`${this.API_BASE}/api/recycler-requests/${id}/status`, {
+                                await this.authFetch(`/api/recycler-requests/${id}/status`, {
                                     method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ status: newStatus, recycler_id: this.currentUser.id })
-                                });
-                                if (!resp.ok) throw new Error('操作失败');
+                                    });
                                 this.showAlert('状态已更新', 'success');
                                 loadMyDemands();
                             } catch (err) {
@@ -2372,17 +2350,15 @@ const authSystem = {
                 const item = list.find(r => String(r.id) === String(id));
                 if (!item) return;
 
-                if (action === 'chat') {
-                    this.openChat(item.id, btn.dataset.uid);
+                if (action === 'chat' || action === 'intention') {
+                    this.openIntentionModal({ target_type: 'farmer_report', target_id: id, target_no: item ? item.report_no : '', target_name: item ? (item.farmer_name || '农户') + '供货' : '农户供货' });
                 } else if (action === 'complete') {
                     if(!confirm('确认与农户已完成交易？订单状态将设为“已完成”')) return;
                     try {
-                         const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${id}/status`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status: 'completed' })
-                        });
-                        if (!resp.ok) throw new Error('操作失败');
+                         const resp = await this.authFetch(`/api/farmer-reports/${id}/status`, {
+                             method: 'PATCH',
+                             body: JSON.stringify({ status: 'completed' })
+                         });
                         this.showAlert('订单已完成', 'success');
                         if (refreshCb) refreshCb(currentStatus);
                     } catch(e) {
@@ -2391,7 +2367,6 @@ const authSystem = {
                 }
             };
         });
-        this.updateUnreadIndicators();
     },
     
     // 处理商订单管理
@@ -2415,10 +2390,8 @@ const authSystem = {
         
         try {
             console.log('[loadProcessorOrders] Fetching for processor_id:', this.currentUser.id);
-            const resp = await fetch(`${this.API_BASE}/api/processor-requests?processor_id=${this.currentUser.id}`);
-            const data = await resp.json();
+            const data = await this.authFetch(`/api/processor-requests?processor_id=${this.currentUser.id}`);
             console.log('[loadProcessorOrders] Response:', data);
-            if (!resp.ok) throw new Error(data.error);
             
             this.currentProcessorDemands = data;
             
@@ -2449,7 +2422,7 @@ const authSystem = {
                                 <p style="margin:4px 0;"><strong>运输：</strong>${r.has_transport ? '<span style="color:var(--primary-green);">可上门收货</span>' : '需送货到厂'}</p>
                             </div>
                             <p style="margin:4px 0;"><strong>收货地址：</strong>${r.location_address}</p>
-                            <p style="margin:4px 0;"><strong>联系人：</strong>${r.contact_name} | ${r.contact_phone}</p>
+                            <p style="margin:4px 0;"><strong>联系人：</strong>${r.contact_name} | ${fuzzPhone(r.contact_phone)}</p>
                             ${r.notes ? `<p style="margin:4px 0;"><strong>备注：</strong>${r.notes}</p>` : ''}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -2483,33 +2456,31 @@ const authSystem = {
                     const item = this.currentProcessorDemands.find(d => String(d.id) === String(id));
                     this.showPublishDemandForm(item);
                 } else if (action === 'chat') {
-                    this.openProcessorRequestChat(id, null);
+                    const demand = this.currentProcessorDemands ? this.currentProcessorDemands.find(d => String(d.id) === String(id)) : null;
+                    this.viewIntentions('processor_request', id, demand ? demand.request_no : '');
                 } else if (action === 'delete') {
                     if (!confirm('确定删除这条求购信息？')) return;
                     try {
-                        const resp = await fetch(`${this.API_BASE}/api/processor-requests/${id}?processor_id=${this.currentUser.id}`, { method: 'DELETE' });
-                        if (!resp.ok) throw new Error('删除失败');
+                        await this.authFetch(`/api/processor-requests/${id}?processor_id=${this.currentUser.id}`, { method: 'DELETE' });
                         this.showAlert('已删除', 'success');
                         this.loadProcessorOrders();
                     } catch (err) { this.showAlert(err.message, 'error'); }
                 } else if (action === 'publish') {
                     try {
-                        const resp = await fetch(`${this.API_BASE}/api/processor-requests/${id}/status`, {
-                            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                        await this.authFetch(`/api/processor-requests/${id}/status`, {
+                            method: 'PATCH',
                             body: JSON.stringify({ status: 'active', processor_id: this.currentUser.id })
-                        });
-                        if (!resp.ok) throw new Error('操作失败');
+                            });
                         this.showAlert('求购已发布', 'success');
                         this.loadProcessorOrders();
                     } catch (err) { this.showAlert(err.message, 'error'); }
                 } else if (action === 'cancel' || action === 'reactivate') {
                     const newStatus = action === 'cancel' ? 'cancelled' : 'active';
                     try {
-                        const resp = await fetch(`${this.API_BASE}/api/processor-requests/${id}/status`, {
-                            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                        await this.authFetch(`/api/processor-requests/${id}/status`, {
+                            method: 'PATCH',
                             body: JSON.stringify({ status: newStatus, processor_id: this.currentUser.id })
-                        });
-                        if (!resp.ok) throw new Error('操作失败');
+                            });
                         this.showAlert('状态已更新', 'success');
                         this.loadProcessorOrders();
                     } catch (err) { this.showAlert(err.message, 'error'); }
@@ -2527,17 +2498,14 @@ const authSystem = {
                 if (!report) return;
                 if (action === 'edit') {
                     this.showNewReportForm(report);
-                } else if (action === 'chat') {
-                    this.openChat(report.id, btn.dataset.uid);
+                } else if (action === 'chat' || action === 'intention') {
+                    this.openIntentionModal({ target_type: 'farmer_report', target_id: id, target_no: report ? report.report_no : '', target_name: '我的供货申报' });
                 } else if (action === 'publish') {
                     try {
-                        const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${report.id}/status`, {
+                        await this.authFetch(`/api/farmer-reports/${report.id}/status`, {
                             method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ status: 'pending' })
-                        });
-                        const data = await resp.json();
-                        if (!resp.ok) throw new Error(data.error || '发布失败');
+                            });
                         this.showAlert('申报已发布', 'success');
                         this.showMyReports();
                     } catch (err) {
@@ -2546,9 +2514,7 @@ const authSystem = {
                 } else if (action === 'delete') {
                     if (!confirm('确认删除该草稿吗？')) return;
                     try {
-                        const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${report.id}?farmer_id=${this.currentUser.id}`, { method: 'DELETE' });
-                        const data = await resp.json();
-                        if (!resp.ok) throw new Error(data.error || '删除失败');
+                        await this.authFetch(`/api/farmer-reports/${report.id}?farmer_id=${this.currentUser.id}`, { method: 'DELETE' });
                         this.showAlert('草稿已删除', 'success');
                         this.showMyReports();
                     } catch (err) {
@@ -2557,7 +2523,6 @@ const authSystem = {
                 }
             };
         });
-        this.updateUnreadIndicators();
     },
     
     // 获取身份标签
@@ -2625,478 +2590,6 @@ const authSystem = {
         }
     },
     
-    // ====== 即时通讯 ======
-    
-    initSocket() {
-        if (this.socket) return;
-        if (!window.io) return console.error('Socket.io script not loaded');
-        
-        console.log('[AuthSystem] Connecting to socket...');
-        this.socket = io(this.API_BASE);
-        
-        this.socket.on('connect', () => {
-            console.log('Socket connected:', this.socket.id);
-            this.checkUnreadMessages();
-        });
-        
-        this.socket.on('receive_message', (msg) => {
-            // Check if chat window is open for this report
-            const chatBox = document.getElementById('chat-messages');
-            const chatWindow = document.getElementById('chat-window');
-            const currentReportId = chatWindow ? chatWindow.dataset.reportId : null;
-            
-            if (chatBox && String(currentReportId) === String(msg.report_id)) {
-                this.appendChatMessage(msg);
-                this.markAsRead(msg.report_id); // Read immediately if window open
-            } else {
-                if (String(msg.sender_id) !== String(this.currentUser.id)) {
-                    // Increment unread count
-                    this.unreadCounts[msg.report_id] = (this.unreadCounts[msg.report_id] || 0) + 1;
-                    this.updateUnreadIndicators();
-                    this.showAlert(`收到新消息: ${msg.content.substring(0, 10)}...`, 'info');
-                }
-            }
-        });
-
-        // 接收求购消息
-        this.socket.on('receive_request_message', (msg) => {
-            const container = document.getElementById(`request-messages-${msg.request_id}`);
-            if (container) {
-                // 当前聊天窗口打开，直接显示消息
-                const isMine = String(msg.sender_id) === String(this.currentUser.id);
-                
-                let msgHtml;
-                if (msg.content_type === 'report_card') {
-                    // 渲染订单卡片
-                    const report = JSON.parse(msg.content);
-                    msgHtml = this.renderReportCardMessage(report, msg, isMine, msg.request_id);
-                } else if (msg.content_type === 'system') {
-                    // 系统消息 - 刷新整个消息列表以正确处理锁定状态
-                    this.socket.emit('get_request_history', { request_id: msg.request_id }, (messages) => {
-                        this.displayRequestMessages(messages, msg.request_id);
-                    });
-                    return;
-                } else {
-                    // 普通文本消息
-                    msgHtml = `
-                        <div style="display: flex; justify-content: ${isMine ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
-                            <div style="max-width: 70%; background: ${isMine ? 'var(--citrus-orange)' : 'white'}; color: ${isMine ? 'white' : '#333'}; padding: 10px 14px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                ${!isMine ? `<div style="font-size: 12px; color: #666; margin-bottom: 4px;">${msg.sender_name}</div>` : ''}
-                                <div>${msg.content}</div>
-                                <div style="font-size: 11px; color: ${isMine ? 'rgba(255,255,255,0.7)' : '#999'}; margin-top: 4px; text-align: right;">
-                                    ${new Date(msg.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                container.insertAdjacentHTML('beforeend', msgHtml);
-                container.scrollTop = container.scrollHeight;
-                
-                // 标记已读
-                if (String(msg.sender_id) !== String(this.currentUser.id)) {
-                    this.socket.emit('mark_request_read', { 
-                        request_id: msg.request_id, 
-                        user_id: this.currentUser.id 
-                    });
-                }
-            } else if (String(msg.sender_id) !== String(this.currentUser.id)) {
-                // 窗口未打开，显示通知并更新未读计数
-                const notifyText = msg.content_type === 'report_card' ? '收到申报订单' : 
-                                   msg.content_type === 'system' ? '收到订单通知' : 
-                                   `收到求购消息: ${msg.content.substring(0, 10)}...`;
-                this.showAlert(notifyText, 'info');
-                
-                // 更新求购消息未读计数
-                const key = `request_${msg.request_id}`;
-                this.unreadCounts[key] = (this.unreadCounts[key] || 0) + 1;
-                this.updateRequestUnreadBadge();
-            }
-        });
-        
-        // 接收处理商消息
-        this.socket.on('receive_processor_message', (msg) => {
-            const container = document.getElementById(`processor-messages-${msg.request_id}`);
-            if (container) {
-                const isMine = String(msg.sender_id) === String(this.currentUser.id);
-                
-                let msgHtml;
-                if (msg.content_type === 'system') {
-                    msgHtml = `
-                        <div style="text-align: center; margin: 16px 0;">
-                            <span style="background: #e8f4fd; color: #1890ff; padding: 6px 16px; border-radius: 20px; font-size: 12px;">
-                                📢 ${msg.content}
-                            </span>
-                        </div>
-                    `;
-                } else if (msg.content_type === 'report_card') {
-                    // 渲染报告卡片
-                    try {
-                        const report = JSON.parse(msg.content);
-                        msgHtml = this.renderProcessorReportCardMessage(report, msg, isMine, msg.request_id);
-                    } catch (e) {
-                        console.error('Parse report card error in receive event:', e);
-                        msgHtml = `
-                            <div style="display: flex; justify-content: ${isMine ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
-                                <div style="max-width: 70%; padding: 12px 16px; border-radius: 12px; background: #ffebee; color: #c62828;">
-                                    <p style="margin: 0;">⚠️ 申报卡片解析失败</p>
-                                </div>
-                            </div>
-                        `;
-                    }
-                } else {
-                    msgHtml = `
-                        <div style="display: flex; justify-content: ${isMine ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
-                            <div style="max-width: 70%; background: ${isMine ? '#9b59b6' : 'white'}; color: ${isMine ? 'white' : '#333'}; padding: 10px 14px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                ${!isMine ? `<div style="font-size: 12px; color: #666; margin-bottom: 4px;">${msg.sender_name}</div>` : ''}
-                                <div>${msg.content}</div>
-                                <div style="font-size: 11px; color: ${isMine ? 'rgba(255,255,255,0.7)' : '#999'}; margin-top: 4px; text-align: right;">
-                                    ${new Date(msg.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                container.insertAdjacentHTML('beforeend', msgHtml);
-                container.scrollTop = container.scrollHeight;
-                
-                // 标记已读
-                if (String(msg.sender_id) !== String(this.currentUser.id)) {
-                    this.socket.emit('mark_processor_read', { 
-                        request_id: msg.request_id, 
-                        user_id: this.currentUser.id 
-                    });
-                }
-            } else if (String(msg.sender_id) !== String(this.currentUser.id)) {
-                this.showAlert(`收到处理商消息: ${msg.content.substring(0, 10)}...`, 'info');
-                
-                // 更新处理商消息未读计数
-                const key = `processor_${msg.request_id}`;
-                this.unreadCounts[key] = (this.unreadCounts[key] || 0) + 1;
-                this.updateProcessorUnreadBadge();
-            }
-        });
-    },
-    
-    // 更新处理商消息红点
-    updateProcessorUnreadBadge() {
-        let totalUnread = 0;
-        Object.keys(this.unreadCounts).forEach(key => {
-            if (key.startsWith('processor_')) {
-                totalUnread += this.unreadCounts[key];
-            }
-        });
-        
-        // 更新回收商"处理商需求"卡片红点
-        const processorDemandsCard = document.querySelector('[onclick*="processor-demands"]');
-        if (processorDemandsCard) {
-            this.updateBadgeOnElement(processorDemandsCard, totalUnread);
-        }
-    },
-    
-    // 更新求购消息红点
-    updateRequestUnreadBadge() {
-        // 计算求购相关的未读消息总数
-        let totalUnread = 0;
-        Object.keys(this.unreadCounts).forEach(key => {
-            if (key.startsWith('request_')) {
-                totalUnread += this.unreadCounts[key];
-            }
-        });
-        
-        // 更新农户"回收商求购"卡片红点
-        const farmerDemandsCard = document.querySelector('[onclick*="recycler-demands"]');
-        if (farmerDemandsCard) {
-            this.updateBadgeOnElement(farmerDemandsCard, totalUnread);
-        }
-        
-        // 更新回收商"订单管理/我的订单"卡片红点
-        const recyclerOrdersCard = document.querySelector('[onclick*="my-orders"]');
-        if (recyclerOrdersCard) {
-            this.updateBadgeOnElement(recyclerOrdersCard, totalUnread);
-        }
-    },
-    
-    // 在元素上更新红点角标
-    updateBadgeOnElement(element, count) {
-        // 移除旧的角标
-        const existing = element.querySelector('.msg-badge');
-        if (existing) existing.remove();
-        
-        if (count > 0) {
-            element.style.position = 'relative';
-            const badge = document.createElement('span');
-            badge.className = 'msg-badge';
-            badge.style.cssText = `
-                position: absolute;
-                top: 8px;
-                right: 8px;
-                background: #ff4757;
-                color: white;
-                font-size: 11px;
-                font-weight: bold;
-                min-width: 20px;
-                height: 20px;
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0 6px;
-                box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
-                animation: pulse 2s infinite;
-            `;
-            badge.textContent = count > 99 ? '99+' : count;
-            element.appendChild(badge);
-        }
-    },
-    
-    checkUnreadMessages() {
-        if (!this.currentUser || !this.socket) return;
-        
-        // 检查聊天消息未读数
-        this.socket.emit('check_unread', this.currentUser.id, (data) => {
-            console.log('Unread messages:', data);
-            // 清除旧的report相关计数
-            Object.keys(this.unreadCounts).forEach(key => {
-                if (!key.startsWith('request_')) {
-                    delete this.unreadCounts[key];
-                }
-            });
-            if (data && Array.isArray(data)) {
-                data.forEach(item => {
-                    this.unreadCounts[item.report_id] = item.count;
-                });
-            }
-            this.updateUnreadIndicators();
-        });
-        
-        // 检查求购消息未读数
-        this.socket.emit('check_request_unread', this.currentUser.id, (data) => {
-            console.log('Unread request messages:', data);
-            // 清除旧的request相关计数
-            Object.keys(this.unreadCounts).forEach(key => {
-                if (key.startsWith('request_')) {
-                    delete this.unreadCounts[key];
-                }
-            });
-            if (data && Array.isArray(data)) {
-                data.forEach(item => {
-                    this.unreadCounts[`request_${item.request_id}`] = item.count;
-                });
-            }
-            this.updateRequestUnreadBadge();
-        });
-    },
-    
-    updateUnreadIndicators() {
-        // Update both farmer and recycler lists
-        document.querySelectorAll('[data-action="chat"], [data-supply-action="chat"], [data-order-action="chat"]').forEach(btn => {
-            const reportId = btn.dataset.id;
-            const count = this.unreadCounts[reportId];
-            
-            // Remove existing dot
-            const existing = btn.querySelector('.unread-dot');
-            if (existing) existing.remove();
-            
-            if (count > 0) {
-                const dot = document.createElement('span');
-                dot.className = 'unread-dot';
-                dot.style.cssText = `
-                    background: #ff4757; color: white; border-radius: 50%; 
-                    min-width: 18px; height: 18px; font-size: 10px; 
-                    display: inline-flex; align-items: center; justify-content: center;
-                    position: absolute; top: -8px; right: -8px; padding: 0 4px; border: 2px solid white;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                `;
-                dot.textContent = count > 99 ? '99+' : count;
-                btn.style.position = 'relative'; 
-                btn.appendChild(dot);
-            }
-        });
-    },
-
-    openChat(reportId, targetUserId) {
-        if (!this.currentUser) return this.showAlert('请先登录', 'warning');
-        
-        // Check for valid target user
-        if (!targetUserId || targetUserId === 'undefined' || targetUserId === 'null') {
-            return this.showAlert('无法获取对方信息，请刷新页面重试', 'error');
-        }
-
-        if (!this.socket) this.initSocket();
-        
-        // Remove existing chat window if any
-        const existing = document.getElementById('chat-window');
-        if (existing) existing.remove();
-        
-        // Show loading
-        const loading = document.createElement('div');
-        loading.id = 'chat-loading-toast';
-        loading.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:15px 25px;background:rgba(0,0,0,0.8);color:white;border-radius:8px;z-index:9999;font-size:14px;';
-        loading.innerHTML = '<span class="spin">↻</span> 正在连接聊天...';
-        document.body.appendChild(loading);
-
-        // Join room
-        const roomName = `report_${reportId}`;
-        this.socket.emit('join_room', roomName);
-        
-        // Load history
-        this.socket.emit('get_history', reportId, (messages) => {
-            const loader = document.getElementById('chat-loading-toast');
-            if (loader) loader.remove();
-            
-            this.renderChatWindow(reportId, targetUserId, messages);
-            this.markAsRead(reportId);
-        });
-
-        // Safety timeout
-        setTimeout(() => {
-            const loader = document.getElementById('chat-loading-toast');
-            if (loader) {
-                loader.remove();
-                if (!document.getElementById('chat-window')) {
-                     this.showAlert('聊天服务连接超时，请检查网络', 'error');
-                }
-            }
-        }, 8000);
-    },
-    
-    markAsRead(reportId) {
-        if(!this.socket || !this.currentUser) return;
-        this.socket.emit('mark_read', { report_id: reportId, user_id: this.currentUser.id });
-        
-        // Clear local count
-        if (this.unreadCounts[reportId]) {
-            delete this.unreadCounts[reportId];
-            this.updateUnreadIndicators();
-        }
-    },
-
-    renderChatWindow(reportId, targetUserId, messages) {
-        const div = document.createElement('div');
-        div.id = 'chat-window';
-        div.dataset.reportId = reportId;
-        div.dataset.targetUserId = targetUserId;
-        
-        div.style.cssText = `
-            position: fixed; bottom: 20px; right: 20px; width: 380px; height: 550px;
-            background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            display: flex; flex-direction: column; z-index: 2500; overflow: hidden;
-            animation: slideUp 0.3s ease; border: 1px solid #e0e0e0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
-        `;
-        
-        div.innerHTML = `
-            <div style="padding: 16px 20px; background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%); color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <div>
-                    <div style="font-weight: 600; font-size: 15px;">💬 订单沟通</div>
-                    <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;">申报单号 #${reportId}</div>
-                </div>
-                <button id="close-chat" style="background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 22px; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">×</button>
-            </div>
-            <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; background: #f5f5f5; display: flex; flex-direction: column; gap: 12px;"></div>
-            <div style="padding: 12px 16px; border-top: 1px solid #e0e0e0; background: white;">
-                <div style="display: flex; gap: 10px; align-items: flex-end;">
-                    <input type="text" id="chat-input" placeholder="输入消息..." maxlength="500" style="flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 24px; outline: none; font-size: 14px; transition: border 0.2s;">
-                    <button id="chat-send" style="background: #1abc9c; color: white; border: none; padding: 12px 24px; border-radius: 24px; cursor: pointer; font-weight: 500; font-size: 14px; transition: all 0.2s; min-width: 70px;">发送</button>
-                </div>
-                <div style="font-size: 11px; color: #999; margin-top: 6px; padding: 0 4px;">按 Enter 发送消息</div>
-            </div>
-        `;
-        
-        document.body.appendChild(div);
-        
-        const msgContainer = div.querySelector('#chat-messages');
-        messages.forEach(msg => this.appendChatMessage(msg, msgContainer));
-        
-        // Scroll to bottom
-        setTimeout(() => msgContainer.scrollTop = msgContainer.scrollHeight, 100);
-
-        // Events
-        div.querySelector('#close-chat').onclick = () => div.remove();
-        
-        const sendBtn = div.querySelector('#chat-send');
-        const input = div.querySelector('#chat-input');
-        
-        const send = () => {
-            const content = input.value.trim();
-            if (!content) return;
-            
-            this.socket.emit('send_message', {
-                report_id: reportId,
-                sender_id: this.currentUser.id,
-                receiver_id: targetUserId,
-                content: content
-            });
-            input.value = '';
-            input.focus();
-        };
-        
-        sendBtn.onclick = send;
-        input.onkeypress = (e) => { 
-            if (e.key === 'Enter') send(); 
-        };
-        
-        // Focus input
-        setTimeout(() => input.focus(), 200);
-    },
-    
-    appendChatMessage(msg, container = null) {
-        if (!container) container = document.getElementById('chat-messages');
-        if (!container) return;
-        
-        const isSelf = String(msg.sender_id) === String(this.currentUser.id);
-        
-        // Message wrapper
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            align-items: ${isSelf ? 'flex-end' : 'flex-start'};
-            gap: 4px;
-        `;
-        
-        // Message bubble
-        const el = document.createElement('div');
-        el.style.cssText = `
-            max-width: 75%; padding: 10px 14px; 
-            border-radius: ${isSelf ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};
-            font-size: 14px; line-height: 1.5;
-            background: ${isSelf ? '#1abc9c' : 'white'};
-            color: ${isSelf ? 'white' : '#333'};
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-            word-wrap: break-word;
-            word-break: break-word;
-        `;
-        el.textContent = msg.content;
-        
-        // Time stamp
-        const time = document.createElement('div');
-        time.style.cssText = `
-            font-size: 11px; 
-            color: ${isSelf ? 'rgba(255,255,255,0.8)' : '#999'}; 
-            margin-top: 4px;
-        `;
-        const date = new Date(msg.created_at);
-        const hours = date.getHours();
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        time.textContent = `${hours}:${minutes}`;
-        el.appendChild(time);
-        
-        wrapper.appendChild(el);
-        container.appendChild(wrapper);
-        
-        // Smooth scroll
-        setTimeout(() => {
-            container.scrollTo({
-                top: container.scrollHeight,
-                behavior: 'smooth'
-            });
-        }, 50);
-    },
-
     // ========== 回收商求购功能 ==========
     
     // 显示发布求购表单
@@ -3477,16 +2970,15 @@ const authSystem = {
             
             console.log('[saveProcessorDemand] Request body:', requestBody);
 
-            const response = await fetch(`${this.API_BASE}/api/processor-requests`, {
+            const response = await this.authFetch(`/api/processor-requests`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
             });
 
-            const data = await response.json();
+            const data = response;
             console.log('[saveProcessorDemand] Response:', data);
             
-            if (!response.ok) throw new Error(data.error || '保存失败');
+            if (!data) throw new Error('保存失败');
 
             this.showAlert(editId ? '修改成功' : (status === 'draft' ? '草稿已保存' : '求购信息发布成功'), 'success');
             
@@ -3517,9 +3009,8 @@ const authSystem = {
         }
 
         try {
-            const response = await fetch(`${this.API_BASE}/api/recycler-requests`, {
+            await this.authFetch(`/api/recycler-requests`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     id: editId,
                     recycler_id: this.currentUser.id,
@@ -3531,9 +3022,6 @@ const authSystem = {
                     status
                 })
             });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || '保存失败');
 
             this.showAlert(editId ? '修改成功' : (status === 'draft' ? '草稿已保存' : '求购信息发布成功'), 'success');
             
@@ -3571,9 +3059,8 @@ const authSystem = {
         }
 
         try {
-            const response = await fetch(`${this.API_BASE}/api/recycler-supplies`, {
+            await this.authFetch(`/api/recycler-supplies`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     recycler_id: this.currentUser.id,
                     grade,
@@ -3586,9 +3073,6 @@ const authSystem = {
                     status
                 })
             });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || '保存失败');
 
             this.showAlert(status === 'draft' ? '草稿已保存' : '供应信息发布成功！处理商可以看到您的货源了', 'success');
             
@@ -3625,10 +3109,7 @@ const authSystem = {
         const listDiv = document.getElementById('processor-demands-list');
         
         try {
-            const resp = await fetch(`${this.API_BASE}/api/processor-requests?for_recyclers=true`);
-            const data = await resp.json();
-            
-            if (!resp.ok) throw new Error(data.error);
+            const data = await this.authFetch(`/api/processor-requests?for_recyclers=true`);
             
             if (!data || data.length === 0) {
                 listDiv.innerHTML = `
@@ -3692,7 +3173,7 @@ const authSystem = {
                         
                         <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
                             <p style="margin: 0 0 6px 0;"><strong>联系人：</strong>${r.contact_name}</p>
-                            <p style="margin: 0;"><strong>联系电话：</strong>${r.contact_phone}</p>
+                            <p style="margin: 0;"><strong>联系电话：</strong>${fuzzPhone(r.contact_phone)}</p>
                         </div>
                         
                         ${r.notes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${r.notes}</p>` : ''}
@@ -3702,9 +3183,9 @@ const authSystem = {
                                     style="background: var(--primary-green); color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold;">
                                 ✅ 接单
                             </button>
-                            <button data-processor-demand-action="chat" data-id="${r.id}" data-uid="${r.processor_id}" 
+                            <button data-processor-demand-action="intention" data-id="${r.id}" data-uid="${r.processor_id}" 
                                     style="background: #9b59b6; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold;">
-                                💬 联系处理商
+                                📋 发起意向
                             </button>
                         </div>
                     </div>
@@ -3718,18 +3199,15 @@ const authSystem = {
                     const id = btn.dataset.id;
                     const uid = btn.dataset.uid;
                     
-                    if (action === 'chat') {
-                        this.openProcessorRequestChat(id, uid);
+                    if (action === 'chat' || action === 'intention') {
+                        this.openIntentionModal({ target_type: 'processor_request', target_id: id, target_no: '', target_name: '处理商求购' });
                     } else if (action === 'accept') {
                         if (!confirm('确认接单该处理商求购？')) return;
                         try {
-                            const resp = await fetch(`${this.API_BASE}/api/processor-requests/${id}/accept`, {
+                            const resp = await this.authFetch(`/api/processor-requests/${id}/accept`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ recycler_id: this.currentUser.id })
-                            });
-                            const data = await resp.json();
-                            if (!resp.ok) throw new Error(data.error || '接单失败');
+                                });
                             this.showAlert('接单成功！可在"我的订单-处理商订单"中查看', 'success');
                             this.loadProcessorDemands();
                         } catch (err) {
@@ -3742,342 +3220,6 @@ const authSystem = {
         } catch (err) {
             console.error('Load processor demands error:', err);
             listDiv.innerHTML = `<div class="glass-card" style="padding: 24px;"><p style="color: #e74c3c;">${err.message}</p></div>`;
-        }
-    },
-
-    // 打开处理商求购聊天窗口
-    async openProcessorRequestChat(requestId, processorId) {
-        console.log('Opening processor request chat:', requestId, processorId);
-        
-        if (!this.socket || !this.socket.connected) {
-            this.showAlert('网络连接失败，请刷新页面重试', 'error');
-            return;
-        }
-        
-        // 获取求购信息
-        let requestInfo = null;
-        try {
-            const resp = await fetch(`${this.API_BASE}/api/processor-requests/${requestId}`);
-            requestInfo = await resp.json();
-        } catch (err) {
-            console.error('Failed to get processor request info:', err);
-        }
-        
-        const modalId = 'processor-chat-modal';
-        let modal = document.getElementById(modalId);
-        
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = modalId;
-            modal.className = 'chat-modal';
-            document.body.appendChild(modal);
-        }
-
-        this.renderProcessorChatWindow(modal, requestId, processorId, requestInfo);
-        modal.style.display = 'flex';
-        
-        // 加入聊天室
-        this.socket.emit('join_processor_room', { request_id: requestId });
-        
-        // 获取历史消息
-        this.socket.emit('get_processor_history', { request_id: requestId }, (messages) => {
-            console.log('Received processor messages:', messages);
-            this.displayProcessorMessages(messages, requestId);
-        });
-        
-        // 标记消息已读
-        this.socket.emit('mark_processor_read', { 
-            request_id: requestId, 
-            user_id: this.currentUser.id 
-        });
-    },
-
-    // 渲染处理商聊天窗口
-    renderProcessorChatWindow(modal, requestId, processorId, requestInfo) {
-        const isProcessor = this.currentUser.role === 'processor';
-        const isFarmer = this.currentUser.role === 'farmer';
-        const chatTitle = requestInfo ? 
-            (isProcessor ? `求购咨询 - ${requestInfo.request_no}` : `与${requestInfo.processor_name || '处理商'}沟通`) : 
-            '处理商需求沟通';
-        
-        modal.innerHTML = `
-            <div class="chat-window" style="animation: slideUp 0.3s ease-out;">
-                <div class="chat-header" style="background: linear-gradient(135deg, #9b59b6, #8e44ad); padding: 16px; display: flex; justify-content: space-between; align-items: center; border-radius: 12px 12px 0 0;">
-                    <h3 style="margin: 0; color: white; font-size: 16px;">💬 ${chatTitle}</h3>
-                    <button onclick="authSystem.closeProcessorChat()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px;">×</button>
-                </div>
-                
-                <div id="processor-messages-${requestId}" class="chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; background: #f5f5f5;">
-                    <div style="text-align: center; color: #999;">加载消息中...</div>
-                </div>
-                
-                <div class="chat-input" style="padding: 16px; background: white; border-top: 1px solid #e0e0e0;">
-                    ${isFarmer ? `
-                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                            <button onclick="authSystem.showSendReportToProcessorDialog(${requestId})" style="background: var(--citrus-orange); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px;">📋 发送申报</button>
-                        </div>
-                    ` : ''}
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="processor-input-${requestId}" placeholder="输入消息..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none;">
-                        <button onclick="authSystem.sendProcessorMessage(${requestId})" style="background: #9b59b6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">发送</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        const input = document.getElementById(`processor-input-${requestId}`);
-        input.onkeypress = (e) => {
-            if (e.key === 'Enter') {
-                this.sendProcessorMessage(requestId);
-            }
-        };
-    },
-
-    // 发送处理商聊天消息
-    sendProcessorMessage(requestId) {
-        const input = document.getElementById(`processor-input-${requestId}`);
-        const content = input.value.trim();
-        
-        if (!content) return;
-        
-        this.socket.emit('send_processor_message', {
-            request_id: requestId,
-            sender_id: this.currentUser.id,
-            content: content,
-            content_type: 'text'
-        });
-        
-        input.value = '';
-    },
-
-    // 显示处理商聊天消息
-    displayProcessorMessages(messages, requestId) {
-        const container = document.getElementById(`processor-messages-${requestId}`);
-        if (!container) return;
-        
-        console.log('[displayProcessorMessages] messages:', messages);
-        console.log('[displayProcessorMessages] currentUser:', this.currentUser);
-        
-        if (!messages || messages.length === 0) {
-            container.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">暂无消息，开始对话吧！</div>';
-            return;
-        }
-        
-        container.innerHTML = messages.map(msg => {
-            const isMe = String(msg.sender_id) === String(this.currentUser.id);
-            const isSystem = msg.content_type === 'system';
-            const isReportCard = msg.content_type === 'report_card';
-            
-            console.log('[displayProcessorMessages] msg:', msg, 'isMe:', isMe, 'isSystem:', isSystem, 'isReportCard:', isReportCard);
-            
-            if (isSystem) {
-                return `
-                    <div style="text-align: center; margin: 16px 0;">
-                        <span style="background: #e8f4fd; color: #1890ff; padding: 6px 16px; border-radius: 20px; font-size: 12px;">
-                            📢 ${msg.content}
-                        </span>
-                    </div>
-                `;
-            }
-            
-            if (isReportCard) {
-                try {
-                    console.log('[displayProcessorMessages] Parsing report card:', msg.content);
-                    const report = JSON.parse(msg.content);
-                    console.log('[displayProcessorMessages] Parsed report:', report);
-                    const html = this.renderProcessorReportCardMessage(report, msg, isMe, requestId);
-                    console.log('[displayProcessorMessages] Report card HTML:', html);
-                    return html;
-                } catch (e) {
-                    console.error('Parse report card error:', e, 'content:', msg.content);
-                    return `
-                        <div style="display: flex; justify-content: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
-                            <div style="max-width: 70%; padding: 12px 16px; border-radius: 12px; background: #ffebee; color: #c62828;">
-                                <p style="margin: 0;">⚠️ 申报卡片解析失败</p>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-            
-            return `
-                <div style="display: flex; justify-content: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
-                    <div style="max-width: 70%; padding: 12px 16px; border-radius: 12px; background: ${isMe ? '#9b59b6' : 'white'}; color: ${isMe ? 'white' : '#333'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <p style="margin: 0; word-break: break-word;">${msg.content}</p>
-                        <span style="font-size: 11px; color: ${isMe ? 'rgba(255,255,255,0.7)' : '#999'}; display: block; text-align: right; margin-top: 4px;">
-                            ${new Date(msg.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        container.scrollTop = container.scrollHeight;
-    },
-
-    // 渲染处理商聊天中的申报卡片消息
-    renderProcessorReportCardMessage(report, msg, isMine, requestId) {
-        const isProcessor = this.currentUser.role === 'processor';
-        const canAccept = isProcessor && !isMine && report.status === 'pending';
-        const isLocked = report.status === 'accepted';
-        
-        return `
-            <div style="display: flex; justify-content: ${isMine ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
-                <div style="max-width: 85%; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; ${isLocked ? 'border: 2px solid #9b59b6;' : ''}">
-                    ${!isMine ? `<div style="padding: 8px 12px; background: #f5f0ff; font-size: 12px; color: #666; border-bottom: 1px solid #e0e0e0;">${msg.sender_name} 发送了申报订单</div>` : ''}
-                    
-                    <div style="padding: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <strong style="color: #9b59b6; font-size: 14px;">📋 ${report.report_no}</strong>
-                            <span style="padding: 2px 8px; background: ${report.status === 'pending' ? '#fff3cd' : report.status === 'accepted' ? '#d4edda' : '#d1ecf1'}; color: ${report.status === 'pending' ? '#856404' : report.status === 'accepted' ? '#155724' : '#0c5460'}; border-radius: 10px; font-size: 11px;">
-                                ${this.getReportStatusLabel(report.status)}
-                            </span>
-                        </div>
-                        
-                        <div style="font-size: 12px; color: #555; line-height: 1.6;">
-                            <div style="margin: 4px 0;"><strong>品种：</strong>${report.citrus_variety}</div>
-                            <div style="margin: 4px 0;"><strong>重量：</strong>${report.weight_kg} 斤</div>
-                            <div style="margin: 4px 0;"><strong>回收日期：</strong>${report.pickup_date}</div>
-                            <div style="margin: 4px 0;"><strong>地址：</strong>${report.location_address}</div>
-                            ${report.notes ? `<div style="margin: 4px 0;"><strong>备注：</strong>${report.notes}</div>` : ''}
-                        </div>
-                        
-                        ${canAccept ? `
-                            <button onclick="authSystem.acceptReportFromProcessorChat(${report.id}, ${requestId})" 
-                                    style="width: 100%; margin-top: 12px; padding: 10px; background: #9b59b6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;">
-                                ✅ 接受订单
-                            </button>
-                        ` : ''}
-                        
-                        ${isLocked ? `
-                            <div style="margin-top: 10px; padding: 8px; background: #f5f0ff; color: #9b59b6; border-radius: 6px; font-size: 12px; text-align: center;">
-                                🔒 订单已锁定
-                            </div>
-                        ` : ''}
-                    </div>
-                    
-                    <div style="padding: 6px 12px; background: #f9f9f9; border-top: 1px solid #e0e0e0; font-size: 10px; color: #999; text-align: right;">
-                        ${new Date(msg.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                </div>
-            </div>
-        `;
-    },
-
-    // 处理商从聊天中接受申报
-    async acceptReportFromProcessorChat(reportId, requestId) {
-        if (!confirm('确定接受此订单吗？')) return;
-        
-        try {
-            const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${reportId}/accept`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ processor_id: this.currentUser.id })
-            });
-            
-            if (!resp.ok) {
-                const data = await resp.json();
-                throw new Error(data.error || '接单失败');
-            }
-            
-            this.showAlert('🎉 订单锁定成功！', 'success');
-            
-            // 发送系统消息
-            this.socket.emit('send_processor_message', {
-                request_id: requestId,
-                sender_id: this.currentUser.id,
-                content: '订单已锁定成功！',
-                content_type: 'system'
-            });
-            
-            // 刷新消息
-            setTimeout(() => {
-                this.socket.emit('get_processor_history', { request_id: requestId }, (messages) => {
-                    this.displayProcessorMessages(messages, requestId);
-                });
-            }, 800);
-            
-        } catch (err) {
-            console.error('Accept report error:', err);
-            this.showAlert(err.message || '接单失败', 'error');
-        }
-    },
-
-    // 关闭处理商聊天窗口
-    closeProcessorChat() {
-        const modal = document.getElementById('processor-chat-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    },
-
-    // 农户发送申报给处理商
-    async showSendReportToProcessorDialog(requestId) {
-        try {
-            const resp = await fetch(`${this.API_BASE}/api/farmer-reports?farmer_id=${this.currentUser.id}&status=pending`);
-            const reports = await resp.json();
-            
-            if (!resp.ok) throw new Error('获取申报失败');
-            
-            if (!reports || reports.length === 0) {
-                return this.showAlert('您还没有待处理的申报订单', 'warning');
-            }
-            
-            const dialogHtml = `
-                <div id="select-report-processor-dialog" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; justify-content: center; align-items: center;">
-                    <div style="background: white; border-radius: 16px; width: 90%; max-width: 500px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
-                        <div style="padding: 16px; background: #9b59b6; color: white; display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="margin: 0;">选择要发送给处理商的申报</h3>
-                            <button onclick="document.getElementById('select-report-processor-dialog').remove()" style="background: transparent; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
-                        </div>
-                        
-                        <div style="flex: 1; overflow-y: auto; padding: 16px;">
-                            ${reports.map(r => `
-                                <div onclick="authSystem.sendReportToProcessor(${requestId}, ${r.id})" style="background: #f5f0ff; border-radius: 8px; padding: 12px; margin-bottom: 12px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s;" onmouseover="this.style.borderColor='#9b59b6'" onmouseout="this.style.borderColor='transparent'">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <strong style="color: #9b59b6;">${r.report_no}</strong>
-                                        <span style="font-size: 12px; color: #666;">${r.created_at}</span>
-                                    </div>
-                                    <div style="font-size: 13px; color: #555;">
-                                        <div>品种：${r.citrus_variety} | 重量：${r.weight_kg}斤</div>
-                                        <div>回收日期：${r.pickup_date}</div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', dialogHtml);
-        } catch (err) {
-            console.error('Show report dialog error:', err);
-            this.showAlert(err.message || '获取申报失败', 'error');
-        }
-    },
-
-    // 发送申报给处理商
-    async sendReportToProcessor(requestId, reportId) {
-        document.getElementById('select-report-processor-dialog')?.remove();
-        
-        try {
-            const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${reportId}`);
-            const report = await resp.json();
-            
-            if (!resp.ok) throw new Error('获取申报信息失败');
-            
-            // 发送申报卡片消息
-            this.socket.emit('send_processor_message', {
-                request_id: requestId,
-                sender_id: this.currentUser.id,
-                content: JSON.stringify(report),
-                content_type: 'report_card'
-            });
-            
-            this.showAlert('申报已发送', 'success');
-        } catch (err) {
-            console.error('Send report error:', err);
-            this.showAlert(err.message || '发送失败', 'error');
         }
     },
 
@@ -4106,13 +3248,10 @@ const authSystem = {
         
         try {
             // 同时获取回收商求购和处理商求购（仅限有运输能力的）
-            const [recyclerResp, processorResp] = await Promise.all([
-                fetch(`${this.API_BASE}/api/purchase-requests`),
-                fetch(`${this.API_BASE}/api/processor-requests?for_farmers=true`)
+            const [recyclerData, processorData] = await Promise.all([
+                this.authFetch(`/api/purchase-requests`),
+                this.authFetch(`/api/processor-requests?for_farmers=true`)
             ]);
-            
-            const recyclerData = await recyclerResp.json();
-            const processorData = await processorResp.json();
             
             // 标记来源并合并
             const recyclerDemands = (Array.isArray(recyclerData) ? recyclerData : []).map(r => ({
@@ -4193,16 +3332,16 @@ const authSystem = {
                             
                             <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
                                 <p style="margin: 0 0 6px 0;"><strong>联系人：</strong>${r.contact_name}</p>
-                                <p style="margin: 0 0 6px 0;"><strong>联系电话：</strong>${r.contact_phone}</p>
+                                <p style="margin: 0 0 6px 0;"><strong>联系电话：</strong>${fuzzPhone(r.contact_phone)}</p>
                                 <p style="margin: 0;"><strong>处理商：</strong>${r.processor_name || '未知'}</p>
                             </div>
                             
                             ${r.notes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${r.notes}</p>` : ''}
                             
                             <div style="text-align: right;">
-                                <button data-processor-demand-action="chat" data-id="${r.id}" data-uid="${r.processor_id}" 
+                                <button data-processor-demand-action="intention" data-id="${r.id}" data-uid="${r.processor_id}" 
                                         style="background: #9b59b6; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold;">
-                                    💬 联系处理商
+                                    📋 发起意向
                                 </button>
                             </div>
                         </div>
@@ -4230,16 +3369,16 @@ const authSystem = {
                             
                             <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
                                 <p style="margin: 0 0 8px 0;"><strong>联系人：</strong>${r.contact_name}</p>
-                                <p style="margin: 0 0 8px 0;"><strong>联系电话：</strong>${r.contact_phone}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>联系电话：</strong>${fuzzPhone(r.contact_phone)}</p>
                                 <p style="margin: 0;"><strong>回收商：</strong>${r.recycler_name}</p>
                             </div>
                             
                             ${r.notes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${r.notes}</p>` : ''}
                             
                             <div style="text-align: right;">
-                                <button data-demand-action="chat" data-id="${r.id}" data-uid="${r.recycler_id}" 
+                                <button data-demand-action="intention" data-id="${r.id}" data-uid="${r.recycler_id}" 
                                         style="background: var(--citrus-orange); color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold;">
-                                    💬 联系回收商
+                                    📋 发起意向
                                 </button>
                             </div>
                         </div>
@@ -4248,22 +3387,18 @@ const authSystem = {
             }).join('');
 
             // 绑定回收商按钮事件
-            listDiv.querySelectorAll('[data-demand-action="chat"]').forEach(btn => {
+            listDiv.querySelectorAll('[data-demand-action="intention"]').forEach(btn => {
                 btn.onclick = () => {
                     const id = btn.dataset.id;
-                    const uid = btn.dataset.uid;
-                    console.log('Recycler chat button clicked:', id, uid);
-                    this.openRequestChat(id, uid);
+                    this.openIntentionModal({ target_type: 'recycler_request', target_id: id, target_no: '', target_name: '回收商求购' });
                 };
             });
             
             // 绑定处理商按钮事件
-            listDiv.querySelectorAll('[data-processor-demand-action="chat"]').forEach(btn => {
+            listDiv.querySelectorAll('[data-processor-demand-action="intention"]').forEach(btn => {
                 btn.onclick = () => {
                     const id = btn.dataset.id;
-                    const uid = btn.dataset.uid;
-                    console.log('Processor chat button clicked:', id, uid);
-                    this.openProcessorRequestChat(id, uid);
+                    this.openIntentionModal({ target_type: 'processor_request', target_id: id, target_no: '', target_name: '处理商求购' });
                 };
             });
             
@@ -4272,404 +3407,6 @@ const authSystem = {
             listDiv.innerHTML = `<div class="glass-card" style="padding: 24px;"><p style="color: #e74c3c;">${err.message}</p></div>`;
         }
     },
-
-    // 打开求购信息聊天窗口
-    async openRequestChat(requestId, otherUserId) {
-        console.log('Opening request chat:', requestId, otherUserId);
-        
-        // 检查Socket连接
-        if (!this.socket || !this.socket.connected) {
-            console.error('Socket not connected');
-            this.showAlert('网络连接失败，请刷新页面重试', 'error');
-            return;
-        }
-        
-        // 获取求购信息以确定对方身份
-        let requestInfo = null;
-        try {
-            const resp = await fetch(`${this.API_BASE}/api/recycler-requests/${requestId}`);
-            requestInfo = await resp.json();
-        } catch (err) {
-            console.error('Failed to get request info:', err);
-        }
-        
-        const modalId = 'request-chat-modal';
-        let modal = document.getElementById(modalId);
-        
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = modalId;
-            modal.className = 'chat-modal';
-            document.body.appendChild(modal);
-        }
-
-        // 渲染聊天窗口
-        this.renderRequestChatWindow(modal, requestId, otherUserId, requestInfo);
-        modal.style.display = 'flex';
-        
-        // 加入聊天室
-        this.socket.emit('join_request_room', { request_id: requestId });
-        
-        // 获取历史消息
-        this.socket.emit('get_request_history', { request_id: requestId }, (messages) => {
-            console.log('Received messages:', messages);
-            this.displayRequestMessages(messages, requestId);
-        });
-        
-        // 标记消息已读并清除本地红点计数
-        this.socket.emit('mark_request_read', { 
-            request_id: requestId, 
-            user_id: this.currentUser.id 
-        });
-        
-        // 清除本地未读计数并更新红点
-        const key = `request_${requestId}`;
-        if (this.unreadCounts[key]) {
-            delete this.unreadCounts[key];
-            this.updateRequestUnreadBadge();
-        }
-    },
-
-    // 渲染求购聊天窗口
-    renderRequestChatWindow(modal, requestId, otherUserId, requestInfo) {
-        const isRecycler = this.currentUser.role === 'recycler';
-        const chatTitle = requestInfo ? 
-            (isRecycler ? `求购咨询 - ${requestInfo.request_no}` : `与${requestInfo.recycler_name || '回收商'}沟通`) : 
-            '求购信息沟通';
-        
-        modal.innerHTML = `
-            <div class="chat-window" style="animation: slideUp 0.3s ease-out;">
-                <div class="chat-header" style="background: linear-gradient(135deg, var(--citrus-orange), #e67e22); padding: 16px; display: flex; justify-content: space-between; align-items: center; border-radius: 12px 12px 0 0;">
-                    <h3 style="margin: 0; color: white; font-size: 16px;">💬 ${chatTitle}</h3>
-                    <button onclick="authSystem.closeRequestChat()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px;">×</button>
-                </div>
-                
-                <div id="request-messages-${requestId}" class="chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; background: #f5f5f5;">
-                    <div style="text-align: center; color: #999;">加载消息中...</div>
-                </div>
-                
-                ${!isRecycler ? `
-                <div style="padding: 12px 16px; background: #fff9e6; border-top: 1px solid #ffe58f; display: flex; gap: 10px; align-items: center;">
-                    <span style="color: #666; font-size: 13px;">💼 发送申报订单给回收商：</span>
-                    <button onclick="authSystem.showSendReportDialog(${requestId})" style="background: var(--primary-green); color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px;">📋 选择申报</button>
-                </div>
-                ` : ''}
-                
-                <div class="chat-input" style="padding: 16px; background: white; border-top: 1px solid #e0e0e0; display: flex; gap: 10px;">
-                    <input type="text" id="request-input-${requestId}" placeholder="输入消息..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none;">
-                    <button onclick="authSystem.sendRequestMessage(${requestId})" style="background: var(--citrus-orange); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">发送</button>
-                </div>
-            </div>
-        `;
-
-        // 回车发送
-        const input = document.getElementById(`request-input-${requestId}`);
-        input.onkeypress = (e) => {
-            if (e.key === 'Enter') {
-                this.sendRequestMessage(requestId);
-            }
-        };
-    },
-
-    // 发送求购消息
-    sendRequestMessage(requestId) {
-        const input = document.getElementById(`request-input-${requestId}`);
-        const content = input.value.trim();
-        
-        if (!content) return;
-
-        this.socket.emit('send_request_message', {
-            request_id: requestId,
-            sender_id: this.currentUser.id,
-            content: content
-        });
-
-        input.value = '';
-    },
-
-    // 显示求购消息
-    displayRequestMessages(messages, requestId) {
-        const container = document.getElementById(`request-messages-${requestId}`);
-        if (!container) return;
-
-        if (!messages || messages.length === 0) {
-            container.innerHTML = `<div style="text-align: center; color: #999; padding: 40px;">暂无消息，开始聊天吧</div>`;
-            return;
-        }
-
-        // 检查是否有订单锁定消息，并收集已锁定的 report_id
-        const lockedReportIds = new Set();
-        messages.forEach(m => {
-            if (m.content_type === 'system') {
-                try {
-                    const sysData = JSON.parse(m.content);
-                    if (sysData.type === 'order_locked' && sysData.report_id) {
-                        lockedReportIds.add(sysData.report_id);
-                    }
-                } catch (e) {}
-            }
-        });
-        
-        const isLocked = lockedReportIds.size > 0;
-        const isFarmer = this.currentUser.role === 'farmer';
-
-        container.innerHTML = messages.map(msg => {
-            const isMine = String(msg.sender_id) === String(this.currentUser.id);
-            
-            // 如果是系统消息
-            if (msg.content_type === 'system') {
-                try {
-                    const sysData = JSON.parse(msg.content);
-                    if (sysData.type === 'order_locked') {
-                        return `
-                            <div style="display: flex; justify-content: center; margin: 16px 0;">
-                                <div style="background: linear-gradient(135deg, #d4edda, #c3e6cb); color: #155724; padding: 12px 20px; border-radius: 20px; font-size: 13px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                    🔒 <strong>订单锁定成功！</strong><br>
-                                    <span style="font-size: 12px;">${isFarmer ? '请到"我的申报"处继续沟通订单详情' : '农户已被通知，请在"农户供货"中查看'}</span>
-                                </div>
-                            </div>
-                        `;
-                    }
-                } catch (e) {}
-                return '';
-            }
-            
-            // 如果是订单卡片消息
-            if (msg.content_type === 'report_card') {
-                const report = JSON.parse(msg.content);
-                // 检查这个订单是否已被锁定
-                if (lockedReportIds.has(report.id)) {
-                    report.status = 'accepted';
-                }
-                return this.renderReportCardMessage(report, msg, isMine, requestId);
-            }
-            
-            // 普通文本消息
-            return `
-                <div style="display: flex; justify-content: ${isMine ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
-                    <div style="max-width: 70%; background: ${isMine ? 'var(--citrus-orange)' : 'white'}; color: ${isMine ? 'white' : '#333'}; padding: 10px 14px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        ${!isMine ? `<div style="font-size: 12px; color: #666; margin-bottom: 4px;">${msg.sender_name}</div>` : ''}
-                        <div>${msg.content}</div>
-                        <div style="font-size: 11px; color: ${isMine ? 'rgba(255,255,255,0.7)' : '#999'}; margin-top: 4px; text-align: right;">
-                            ${new Date(msg.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        // 如果订单已锁定且是农户，禁用输入框并显示提示
-        if (isLocked && isFarmer) {
-            const inputContainer = document.querySelector('.chat-input');
-            if (inputContainer) {
-                inputContainer.innerHTML = `
-                    <div style="width: 100%; text-align: center; color: #666; padding: 10px;">
-                        🔒 对话已锁定，请到 <a href="javascript:void(0)" onclick="authSystem.closeRequestChat(); authSystem.navigateTo('my-reports');" style="color: var(--primary-green); font-weight: bold;">我的申报</a> 处继续沟通
-                    </div>
-                `;
-            }
-            // 也隐藏发送申报按钮
-            const sendReportBar = document.querySelector('[onclick*="showSendReportDialog"]');
-            if (sendReportBar && sendReportBar.parentElement) {
-                sendReportBar.parentElement.style.display = 'none';
-            }
-        }
-
-        // 滚动到底部
-        setTimeout(() => container.scrollTop = container.scrollHeight, 100);
-    },
-
-    // 渲染订单卡片消息
-    renderReportCardMessage(report, msg, isMine, requestId) {
-        const isRecycler = this.currentUser.role === 'recycler';
-        const isProcessor = this.currentUser.role === 'processor';
-        const canAccept = (isRecycler || isProcessor) && !isMine && report.status === 'pending';
-        const isLocked = report.status === 'accepted';
-        
-        return `
-            <div style="display: flex; justify-content: ${isMine ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
-                <div style="max-width: 85%; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; ${isLocked ? 'border: 2px solid var(--primary-green);' : ''}">
-                    ${!isMine ? `<div style="padding: 8px 12px; background: #f5f5f5; font-size: 12px; color: #666; border-bottom: 1px solid #e0e0e0;">${msg.sender_name} 发送了申报订单</div>` : ''}
-                    
-                    <div style="padding: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <strong style="color: var(--citrus-orange); font-size: 14px;">📋 ${report.report_no}</strong>
-                            <span style="padding: 2px 8px; background: ${report.status === 'pending' ? '#fff3cd' : report.status === 'accepted' ? '#d4edda' : '#d1ecf1'}; color: ${report.status === 'pending' ? '#856404' : report.status === 'accepted' ? '#155724' : '#0c5460'}; border-radius: 10px; font-size: 11px;">
-                                ${this.getReportStatusLabel(report.status)}
-                            </span>
-                        </div>
-                        
-                        <div style="font-size: 12px; color: #555; line-height: 1.6;">
-                            <div style="margin: 4px 0;"><strong>品种：</strong>${report.citrus_variety}</div>
-                            <div style="margin: 4px 0;"><strong>重量：</strong>${report.weight_kg} 斤</div>
-                            <div style="margin: 4px 0;"><strong>回收日期：</strong>${report.pickup_date}</div>
-                            <div style="margin: 4px 0;"><strong>地址：</strong>${report.location_address}</div>
-                            ${report.notes ? `<div style="margin: 4px 0;"><strong>备注：</strong>${report.notes}</div>` : ''}
-                        </div>
-                        
-                        ${canAccept ? `
-                            <button onclick="authSystem.acceptReportFromChat(${report.id}, ${requestId}, '${msg.id}')" 
-                                    style="width: 100%; margin-top: 12px; padding: 10px; background: var(--primary-green); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;">
-                                ✅ 接受订单
-                            </button>
-                        ` : ''}
-                        
-                        ${isLocked ? `
-                            <div style="margin-top: 10px; padding: 8px; background: #d4edda; color: #155724; border-radius: 6px; font-size: 12px; text-align: center;">
-                                🔒 订单已锁定
-                            </div>
-                        ` : ''}
-                    </div>
-                    
-                    <div style="padding: 6px 12px; background: #f9f9f9; border-top: 1px solid #e0e0e0; font-size: 10px; color: #999; text-align: right;">
-                        ${new Date(msg.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                </div>
-            </div>
-        `;
-    },
-
-    // 显示发送申报对话框
-    async showSendReportDialog(requestId) {
-        try {
-            const resp = await fetch(`${this.API_BASE}/api/farmer-reports?farmer_id=${this.currentUser.id}&status=pending`);
-            const reports = await resp.json();
-            
-            if (!resp.ok) throw new Error('获取申报失败');
-            
-            if (!reports || reports.length === 0) {
-                return this.showAlert('您还没有待处理的申报订单', 'warning');
-            }
-            
-            // 创建选择对话框
-            const dialogHtml = `
-                <div id="select-report-dialog" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; justify-content: center; align-items: center;">
-                    <div style="background: white; border-radius: 16px; width: 90%; max-width: 500px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
-                        <div style="padding: 16px; background: var(--primary-green); color: white; display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="margin: 0;">选择要发送的申报</h3>
-                            <button onclick="document.getElementById('select-report-dialog').remove()" style="background: transparent; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
-                        </div>
-                        
-                        <div style="flex: 1; overflow-y: auto; padding: 16px;">
-                            ${reports.map(r => `
-                                <div onclick="authSystem.sendReportCard(${requestId}, ${r.id})" style="background: #f9f9f9; border-radius: 8px; padding: 12px; margin-bottom: 12px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s;" onmouseover="this.style.borderColor='var(--primary-green)'" onmouseout="this.style.borderColor='transparent'">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <strong style="color: var(--citrus-orange);">${r.report_no}</strong>
-                                        <span style="font-size: 12px; color: #666;">${r.created_at}</span>
-                                    </div>
-                                    <div style="font-size: 13px; color: #555;">
-                                        <div>品种：${r.citrus_variety} | 重量：${r.weight_kg}斤</div>
-                                        <div>回收日期：${r.pickup_date}</div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', dialogHtml);
-            
-        } catch (err) {
-            console.error('Show send report dialog error:', err);
-            this.showAlert(err.message || '加载失败', 'error');
-        }
-    },
-
-    // 发送申报卡片消息
-    async sendReportCard(requestId, reportId) {
-        try {
-            // 获取申报详情
-            const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${reportId}`);
-            const report = await resp.json();
-            
-            if (!resp.ok) throw new Error('获取申报详情失败');
-            
-            // 发送订单卡片消息
-            this.socket.emit('send_request_message', {
-                request_id: requestId,
-                sender_id: this.currentUser.id,
-                content: JSON.stringify(report),
-                content_type: 'report_card'
-            });
-            
-            // 关闭对话框
-            const dialog = document.getElementById('select-report-dialog');
-            if (dialog) dialog.remove();
-            
-            this.showAlert('申报已发送', 'success');
-            
-        } catch (err) {
-            console.error('Send report card error:', err);
-            this.showAlert(err.message || '发送失败', 'error');
-        }
-    },
-
-    // 从聊天中接单
-    async acceptReportFromChat(reportId, requestId, msgId) {
-        if (!confirm('确定接受此订单吗？接单后该农户的聊天将被锁定。')) return;
-        
-        try {
-            // 根据当前用户角色确定发送的ID字段
-            const isProcessor = this.currentUser.role === 'processor';
-            const bodyData = isProcessor 
-                ? { processor_id: this.currentUser.id }
-                : { recycler_id: this.currentUser.id };
-            
-            const resp = await fetch(`${this.API_BASE}/api/farmer-reports/${reportId}/accept`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyData)
-            });
-            
-            if (!resp.ok) {
-                let errorMsg = '接单失败';
-                try {
-                    const data = await resp.json();
-                    errorMsg = data.error || errorMsg;
-                } catch (e) {
-                    errorMsg = `服务器错误 (${resp.status})`;
-                }
-                throw new Error(errorMsg);
-            }
-            
-            const data = await resp.json();
-            
-            this.showAlert('🎉 订单锁定成功！', 'success');
-            
-            // 发送系统消息通知订单已锁定
-            this.socket.emit('send_request_message', {
-                request_id: requestId,
-                sender_id: this.currentUser.id,
-                content: JSON.stringify({
-                    type: 'order_locked',
-                    report_id: reportId,
-                    message: '订单已锁定成功！'
-                }),
-                content_type: 'system'
-            });
-            
-            // 稍微延迟后刷新聊天消息以显示最新状态
-            setTimeout(() => {
-                this.socket.emit('get_request_history', { request_id: requestId }, (messages) => {
-                    this.displayRequestMessages(messages, requestId);
-                });
-            }, 800);
-            
-        } catch (err) {
-            console.error('Accept report error:', err);
-            this.showAlert(err.message || '接单失败', 'error');
-        }
-    },
-
-    // 关闭求购聊天
-    closeRequestChat() {
-        const modal = document.getElementById('request-chat-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    },
-
     // 显示提示信息
     showAlert(message, type = 'info') {
         // 创建提示容器
@@ -4918,8 +3655,7 @@ const authSystem = {
         const listDiv = document.getElementById('arbitration-list');
         listDiv.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">加载中...</p>';
         
-        fetch(`${this.API_BASE}/api/arbitration-requests?applicant_id=${this.currentUser.id}`)
-            .then(res => res.json())
+        this.authFetch(`/api/arbitration-requests?applicant_id=${this.currentUser.id}`)
             .then(data => {
                 if (!Array.isArray(data) || data.length === 0) {
                     listDiv.innerHTML = `
@@ -5062,17 +3798,11 @@ const authSystem = {
             Array.from(document.getElementById('evidence-communication').files).forEach(file => formData.append('files', file));
             Array.from(document.getElementById('evidence-other').files).forEach(file => formData.append('files', file));
             
-            const uploadResponse = await fetch(`${this.API_BASE}/api/upload-arbitration-files`, {
+            const uploadResponse = await this.authFetch(`/api/upload-arbitration-files`, {
                 method: 'POST',
                 body: formData
             });
-            
-            if (!uploadResponse.ok) {
-                throw new Error('文件上传失败');
-            }
-            
-            const uploadResult = await uploadResponse.json();
-            const uploadedFiles = uploadResult.files;
+            const uploadedFiles = uploadResponse.files;
             
             // 按类型分类文件
             let tradeIndex = 0;
@@ -5090,9 +3820,8 @@ const authSystem = {
             // 从订单编号提取订单ID (简化处理，实际应该从数据库查询)
             const order_id = Math.floor(Math.random() * 1000); // 临时生成，实际应该从订单表查询
             
-            const response = await fetch(`${this.API_BASE}/api/arbitration-requests`, {
+            const response = await this.authFetch(`/api/arbitration-requests`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     applicant_id: this.currentUser.id,
                     order_type: orderType,
@@ -5107,12 +3836,6 @@ const authSystem = {
                     evidence_other: evidence_other
                 })
             });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || '提交失败');
-            }
             
             this.showAlert('仲裁申请已提交，我们将在3个工作日内处理', 'success');
             
@@ -5182,8 +3905,7 @@ const authSystem = {
         const listDiv = document.getElementById('arbitration-management-list');
         listDiv.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">加载中...</p>';
         
-        fetch(`${this.API_BASE}/api/arbitration-requests/all?status=${status}`)
-            .then(res => res.json())
+        this.authFetch(`/api/arbitration-requests/all?status=${status}`)
             .then(data => {
                 if (!Array.isArray(data) || data.length === 0) {
                     listDiv.innerHTML = `
@@ -5229,7 +3951,7 @@ const authSystem = {
                                         ${status.icon} 仲裁编号：${item.arbitration_no}
                                     </h3>
                                     <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">
-                                        申请人：${item.applicant_name} (${item.applicant_phone || '未提供'})
+                                        申请人：${item.applicant_name} (${fuzzPhone(item.applicant_phone)})
                                     </p>
                                 </div>
                                 <span style="padding: 6px 14px; border-radius: 20px; background: ${status.color}; color: white; font-size: 13px; font-weight: bold;">
@@ -5330,15 +4052,10 @@ const authSystem = {
     
     async updateArbitrationStatus(id, status) {
         try {
-            const response = await fetch(`${this.API_BASE}/api/arbitration-requests/${id}`, {
+            await this.authFetch(`/api/arbitration-requests/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status })
             });
-            
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || '更新失败');
-            
             this.showAlert('状态已更新', 'success');
             this.loadArbitrationRequests('all');
         } catch (err) {
@@ -5346,109 +4063,85 @@ const authSystem = {
         }
     },
     
-    resolveArbitration(id) {
+    async resolveArbitration(id) {
         const decision = prompt('请输入裁决结果：');
         if (!decision || !decision.trim()) return;
         
-        fetch(`${this.API_BASE}/api/arbitration-requests/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                status: 'resolved',
-                decision: decision.trim(),
-                decided_by: this.currentUser.id,
-                decided_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                this.showAlert('裁决已保存', 'success');
-                // 如果在详情页，刷新详情；否则刷新列表
-                setTimeout(() => {
-                    const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
-                    if (isInDetailPage) {
-                        this.showArbitrationDetail(id);
-                    } else {
-                        this.loadArbitrationRequests('all');
-                    }
-                }, 800);
-            } else {
-                throw new Error(data.error || '操作失败');
-            }
-        })
-        .catch(err => {
+        try {
+            await this.authFetch(`/api/arbitration-requests/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    status: 'resolved',
+                    decision: decision.trim(),
+                    decided_by: this.currentUser.id,
+                    decided_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                })
+            });
+            this.showAlert('裁决已保存', 'success');
+            setTimeout(() => {
+                const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
+                if (isInDetailPage) {
+                    this.showArbitrationDetail(id);
+                } else {
+                    this.loadArbitrationRequests('all');
+                }
+            }, 800);
+        } catch (err) {
             this.showAlert(err.message, 'error');
-        });
+        }
     },
     
-    rejectArbitration(id) {
+    async rejectArbitration(id) {
         const reason = prompt('请输入驳回原因：');
         if (!reason || !reason.trim()) return;
         
-        fetch(`${this.API_BASE}/api/arbitration-requests/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                status: 'rejected',
-                decision: '申请已驳回。理由：' + reason.trim(),
-                decided_by: this.currentUser.id,
-                decided_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                this.showAlert('申请已驳回', 'success');
-                // 如果在详情页，刷新详情；否则刷新列表
-                setTimeout(() => {
-                    const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
-                    if (isInDetailPage) {
-                        this.showArbitrationDetail(id);
-                    } else {
-                        this.loadArbitrationRequests('all');
-                    }
-                }, 800);
-            } else {
-                throw new Error(data.error || '操作失败');
-            }
-        })
-        .catch(err => {
+        try {
+            await this.authFetch(`/api/arbitration-requests/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    status: 'rejected',
+                    decision: '申请已驳回。理由：' + reason.trim(),
+                    decided_by: this.currentUser.id,
+                    decided_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                })
+            });
+            this.showAlert('申请已驳回', 'success');
+            setTimeout(() => {
+                const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
+                if (isInDetailPage) {
+                    this.showArbitrationDetail(id);
+                } else {
+                    this.loadArbitrationRequests('all');
+                }
+            }, 800);
+        } catch (err) {
             this.showAlert(err.message, 'error');
-        });
+        }
     },
     
-    addArbitrationNote(id) {
+    async addArbitrationNote(id) {
         const note = prompt('请输入备注内容：');
         if (!note || !note.trim()) return;
         
-        fetch(`${this.API_BASE}/api/arbitration-requests/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                admin_notes: note.trim()
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                this.showAlert('备注已添加', 'success');
-                // 如果在详情页，刷新详情；否则刷新列表
-                setTimeout(() => {
-                    const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
-                    if (isInDetailPage) {
-                        this.showArbitrationDetail(id);
-                    } else {
-                        this.loadArbitrationRequests('all');
-                    }
-                }, 800);
-            } else {
-                throw new Error(data.error || '操作失败');
-            }
-        })
-        .catch(err => {
+        try {
+            await this.authFetch(`/api/arbitration-requests/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    admin_notes: note.trim()
+                })
+            });
+            this.showAlert('备注已添加', 'success');
+            setTimeout(() => {
+                const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
+                if (isInDetailPage) {
+                    this.showArbitrationDetail(id);
+                } else {
+                    this.loadArbitrationRequests('all');
+                }
+            }, 800);
+        } catch (err) {
             this.showAlert(err.message, 'error');
-        });
+        }
     },
     
     // 显示仲裁详情页面
@@ -5501,8 +4194,7 @@ const authSystem = {
             `;
         };
         
-        fetch(`${this.API_BASE}/api/arbitration-requests/all?status=all`)
-            .then(res => res.json())
+        this.authFetch(`/api/arbitration-requests/all?status=all`)
             .then(data => {
                 const item = data.find(a => a.id === id);
                 if (!item) {
@@ -5565,7 +4257,7 @@ const authSystem = {
                                 </div>
                                 <div>
                                     <strong style="color: #555;">联系电话：</strong>
-                                    <span>${item.applicant_phone || '未提供'}</span>
+                                    <span>${fuzzPhone(item.applicant_phone)}</span>
                                 </div>
                                 <div>
                                     <strong style="color: #555;">订单类型：</strong>
@@ -5874,9 +4566,8 @@ const authSystem = {
         }
         
         try {
-            const response = await fetch(`${this.API_BASE}/api/arbitration-requests/${arbitrationId}/penalty`, {
+            await this.authFetch(`/api/arbitration-requests/${arbitrationId}/penalty`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     penalty_party: party,
                     penalty_amount: amount,
@@ -5884,12 +4575,6 @@ const authSystem = {
                     order_amount: orderAmount
                 })
             });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || '设置失败');
-            }
             
             this.showAlert('罚款设置成功', 'success');
             
@@ -5976,17 +4661,10 @@ const authSystem = {
             formData.append('proof', file);
             formData.append('user_id', this.currentUser.id);
             
-            const response = await fetch(`${this.API_BASE}/api/arbitration-requests/${arbitrationId}/pay-penalty`, {
+            const response = await this.authFetch(`/api/arbitration-requests/${arbitrationId}/pay-penalty`, {
                 method: 'POST',
                 body: formData
             });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || '提交失败');
-            }
-            
             this.showAlert('支付凭证已提交，等待管理员确认', 'success');
             
             // 关闭弹窗
@@ -6003,10 +4681,157 @@ const authSystem = {
             console.error('提交支付失败:', err);
             this.showAlert(err.message || '提交失败，请重试', 'error');
         }
+    },
+
+    // ─────────────────────────── 意向投递系统 ───────────────────────────
+
+    /**
+     * 打开「发起意向」提交模态框
+     * @param {{ target_type: string, target_id: string|number, target_no: string, target_name: string }} data
+     */
+    openIntentionModal(data = {}) {
+        this._intentionTarget = { ...data };
+        const modal = document.getElementById('intention-submit-modal');
+        const labelEl = document.getElementById('intention-modal-target');
+        if (!modal) return;
+        // 重置表单
+        document.getElementById('intention-weight').value = '';
+        document.getElementById('intention-date').value = '';
+        document.getElementById('intention-notes').value = '';
+        // 显示目标信息
+        const typeLabels = { farmer_report: '农户供货', recycler_request: '回收商求购', processor_request: '处理商求购' };
+        const typeLabel = typeLabels[data.target_type] || '需求';
+        labelEl.textContent = `目标：${typeLabel}${data.target_no ? ' · 编号 ' + data.target_no : ''}${data.target_name ? ' · ' + data.target_name : ''}`;
+        modal.style.display = 'flex';
+    },
+
+    closeIntentionModal() {
+        const modal = document.getElementById('intention-submit-modal');
+        if (modal) modal.style.display = 'none';
+        this._intentionTarget = null;
+    },
+
+    async submitIntention() {
+        const target = this._intentionTarget;
+        if (!target || !target.target_type || !target.target_id) {
+            return this.showAlert('意向目标信息缺失，请重试', 'error');
+        }
+        const weight = parseFloat(document.getElementById('intention-weight').value);
+        if (!weight || weight <= 0) {
+            return this.showAlert('请填写有效的预估供货量', 'warning');
+        }
+        const date  = document.getElementById('intention-date').value;
+        const notes = document.getElementById('intention-notes').value.trim();
+        try {
+            await this.authFetch('/api/intentions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    applicant_id:      this.currentUser.id,
+                    applicant_name:    this.currentUser.name || this.currentUser.username || '',
+                    target_type:       target.target_type,
+                    target_id:         target.target_id,
+                    target_no:         target.target_no || '',
+                    target_name:       target.target_name || '',
+                    estimated_weight:  weight,
+                    expected_date:     date || null,
+                    notes:             notes
+                })
+            });
+            this.closeIntentionModal();
+            this.showAlert('✅ 意向已提交，等待对方回复', 'success');
+        } catch (err) {
+            this.showAlert(err.message || '提交失败，请重试', 'error');
+        }
+    },
+
+    /**
+     * 查看某需求收到的所有意向（需求方视角）
+     */
+    async viewIntentions(target_type, target_id, target_no) {
+        const modal = document.getElementById('intention-list-modal');
+        const body  = document.getElementById('intention-list-body');
+        if (!modal || !body) return;
+        body.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">加载中…</p>';
+        modal.style.display = 'flex';
+        const statusLabels = { pending: '待处理', accepted: '已接受', rejected: '已拒绝' };
+        const statusColors  = { pending: '#f39c12', accepted: '#27ae60', rejected: '#e74c3c' };
+        try {
+            const rows = await this.authFetch(`/api/intentions?target_type=${encodeURIComponent(target_type)}&target_id=${encodeURIComponent(target_id)}`);
+            if (!rows || rows.length === 0) {
+                body.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">暂无意向投递</p>';
+                return;
+            }
+            body.innerHTML = rows.map(r => `
+                <div style="padding:14px;border:1px solid #eee;border-radius:10px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <strong style="font-size:15px;">${r.applicant_name || '匿名用户'}</strong>
+                        <span style="background:${statusColors[r.status]};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;">${statusLabels[r.status] || r.status}</span>
+                    </div>
+                    <p style="margin:4px 0;font-size:14px;color:#555;">预估供货：<strong>${r.estimated_weight || '--'} 斤</strong>${r.expected_date ? `　期望日期：${r.expected_date}` : ''}</p>
+                    ${r.notes ? `<p style="margin:4px 0;font-size:13px;color:#777;">💬 ${r.notes}</p>` : ''}
+                    <p style="margin:6px 0 0;font-size:12px;color:#bbb;">${r.created_at}</p>
+                    ${r.status === 'pending' ? `
+                    <div style="display:flex;gap:8px;margin-top:10px;">
+                        <button onclick="authSystem.updateIntentionStatus(${r.id},'accepted',this)" style="flex:1;padding:7px;border:none;border-radius:6px;background:#27ae60;color:#fff;cursor:pointer;font-size:13px;">✅ 接受</button>
+                        <button onclick="authSystem.updateIntentionStatus(${r.id},'rejected',this)" style="flex:1;padding:7px;border:none;border-radius:6px;background:#e74c3c;color:#fff;cursor:pointer;font-size:13px;">❌ 拒绝</button>
+                    </div>` : ''}
+                </div>
+            `).join('');
+        } catch (err) {
+            body.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">${err.message}</p>`;
+        }
+    },
+
+    async updateIntentionStatus(id, status, btn) {
+        try {
+            btn.disabled = true;
+            const result = await this.authFetch(`/api/intentions/${id}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status })
+            });
+
+            if (status === 'accepted' && result && result.order_no) {
+                this.showAlert(`✅ 已接受意向！已自动生成订单：${result.order_no}，请前往订单管理查看。`, 'success');
+            } else {
+                this.showAlert(status === 'accepted' ? '已接受该意向' : '已拒绝该意向', 'success');
+            }
+
+            // 更新卡片状态标签并移除操作按钮
+            const card = btn.closest('div[style]');
+            if (card) {
+                const statusColors = { accepted: '#27ae60', rejected: '#e74c3c' };
+                const statusLabels = { accepted: '已接受', rejected: '已拒绝' };
+                const badge = card.querySelector('span[style*="border-radius:20px"]');
+                if (badge) {
+                    badge.textContent = statusLabels[status];
+                    badge.style.background = statusColors[status];
+                }
+                if (status === 'accepted' && result && result.order_no) {
+                    const orderTag = document.createElement('p');
+                    orderTag.style.cssText = 'margin:6px 0 0;font-size:12px;color:#27ae60;font-weight:bold;';
+                    orderTag.textContent = `📦 订单：${result.order_no}`;
+                    card.appendChild(orderTag);
+                }
+                const btnsDiv = card.querySelector('div[style*="display:flex;gap:8px"]');
+                if (btnsDiv) btnsDiv.remove();
+            }
+        } catch (err) {
+            this.showAlert(err.message || '操作失败', 'error');
+            btn.disabled = false;
+        }
+    },
+
+    closeIntentionListModal() {
+        const modal = document.getElementById('intention-list-modal');
+        if (modal) modal.style.display = 'none';
     }
+
 };
 
 // ====== 页面加载完成后初始化 ======
 document.addEventListener('DOMContentLoaded', () => {
     authSystem.init();
 });
+
+// 将 authFetch 代理到全局，供 userProfile.js 等外部脚本调用
+window.authFetch = (...args) => authSystem.authFetch(...args);
