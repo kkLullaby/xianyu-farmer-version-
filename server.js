@@ -165,6 +165,17 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
+// SEC-014: Add security headers middleware
+app.use((req, res, next) => {
+    // Prevent MIME type sniffing
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Prevent clickjacking
+    res.setHeader('X-Frame-Options', 'DENY');
+    // Disable client-side caching for sensitive content
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    next();
+});
+
 // 统一响应格式中间件
 app.use((req, res, next) => {
     const originalJson = res.json;
@@ -223,7 +234,9 @@ const authMiddleware = (req, res, next) => {
     const token = authHeader.split(' ')[1];
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded; // 将用户信息挂载到 req 上
+        req.user = decoded;
+        // SEC-014: Add security header for HSTS (enforce HTTPS)
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         next();
     } catch (err) {
         console.warn(`[Auth] 401 Token无效: ${req.method} ${req.originalUrl}`);
@@ -359,7 +372,7 @@ app.post('/api/auth/register-phone', (req, res) => {
             }
             
             const userPayload = { id: this.lastID, username, phone, role, full_name: full_name || null };
-            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '7d' });
+            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });
             
             res.json({ ...userPayload, token });
         });
@@ -377,13 +390,13 @@ app.post('/api/register', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(400).json({ error: 'invalid role' });
 
-        const hash = bcrypt.hashSync(password, 8);
+        const hash = bcrypt.hashSync(password, 10);
         db.run(`INSERT INTO users(username,password_hash,role_id,full_name) VALUES(?,?,?,?)`, [username, hash, row.id, full_name || null], function(err2) {
             db.close();
             if (err2) return res.status(500).json({ error: err2.message });
             
             const userPayload = { id: this.lastID, username, role, full_name: full_name || null };
-            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '7d' });
+            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });
             
             res.json({ ...userPayload, token });
         });
@@ -405,10 +418,35 @@ app.post('/api/login', (req, res) => {
         if (!ok) return res.status(401).json({ error: '密码错误' });
 
         const userPayload = { id: row.id, username: row.username, phone: row.phone, full_name: row.full_name, role: row.role };
-        const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });
 
         res.json({ ...userPayload, token });
     });
+});
+
+// SEC-013: Token Refresh Endpoint (allows users to refresh before expiry)
+app.post('/api/auth/refresh', (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: '缺少有效的 token' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    try {
+        // Verify current token (will fail if expired, which is intended)
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Issue new token with fresh expiry
+        const newToken = jwt.sign(
+            { id: decoded.id, username: decoded.username, phone: decoded.phone, full_name: decoded.full_name, role: decoded.role },
+            JWT_SECRET,
+            { expiresIn: '2h' }
+        );
+        
+        res.json({ token: newToken, message: 'token refreshed' });
+    } catch (err) {
+        return res.status(401).json({ error: 'Token 无效或已过期，请重新登录' });
+    }
 });
 
 // Create order
