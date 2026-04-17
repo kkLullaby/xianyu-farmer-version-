@@ -343,14 +343,60 @@
         </div>
     </div>
 
-    <!-- 高德地图API -->
-    <script src="https://webapi.amap.com/maps?v=2.0&key=ebfe63f863c9be121412d28f5dd60501&plugin=AMap.Driving"></script>
+    <!-- 地图脚本改为运行时动态加载，避免硬编码 key -->
     
     <script>
         const API_BASE = 'http://localhost:4000';
         let userLocation = null;
         let map = null;
         let currentUser = null;
+        let amapScriptPromise = null;
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function sanitizePhoneForDial(value) {
+            return String(value || '').replace(/[^0-9+()\-\s]/g, '').trim();
+        }
+
+        async function ensureAmapLoaded() {
+            if (window.AMap) return true;
+            if (amapScriptPromise) return amapScriptPromise;
+
+            amapScriptPromise = (async () => {
+                const resp = await fetch(`${API_BASE}/api/config/amap`);
+                if (!resp.ok) throw new Error('地图配置加载失败');
+                const cfg = await resp.json();
+                if (!cfg || !cfg.key) throw new Error('地图配置不完整');
+
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    const version = encodeURIComponent(cfg.version || '2.0');
+                    const key = encodeURIComponent(cfg.key);
+                    script.src = `https://webapi.amap.com/maps?v=${version}&key=${key}&plugin=AMap.Driving`;
+                    script.async = true;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+
+                return true;
+            })();
+
+            try {
+                return await amapScriptPromise;
+            } catch (err) {
+                console.error('AMap load error:', err);
+                amapScriptPromise = null;
+                return false;
+            }
+        }
 
         // 从 sessionStorage 获取当前用户信息
         function getCurrentUser() {
@@ -419,14 +465,27 @@
                 return;
             }
 
-            container.innerHTML = recyclers.map((recycler, index) => `
+            const safeRecyclers = recyclers.map((recycler) => {
+                const distanceNum = Number(recycler.distance);
+                return {
+                    ...recycler,
+                    _name: escapeHtml(recycler.name || '未命名处理点'),
+                    _distance: Number.isFinite(distanceNum) ? distanceNum.toFixed(2) : '--',
+                    _phoneDisplay: escapeHtml(recycler.phone || '未提供'),
+                    _phoneDial: sanitizePhoneForDial(recycler.phone || ''),
+                    _address: escapeHtml(recycler.address || '未提供地址'),
+                    _businessHours: escapeHtml(recycler.businessHours || '营业时间未提供')
+                };
+            });
+
+            container.innerHTML = safeRecyclers.map((recycler, index) => `
                 <div class="recycler-card" onclick="showRoute(${index})">
                     <div class="recycler-header">
                         <div>
-                            <div class="recycler-name">${recycler.name}</div>
+                            <div class="recycler-name">${recycler._name}</div>
                         </div>
                         <div class="distance-badge">
-                            ${recycler.distance} km
+                            ${recycler._distance} km
                         </div>
                     </div>
                     
@@ -435,26 +494,26 @@
                             <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
                             </svg>
-                            <span class="phone-number">${recycler.phone || '未提供'}</span>
+                            <span class="phone-number">${recycler._phoneDisplay}</span>
                         </div>
                         
                         <div class="info-item">
                             <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
                             </svg>
-                            <span>${recycler.address}</span>
+                            <span>${recycler._address}</span>
                         </div>
                         
                         <div class="info-item">
                             <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
                             </svg>
-                            <span>${recycler.businessHours}</span>
+                            <span>${recycler._businessHours}</span>
                         </div>
                     </div>
 
                     <div class="action-buttons">
-                        <button class="btn btn-call" onclick="callPhone('${recycler.phone}', event)">
+                        <button class="btn btn-call" onclick="callPhone('${recycler._phoneDial}', event)">
                             📞 拨打电话
                         </button>
                         <button class="btn btn-route" onclick="showRoute(${index}, event)">
@@ -465,13 +524,13 @@
             `).join('');
 
             // 存储回收商数据供后续使用
-            window.recyclersData = recyclers;
+            window.recyclersData = safeRecyclers;
         }
 
         // 拨打电话
         function callPhone(phone, event) {
             if (event) event.stopPropagation();
-            if (!phone || phone === '未提供') {
+            if (!phone) {
                 alert('该处理点未提供联系电话');
                 return;
             }
@@ -502,8 +561,9 @@
         }
 
         // 初始化高德地图
-        function initMap(destination) {
-            if (!window.AMap) {
+        async function initMap(destination) {
+            const mapLoaded = await ensureAmapLoaded();
+            if (!mapLoaded || !window.AMap) {
                 alert('地图加载失败，请检查网络连接或API密钥');
                 return;
             }
@@ -602,7 +662,7 @@
                 statusDiv.innerHTML = `
                     <div class="error-message">
                         <strong>⚠️ 加载失败</strong>
-                        <p>${error.message}</p>
+                        <p>${escapeHtml(error.message)}</p>
                         <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer;">
                             重新加载
                         </button>

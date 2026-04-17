@@ -12,6 +12,7 @@ const { sendOtpSms } = require('./smsClient');
 const multer = require('multer');
 
 const JWT_SECRET = 'agri_waste_super_secret_key_2026';
+const AMAP_WEB_KEY = process.env.AMAP_WEB_KEY || '';
 
 const DB_PATH = path.join(__dirname, 'data', 'agri.db');
 const SCHEMA_SQL = path.join(__dirname, 'db', 'schema.sql');
@@ -255,9 +256,9 @@ const otpLimiter = rateLimit({
 //    例如：请求 /api/login → 中间件内 req.path = '/login'
 const authMiddleware = (req, res, next) => {
     // 排除不需要鉴权的路由（路径已被 Express 剥离 /api 前缀！）
-    const publicRoutes = ['/health', '/init', '/auth/request-otp', '/auth/register-phone', '/register', '/login'];
+    const publicRoutes = ['/health', '/init', '/auth/request-otp', '/auth/register-phone', '/register', '/login', '/config/amap'];
     // CMS 内容读接口（首页展示，游客可见）
-    const publicPrefixes = ['/cms/', '/farmer-nearby'];
+    const publicPrefixes = ['/cms/', '/farmer-nearby', '/config/'];
     if (
         publicRoutes.includes(req.path) ||
         req.path.startsWith('/uploads') ||
@@ -320,12 +321,129 @@ const upload = multer({
     }
 });
 
+function getFileExtension(filename) {
+    return path.extname(filename || '').toLowerCase().replace('.', '');
+}
+
+function startsWithSignature(buffer, signature, offset = 0) {
+    if (!buffer || buffer.length < offset + signature.length) return false;
+    for (let i = 0; i < signature.length; i += 1) {
+        if (buffer[offset + i] !== signature[i]) return false;
+    }
+    return true;
+}
+
+function isValidMagicByExt(buffer, ext) {
+    if (!buffer || buffer.length === 0) return false;
+
+    if (ext === 'jpg' || ext === 'jpeg') {
+        return startsWithSignature(buffer, [0xff, 0xd8, 0xff]);
+    }
+    if (ext === 'png') {
+        return startsWithSignature(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    }
+    if (ext === 'pdf') {
+        return startsWithSignature(buffer, [0x25, 0x50, 0x44, 0x46]);
+    }
+    if (ext === 'doc') {
+        return startsWithSignature(buffer, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+    }
+    if (ext === 'docx') {
+        return startsWithSignature(buffer, [0x50, 0x4b, 0x03, 0x04]);
+    }
+    if (ext === 'mp4') {
+        return buffer.length >= 12 && buffer.toString('ascii', 4, 8) === 'ftyp';
+    }
+    if (ext === 'avi') {
+        return buffer.length >= 12
+            && buffer.toString('ascii', 0, 4) === 'RIFF'
+            && buffer.toString('ascii', 8, 12) === 'AVI ';
+    }
+    return false;
+}
+
+function deleteFileQuietly(filePath) {
+    if (!filePath) return;
+    try {
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+    } catch (err) {
+        console.warn('删除非法上传文件失败:', err.message);
+    }
+}
+
+function createMagicValidator(allowedExts) {
+    return (req, res, next) => {
+        const files = [];
+        if (req.file) files.push(req.file);
+        if (Array.isArray(req.files)) files.push(...req.files);
+        if (req.files && !Array.isArray(req.files)) {
+            Object.values(req.files).forEach((entry) => {
+                if (Array.isArray(entry)) files.push(...entry);
+            });
+        }
+
+        if (files.length === 0) return next();
+
+        for (const file of files) {
+            const ext = getFileExtension(file.originalname || file.filename);
+            if (!allowedExts.includes(ext)) {
+                files.forEach((f) => deleteFileQuietly(f.path));
+                return res.status(400).json({
+                    success: false,
+                    error: `不支持的文件类型: ${ext || 'unknown'}`,
+                });
+            }
+
+            let fileHead;
+            try {
+                const fd = fs.openSync(file.path, 'r');
+                const buf = Buffer.alloc(32);
+                const bytesRead = fs.readSync(fd, buf, 0, 32, 0);
+                fs.closeSync(fd);
+                fileHead = buf.slice(0, bytesRead);
+            } catch (err) {
+                files.forEach((f) => deleteFileQuietly(f.path));
+                return res.status(400).json({
+                    success: false,
+                    error: '上传文件读取失败，请重试',
+                });
+            }
+
+            if (!isValidMagicByExt(fileHead, ext)) {
+                files.forEach((f) => deleteFileQuietly(f.path));
+                return res.status(400).json({
+                    success: false,
+                    error: '文件内容与扩展名不匹配，已拒绝上传',
+                });
+            }
+        }
+
+        return next();
+    };
+}
+
+const validateArbitrationUploadMagic = createMagicValidator(['jpeg', 'jpg', 'png', 'pdf', 'doc', 'docx', 'mp4', 'avi']);
+const validateCmsUploadMagic = createMagicValidator(['jpeg', 'jpg', 'png']);
+
 // 提供静态文件（HTML、CSS、JS等）
 app.use(express.static(path.join(__dirname)));
 // 提供上传文件访问
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+app.get('/api/config/amap', (req, res) => {
+    if (!AMAP_WEB_KEY) {
+        return res.status(503).json({ error: '地图服务未配置，请联系管理员' });
+    }
+    return res.json({
+        key: AMAP_WEB_KEY,
+        version: '2.0',
+        plugins: ['AMap.Driving'],
+    });
+});
 
 app.post('/init', async (req, res) => {
     try {
@@ -1257,7 +1375,7 @@ app.delete('/api/processor-requests/:id', (req, res) => {
 
 
 // Upload files for arbitration
-app.post('/api/upload-arbitration-files', upload.array('files', 20), (req, res) => {
+app.post('/api/upload-arbitration-files', upload.array('files', 20), validateArbitrationUploadMagic, (req, res) => {
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ success: false, error: '没有上传文件' });
@@ -1466,9 +1584,22 @@ const cmsStorage = multer.diskStorage({
         cb(null, 'cms-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
-const cmsUpload = multer({ storage: cmsStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+const cmsUpload = multer({
+    storage: cmsStorage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = /jpeg|jpg|png/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
 
-app.post('/api/cms/upload', cmsUpload.single('file'), (req, res) => {
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        return cb(new Error('CMS 上传仅支持 JPG/PNG 图片'));
+    }
+});
+
+app.post('/api/cms/upload', cmsUpload.single('file'), validateCmsUploadMagic, (req, res) => {
     if (!req.file) return res.status(400).json({ error: '没有上传文件' });
     res.json({ success: true, url: `/uploads/cms/${req.file.filename}`, originalName: req.file.originalname });
 });
@@ -1734,7 +1865,7 @@ function updatePenalty(db, id, penalty_party, penalty_amount, penalty_reason, or
 }
 
 // Pay penalty (用户支付罚款)
-app.post('/api/arbitration-requests/:id/pay-penalty', upload.single('proof'), (req, res) => {
+app.post('/api/arbitration-requests/:id/pay-penalty', upload.single('proof'), validateArbitrationUploadMagic, (req, res) => {
     const { id } = req.params;
     const { user_id } = req.body;
     

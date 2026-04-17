@@ -6,7 +6,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=ebfe63f863c9be121412d28f5dd60501"></script>
     <style>
         /* --- 柑橘·陈皮·环保 主题配置 (Citrus Eco Theme) --- */
         :root {
@@ -729,6 +728,34 @@
     // 首页内容加载
     let announcementsList = []; // 全局公告列表
     let currentAnnIndex = 0;   // 当前公告索引
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function safeAssetPath(value) {
+        if (typeof value !== 'string') return '';
+        const trimmed = value.trim();
+        return trimmed.startsWith('/uploads/') ? trimmed : '';
+    }
+
+    function safeLinkUrl(value) {
+        if (typeof value !== 'string' || !value.trim()) return '';
+        try {
+            const parsed = new URL(value, window.location.origin);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                return parsed.href;
+            }
+        } catch (err) {
+            return '';
+        }
+        return '';
+    }
     
     function changeAnnouncement(direction) {
         if (announcementsList.length === 0) return;
@@ -743,19 +770,26 @@
         const typeIcons = { policy: '📜', subsidy: '💰', platform: '📢' };
         const typeLabels = { policy: '政策法规', subsidy: '补贴通知', platform: '平台公告' };
         const typeColors = { policy: '#2E7D32', subsidy: '#EF6C00', platform: '#1565C0' };
+        const safeAnn = {
+            image_url: safeAssetPath(a.image_url),
+            doc_number: escapeHtml(a.doc_number),
+            title: escapeHtml(a.title),
+            summary: escapeHtml(a.summary),
+            link_url: safeLinkUrl(a.link_url)
+        };
         
         const container = document.getElementById('announcement-cards');
         container.innerHTML = `
             <div class="glass-card" style="padding: 0; overflow: hidden; border-left: 6px solid ${typeColors[a.type]||'#2E7D32'}; transition: all 0.3s; display: flex; flex-direction: column;">
-                ${a.image_url ? `<div style="width:100%; height: 240px; overflow: hidden; background: linear-gradient(135deg, #E3F2FD, #E8F5E9); flex-shrink: 0;"><img src="${API}${a.image_url}" style="width:100%; height:100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:64px>📋</div>'"></div>` : ''}
+                ${safeAnn.image_url ? `<div style="width:100%; height: 240px; overflow: hidden; background: linear-gradient(135deg, #E3F2FD, #E8F5E9); flex-shrink: 0;"><img src="${API}${safeAnn.image_url}" style="width:100%; height:100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:64px>📋</div>'"></div>` : ''}
                 <div style="padding: 32px; flex-grow: 1; display: flex; flex-direction: column;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
                         <span style="background: ${typeColors[a.type]||'#2E7D32'}; color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: bold;">${typeIcons[a.type]||'📢'} ${typeLabels[a.type]||'公告'}</span>
-                        ${a.doc_number ? `<span style="font-size: 12px; color: #999; font-weight: 500;">${a.doc_number}</span>` : ''}
+                        ${safeAnn.doc_number ? `<span style="font-size: 12px; color: #999; font-weight: 500;">${safeAnn.doc_number}</span>` : ''}
                     </div>
-                    <h3 style="margin: 0 0 14px 0; font-size: 22px; color: #2c3e50; font-weight: bold; line-height: 1.5;">${a.title}</h3>
-                    ${a.summary ? `<p style="margin: 0 0 auto 0; font-size: 15px; color: #555; line-height: 1.8;">${a.summary}</p>` : ''}
-                    ${a.link_url ? `<a href="${a.link_url}" target="_blank" style="display: inline-block; margin-top: 18px; color: ${typeColors[a.type]||'#2E7D32'}; text-decoration: none; font-weight: 600; font-size: 15px; border-bottom: 2px solid ${typeColors[a.type]||'#2E7D32'};">查看详情 →</a>` : ''}
+                    <h3 style="margin: 0 0 14px 0; font-size: 22px; color: #2c3e50; font-weight: bold; line-height: 1.5;">${safeAnn.title}</h3>
+                    ${safeAnn.summary ? `<p style="margin: 0 0 auto 0; font-size: 15px; color: #555; line-height: 1.8;">${safeAnn.summary}</p>` : ''}
+                    ${safeAnn.link_url ? `<a href="${safeAnn.link_url}" rel="noopener noreferrer" target="_blank" style="display: inline-block; margin-top: 18px; color: ${typeColors[a.type]||'#2E7D32'}; text-decoration: none; font-weight: 600; font-size: 15px; border-bottom: 2px solid ${typeColors[a.type]||'#2E7D32'};">查看详情 →</a>` : ''}
                 </div>
             </div>
         `;
@@ -819,23 +853,34 @@
                     </div>`;
                 return;
             }
-            container.innerHTML = data.map(c => `
+            container.innerHTML = data.map(c => {
+                const safeCase = {
+                    thumbnail_url: safeAssetPath(c.thumbnail_url),
+                    logo_url: safeAssetPath(c.logo_url),
+                    title: escapeHtml(c.title),
+                    trade_data: escapeHtml(c.trade_data),
+                    description: escapeHtml(c.description),
+                    buyer_name: escapeHtml(c.buyer_name),
+                    seller_name: escapeHtml(c.seller_name)
+                };
+                return `
                 <div class="glass-card" style="padding: 0; overflow: hidden; transition: all 0.3s; cursor: pointer; display: flex; flex-direction: column;" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-                    ${c.thumbnail_url ? `<div style="width: 100%; height: 140px; overflow: hidden; flex-shrink: 0;"><img src="${API}${c.thumbnail_url}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:linear-gradient(135deg,#FFE082,#FFAB91);font-size:40px>🏆</div>'" /></div>` : '<div style="width: 100%; height: 140px; background: linear-gradient(135deg, #FFE082, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 40px; flex-shrink: 0;">🏆</div>'}
+                    ${safeCase.thumbnail_url ? `<div style="width: 100%; height: 140px; overflow: hidden; flex-shrink: 0;"><img src="${API}${safeCase.thumbnail_url}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:linear-gradient(135deg,#FFE082,#FFAB91);font-size:40px>🏆</div>'" /></div>` : '<div style="width: 100%; height: 140px; background: linear-gradient(135deg, #FFE082, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 40px; flex-shrink: 0;">🏆</div>'}
                     <div style="padding: 18px; flex-grow: 1; display: flex; flex-direction: column;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                            ${c.logo_url ? `<img src="${API}${c.logo_url}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border: 2px solid #f5f5f5; flex-shrink: 0;" onerror="this.outerHTML='<div style=width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FFE082,#FFAB91);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0>🏆</div>'" />` : '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FFE082,#FFAB91);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🏆</div>'}
-                            <h4 style="margin: 0; font-size: 15px; color: #2c3e50; font-weight: bold; line-height: 1.3;">${c.title}</h4>
+                            ${safeCase.logo_url ? `<img src="${API}${safeCase.logo_url}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border: 2px solid #f5f5f5; flex-shrink: 0;" onerror="this.outerHTML='<div style=width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FFE082,#FFAB91);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0>🏆</div>'" />` : '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FFE082,#FFAB91);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🏆</div>'}
+                            <h4 style="margin: 0; font-size: 15px; color: #2c3e50; font-weight: bold; line-height: 1.3;">${safeCase.title}</h4>
                         </div>
-                        ${c.trade_data ? `<div style="background: linear-gradient(90deg, #FFF3E0, #E8F5E9); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 13px;"><span style="color: #F57C00; font-weight: bold;">📊 ${c.trade_data}</span></div>` : ''}
-                        ${c.description ? `<p style="margin: 0 0 auto 0; font-size: 13px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${c.description}</p>` : ''}
+                        ${safeCase.trade_data ? `<div style="background: linear-gradient(90deg, #FFF3E0, #E8F5E9); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 13px;"><span style="color: #F57C00; font-weight: bold;">📊 ${safeCase.trade_data}</span></div>` : ''}
+                        ${safeCase.description ? `<p style="margin: 0 0 auto 0; font-size: 13px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${safeCase.description}</p>` : ''}
                         <div style="display: flex; gap: 8px; font-size: 12px; color: #999; margin-top: 10px;">
-                            ${c.buyer_name ? `<span>🏢 ${c.buyer_name}</span>` : ''}
-                            ${c.seller_name ? `<span>🌾 ${c.seller_name}</span>` : ''}
+                            ${safeCase.buyer_name ? `<span>🏢 ${safeCase.buyer_name}</span>` : ''}
+                            ${safeCase.seller_name ? `<span>🌾 ${safeCase.seller_name}</span>` : ''}
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }).catch(() => {});
         
         // 加载广告 - 改进卡片样式
@@ -852,18 +897,28 @@
                     </div>`;
                 return;
             }
-            container.innerHTML = data.map(ad => `
+            container.innerHTML = data.map(ad => {
+                const safeAd = {
+                    image_url: safeAssetPath(ad.image_url),
+                    badge: escapeHtml(ad.badge),
+                    title: escapeHtml(ad.title),
+                    company_name: escapeHtml(ad.company_name),
+                    description: escapeHtml(ad.description),
+                    contact_info: escapeHtml(ad.contact_info)
+                };
+                return `
                 <div class="glass-card" style="padding: 0; position: relative; transition: all 0.3s; cursor: pointer; overflow: hidden; display: flex; flex-direction: column;" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-                    ${ad.image_url ? `<div style="width:100%; height:120px; overflow:hidden; flex-shrink: 0;"><img src="${API}${ad.image_url}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:linear-gradient(135deg,#E8F5E9,#FFF8E1);font-size:40px>🏭</div>'"/></div>` : '<div style="height:120px; background: linear-gradient(135deg, #E8F5E9, #FFF8E1); display:flex; align-items:center; justify-content:center; font-size:40px; flex-shrink: 0;">🏭</div>'}
+                    ${safeAd.image_url ? `<div style="width:100%; height:120px; overflow:hidden; flex-shrink: 0;"><img src="${API}${safeAd.image_url}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:linear-gradient(135deg,#E8F5E9,#FFF8E1);font-size:40px>🏭</div>'"/></div>` : '<div style="height:120px; background: linear-gradient(135deg, #E8F5E9, #FFF8E1); display:flex; align-items:center; justify-content:center; font-size:40px; flex-shrink: 0;">🏭</div>'}
                     <div style="padding: 16px; flex-grow: 1; display: flex; flex-direction: column;">
-                        ${ad.badge ? `<span style="position: absolute; top: 12px; right: 12px; background: linear-gradient(135deg, #2E7D32, #1B5E20); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 8px rgba(46,125,50,0.3);">✓ ${ad.badge}</span>` : ''}
-                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #2c3e50; font-weight: bold; line-height: 1.3;">${ad.title}</h4>
-                        ${ad.company_name ? `<p style="margin: 0 0 8px 0; font-size: 13px; color: #2E7D32; font-weight: 600;">🏢 ${ad.company_name}</p>` : ''}
-                        ${ad.description ? `<p style="margin: 0 0 auto 0; font-size: 12px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${ad.description}</p>` : ''}
-                        ${ad.contact_info ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #999;">📞 ${ad.contact_info}</p>` : ''}
+                        ${safeAd.badge ? `<span style="position: absolute; top: 12px; right: 12px; background: linear-gradient(135deg, #2E7D32, #1B5E20); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 8px rgba(46,125,50,0.3);">✓ ${safeAd.badge}</span>` : ''}
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #2c3e50; font-weight: bold; line-height: 1.3;">${safeAd.title}</h4>
+                        ${safeAd.company_name ? `<p style="margin: 0 0 8px 0; font-size: 13px; color: #2E7D32; font-weight: 600;">🏢 ${safeAd.company_name}</p>` : ''}
+                        ${safeAd.description ? `<p style="margin: 0 0 auto 0; font-size: 12px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${safeAd.description}</p>` : ''}
+                        ${safeAd.contact_info ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #999;">📞 ${safeAd.contact_info}</p>` : ''}
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }).catch(() => {});
         
         // 加载底部信息 - 使用textContent避免HTML注入，确保文本正确显示

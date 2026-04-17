@@ -22,6 +22,33 @@ const authSystem = {
         }
     },
 
+    sanitizeRelativeAssetPath(value) {
+        if (typeof value !== 'string') return '';
+        const trimmed = value.trim();
+        return trimmed.startsWith('/uploads/') ? trimmed : '';
+    },
+
+    renderImagePreview(previewEl, imageUrl, maxWidth = 240) {
+        if (!previewEl) return;
+        previewEl.innerHTML = '';
+
+        const safePath = this.sanitizeRelativeAssetPath(imageUrl);
+        if (!safePath) {
+            previewEl.style.display = 'none';
+            return;
+        }
+
+        const img = document.createElement('img');
+        img.src = `${this.API_BASE}${safePath}`;
+        img.style.maxWidth = `${maxWidth}px`;
+        img.style.borderRadius = '10px';
+        img.style.border = '1px solid #eee';
+        img.alt = '上传预览';
+
+        previewEl.appendChild(img);
+        previewEl.style.display = 'block';
+    },
+
     // ====== 个人中心（电商风格聚合入口）======
     showPersonalCenter() {
         // [Refactor] 逻辑已全面迁移至 userProfile.js
@@ -247,11 +274,13 @@ const authSystem = {
             const json = await res.json();
             // ✅ 兼容统一格式 { code, msg, data: { url } }
             if (json && json.code === 200 && json.data) {
-                const imageUrl = json.data.url;
+                const imageUrl = this.sanitizeRelativeAssetPath(json.data.url);
+                if (!imageUrl) {
+                    throw new Error('上传返回了非法文件路径');
+                }
                 document.getElementById(targetInputId).value = imageUrl;
                 const preview = document.getElementById(previewId);
-                preview.style.display = 'block';
-                preview.innerHTML = `<img src="${this.API_BASE}${imageUrl}" style="max-width: 240px; border-radius: 10px; border: 1px solid #eee;" />`;
+                this.renderImagePreview(preview, imageUrl, 240);
                 this.showAlert('图片上传成功', 'success');
             } else {
                 throw new Error((json && (json.msg || json.error)) || '上传失败');
@@ -301,10 +330,10 @@ const authSystem = {
             document.getElementById('cms-ann-link').value = item.link_url || '';
             document.getElementById('cms-ann-sort').value = item.sort_order || 0;
             document.getElementById('cms-ann-active').value = item.is_active ? '1' : '0';
-            document.getElementById('cms-ann-image-url').value = item.image_url || '';
+            const annImage = this.sanitizeRelativeAssetPath(item.image_url || '');
+            document.getElementById('cms-ann-image-url').value = annImage;
             const preview = document.getElementById('cms-ann-preview');
-            preview.style.display = item.image_url ? 'block' : 'none';
-            preview.innerHTML = item.image_url ? `<img src="${this.API_BASE}${item.image_url}" style="max-width: 240px; border-radius: 10px; border: 1px solid #eee;" />` : '';
+            this.renderImagePreview(preview, annImage, 240);
         });
     },
 
@@ -382,14 +411,14 @@ const authSystem = {
             document.getElementById('cms-case-sort').value = item.sort_order || 0;
             document.getElementById('cms-case-active').value = item.is_active ? '1' : '0';
             document.getElementById('cms-case-desc').value = item.description || '';
-            document.getElementById('cms-case-thumb-url').value = item.thumbnail_url || '';
-            document.getElementById('cms-case-logo-url').value = item.logo_url || '';
+            const caseThumb = this.sanitizeRelativeAssetPath(item.thumbnail_url || '');
+            const caseLogo = this.sanitizeRelativeAssetPath(item.logo_url || '');
+            document.getElementById('cms-case-thumb-url').value = caseThumb;
+            document.getElementById('cms-case-logo-url').value = caseLogo;
             const p1 = document.getElementById('cms-case-thumb-preview');
-            p1.style.display = item.thumbnail_url ? 'block' : 'none';
-            p1.innerHTML = item.thumbnail_url ? `<img src="${this.API_BASE}${item.thumbnail_url}" style="max-width: 240px; border-radius: 10px; border: 1px solid #eee;" />` : '';
+            this.renderImagePreview(p1, caseThumb, 240);
             const p2 = document.getElementById('cms-case-logo-preview');
-            p2.style.display = item.logo_url ? 'block' : 'none';
-            p2.innerHTML = item.logo_url ? `<img src="${this.API_BASE}${item.logo_url}" style="max-width: 120px; border-radius: 10px; border: 1px solid #eee;" />` : '';
+            this.renderImagePreview(p2, caseLogo, 120);
         });
     },
 
@@ -468,10 +497,10 @@ const authSystem = {
             document.getElementById('cms-ad-sort').value = item.sort_order || 0;
             document.getElementById('cms-ad-active').value = item.is_active ? '1' : '0';
             document.getElementById('cms-ad-desc').value = item.description || '';
-            document.getElementById('cms-ad-image-url').value = item.image_url || '';
+            const adImage = this.sanitizeRelativeAssetPath(item.image_url || '');
+            document.getElementById('cms-ad-image-url').value = adImage;
             const p = document.getElementById('cms-ad-preview');
-            p.style.display = item.image_url ? 'block' : 'none';
-            p.innerHTML = item.image_url ? `<img src="${this.API_BASE}${item.image_url}" style="max-width: 240px; border-radius: 10px; border: 1px solid #eee;" />` : '';
+            this.renderImagePreview(p, adImage, 240);
         });
     },
 
