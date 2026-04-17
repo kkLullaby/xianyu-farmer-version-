@@ -354,3 +354,18 @@ CREATE TABLE IF NOT EXISTS intentions (
     status TEXT NOT NULL DEFAULT 'pending',  -- pending / accepted / rejected
     created_at DATETIME DEFAULT (datetime('now', 'localtime'))
 );
+
+-- SEC-007: OTP 存储表（替代内存存储）
+CREATE TABLE IF NOT EXISTS otp_store (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT NOT NULL,
+    code TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 5,
+    last_sent_at DATETIME DEFAULT (datetime('now')),
+    created_at DATETIME DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_otp_phone_expires ON otp_store(phone, expires_at);
+);

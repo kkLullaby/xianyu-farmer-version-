@@ -4,6 +4,7 @@ const http = require('http');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -15,8 +16,8 @@ const JWT_SECRET = 'agri_waste_super_secret_key_2026';
 const DB_PATH = path.join(__dirname, 'data', 'agri.db');
 const SCHEMA_SQL = path.join(__dirname, 'db', 'schema.sql');
 
-// In-memory OTP store { phone: { code, expiresAt, attempts, lastSentAt } }
-const otpStore = new Map();
+// SEC-007: OTP store moved to database (see db schema for otp_store table)
+// const otpStore = new Map();
 
 // Validation helpers
 function isValidPhone(phone) {
@@ -161,7 +162,21 @@ async function initDb() {
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors());
+// SEC-006: Configure CORS with whitelist
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:4000,http://localhost:3000').split(',');
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests without origin (like mobile apps or curl)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
@@ -206,6 +221,32 @@ app.use((req, res, next) => {
         });
     };
     next();
+});
+
+// SEC-008: Rate limiting for sensitive endpoints
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 attempts per window
+    message: '登录尝试过多，请在 15 分钟后重试',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 3, // 3 registrations per hour per IP
+    message: '注册过于频繁，请在 1 小时后重试',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const otpLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 3, // 3 OTP requests per minute per phone
+    message: '请求过于频繁，请在 1 分钟后重试',
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req, res) => req.body.phone || req.ip, // Rate limit by phone number
 });
 
 // JWT 鉴权中间件
@@ -297,27 +338,65 @@ app.post('/init', async (req, res) => {
 });
 
 // Request OTP via Aliyun SMS
-app.post('/api/auth/request-otp', async (req, res) => {
+app.post('/api/auth/request-otp', otpLimiter, async (req, res) => {
     try {
         const { phone } = req.body;
         if (!isValidPhone(phone)) return res.status(400).json({ error: '手机号格式不正确' });
 
-        const existing = otpStore.get(phone);
-        const now = Date.now();
-        if (existing && existing.lastSentAt && now - existing.lastSentAt < 60 * 1000) {
-            return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
-        }
+        // SEC-007: Check existing OTP from database
+        const db = openDb();
+        db.get(
+            `SELECT last_sent_at FROM otp_store WHERE phone = ? AND expires_at > datetime('now') LIMIT 1`,
+            [phone],
+            (err, row) => {
+                if (err) {
+                    console.error('check OTP error', err.message);
+                    db.close();
+                    return res.status(500).json({ error: '系统错误' });
+                }
 
-        const code = (Math.floor(100000 + Math.random() * 900000)).toString();
-        otpStore.set(phone, {
-            code,
-            expiresAt: now + 5 * 60 * 1000,
-            attempts: 0,
-            lastSentAt: now
-        });
+                // Check if recently sent within 60 seconds
+                if (row && row.last_sent_at) {
+                    const lastSent = new Date(row.last_sent_at).getTime();
+                    const now = Date.now();
+                    if (now - lastSent < 60 * 1000) {
+                        db.close();
+                        return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
+                    }
+                }
 
-        await sendOtpSms(phone, code);
-        res.json({ success: true });
+                // Generate new OTP code
+                const code = (Math.floor(100000 + Math.random() * 900000)).toString();
+                const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+                // Clear old OTPs for this phone
+                db.run(`DELETE FROM otp_store WHERE phone = ? AND expires_at <= datetime('now')`, [phone], (delErr) => {
+                    if (delErr) console.warn('Delete expired OTP error:', delErr.message);
+
+                    // Insert new OTP
+                    db.run(
+                        `INSERT INTO otp_store(phone, code, expires_at, attempts, last_sent_at) VALUES(?, ?, ?, ?, datetime('now'))`,
+                        [phone, code, expiresAt, 0],
+                        async (insertErr) => {
+                            db.close();
+                            if (insertErr) {
+                                console.error('Insert OTP error', insertErr.message);
+                                return res.status(500).json({ error: '验证码生成失败' });
+                            }
+
+                            // Send SMS
+                            try {
+                                await sendOtpSms(phone, code);
+                                res.json({ success: true });
+                            } catch (smsErr) {
+                                console.error('SMS send error', smsErr.message);
+                                res.status(500).json({ error: '验证码发送失败，请稍后重试' });
+                            }
+                        }
+                    );
+                });
+            }
+        );
     } catch (err) {
         console.error('request-otp error', err.message);
         res.status(500).json({ error: '验证码发送失败，请稍后重试' });
@@ -325,7 +404,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
 });
 
 // Phone + OTP registration
-app.post('/api/auth/register-phone', (req, res) => {
+app.post('/api/auth/register-phone', registerLimiter, (req, res) => {
     const { phone, otp, password, role, full_name, agreementAccepted } = req.body;
 
     if (!agreementAccepted) return res.status(400).json({ error: '请先勾选协议' });
@@ -334,53 +413,75 @@ app.post('/api/auth/register-phone', (req, res) => {
     if (!isValidPassword(password)) return res.status(400).json({ error: '密码需8-16位，包含数字和字母' });
     if (!role) return res.status(400).json({ error: '请选择身份' });
 
-    const record = otpStore.get(phone);
-    if (!record) return res.status(400).json({ error: '验证码已失效，请重新获取' });
-    const now = Date.now();
-    if (record.expiresAt < now) {
-        otpStore.delete(phone);
-        return res.status(400).json({ error: '验证码已过期，请重新获取' });
-    }
-    if (record.attempts >= 5) {
-        otpStore.delete(phone);
-        return res.status(429).json({ error: '验证码错误次数过多，请重新获取' });
-    }
-    if (record.code !== otp) {
-        record.attempts += 1;
-        otpStore.set(phone, record);
-        return res.status(400).json({ error: '验证码不正确' });
-    }
-
-    // OTP passed, remove entry
-    otpStore.delete(phone);
-
+    // SEC-007: Query OTP from database
     const db = openDb();
-    db.get(`SELECT id FROM roles WHERE name = ?`, [role], (err, row) => {
-        if (err) { db.close(); return res.status(500).json({ error: err.message }); }
-        if (!row) { db.close(); return res.status(400).json({ error: '无效的身份' }); }
-
-        const hash = bcrypt.hashSync(password, 10); // bcrypt 生成随机盐
-        const username = phone; // 使用手机号作为唯一用户名
-
-        db.run(`INSERT INTO users(username,password_hash,role_id,full_name,phone) VALUES(?,?,?,?,?)`, [username, hash, row.id, full_name || null, phone], function(err2) {
-            db.close();
-            if (err2) {
-                if (err2.message && err2.message.includes('UNIQUE')) {
-                    return res.status(400).json({ error: '该手机号已注册' });
-                }
-                return res.status(500).json({ error: err2.message });
+    db.get(
+        `SELECT id, code, expires_at, attempts, max_attempts FROM otp_store WHERE phone = ? ORDER BY created_at DESC LIMIT 1`,
+        [phone],
+        (err, record) => {
+            if (err) {
+                db.close();
+                return res.status(500).json({ error: '系统错误' });
             }
-            
-            const userPayload = { id: this.lastID, username, phone, role, full_name: full_name || null };
-            const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });
-            
-            res.json({ ...userPayload, token });
-        });
-    });
+
+            if (!record) {
+                db.close();
+                return res.status(400).json({ error: '验证码已失效，请重新获取' });
+            }
+
+            // Check expiry
+            if (new Date(record.expires_at) < new Date()) {
+                db.run(`DELETE FROM otp_store WHERE id = ?`, [record.id]);
+                db.close();
+                return res.status(400).json({ error: '验证码已过期，请重新获取' });
+            }
+
+            // Check max attempts
+            if (record.attempts >= record.max_attempts) {
+                db.run(`DELETE FROM otp_store WHERE id = ?`, [record.id]);
+                db.close();
+                return res.status(429).json({ error: '验证码错误次数过多，请重新获取' });
+            }
+
+            // Check OTP code
+            if (record.code !== otp) {
+                db.run(`UPDATE otp_store SET attempts = attempts + 1 WHERE id = ?`, [record.id]);
+                db.close();
+                return res.status(400).json({ error: '验证码不正确' });
+            }
+
+            // OTP verified, delete it
+            db.run(`DELETE FROM otp_store WHERE id = ?`, [record.id]);
+
+            // Proceed with registration
+            db.get(`SELECT id FROM roles WHERE name = ?`, [role], (err2, roleRow) => {
+                if (err2) { db.close(); return res.status(500).json({ error: err2.message }); }
+                if (!roleRow) { db.close(); return res.status(400).json({ error: '无效的身份' }); }
+
+                const hash = bcrypt.hashSync(password, 10);
+                const username = phone;
+
+                db.run(`INSERT INTO users(username,password_hash,role_id,full_name,phone) VALUES(?,?,?,?,?)`, [username, hash, roleRow.id, full_name || null, phone], function(err3) {
+                    db.close();
+                    if (err3) {
+                        if (err3.message && err3.message.includes('UNIQUE')) {
+                            return res.status(400).json({ error: '该手机号已注册' });
+                        }
+                        return res.status(500).json({ error: err3.message });
+                    }
+                    
+                    const userPayload = { id: this.lastID, username, phone, role, full_name: full_name || null };
+                    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });
+                    
+                    res.json({ ...userPayload, token });
+                });
+            });
+        }
+    );
 });
 
 // Register
-app.post('/api/register', (req, res) => {
+app.post('/api/register', registerLimiter, (req, res) => {
     const { username, password, role, full_name } = req.body;
     if (!username || !password || !role) return res.status(400).json({ error: 'missing fields' });
     if (!isValidPassword(password)) return res.status(400).json({ error: '密码需8-16位，包含数字和字母' });
@@ -404,7 +505,7 @@ app.post('/api/register', (req, res) => {
 });
 
 // Login (support username or phone)
-app.post('/api/login', (req, res) => {
+app.post('/api/login', loginLimiter, (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'missing fields' });
     const db = openDb();
