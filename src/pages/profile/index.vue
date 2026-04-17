@@ -90,6 +90,7 @@
 <script setup>
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request';
 
 const userInfo = ref({
   avatar: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
@@ -101,56 +102,52 @@ const userInfo = ref({
   pendingAmount: '1200.00'
 });
 
-onShow(() => {
-  const currentRole = uni.getStorageSync('current_role') || 'farmer';
-  
-  switch (currentRole) {
-    case 'merchant':
-      userInfo.value = {
-        avatar: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
-        nickname: '李老板',
-        role: 'merchant',
-        roleName: '优选回收商',
-        isRealName: true,
-        balance: '24000.00',
-        pendingAmount: '3500.00'
-      };
-      break;
-    case 'processor':
-      userInfo.value = {
-        avatar: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
-        nickname: '新会处理厂',
-        role: 'processor',
-        roleName: '官方处理商',
-        isRealName: true,
-        balance: '50000.00',
-        pendingAmount: '12000.00'
-      };
-      break;
-    case 'admin':
-      userInfo.value = {
-        avatar: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
-        nickname: '管理员',
-        role: 'admin',
-        roleName: '系统管理员',
-        isRealName: true,
-        balance: '0.00',
-        pendingAmount: '0.00'
-      };
-      break;
-    case 'farmer':
-    default:
-      userInfo.value = {
-        avatar: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
-        nickname: '张三',
-        role: 'farmer',
-        roleName: '认证农户',
-        isRealName: true,
-        balance: '8500.00',
-        pendingAmount: '1200.00'
-      };
-      break;
+const ROLE_NAME_MAP = {
+  farmer: '认证农户',
+  merchant: '优选回收商',
+  recycler: '优选回收商',
+  processor: '官方处理商',
+  admin: '系统管理员'
+};
+
+const ROLE_WALLET_MAP = {
+  farmer: { balance: '8500.00', pendingAmount: '1200.00' },
+  merchant: { balance: '24000.00', pendingAmount: '3500.00' },
+  recycler: { balance: '24000.00', pendingAmount: '3500.00' },
+  processor: { balance: '50000.00', pendingAmount: '12000.00' },
+  admin: { balance: '0.00', pendingAmount: '0.00' }
+};
+
+const applyUserInfo = (me) => {
+  const role = me.role || 'farmer';
+  const wallet = ROLE_WALLET_MAP[role] || ROLE_WALLET_MAP.farmer;
+  userInfo.value = {
+    avatar: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
+    nickname: me.full_name || me.username || '用户',
+    role,
+    roleName: ROLE_NAME_MAP[role] || '认证用户',
+    isRealName: true,
+    balance: wallet.balance,
+    pendingAmount: wallet.pendingAmount
+  };
+};
+
+const syncProfileFromServer = async () => {
+  try {
+    const me = await request.get('/api/me');
+    if (!me || !me.role) return;
+    uni.setStorageSync('current_role', me.role);
+    uni.setStorageSync('current_user_name', me.full_name || me.username || '用户');
+    uni.setStorageSync('current_user_phone', me.phone || '');
+    applyUserInfo(me);
+  } catch (e) {
+    // request.js 已统一处理 401 跳转，这里仅兜底
+    console.warn('[Profile] syncProfileFromServer failed', e);
   }
+};
+
+onShow(() => {
+  syncProfileFromServer();
 });
 
 const goToAddress = () => {

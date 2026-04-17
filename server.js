@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const crypto = require('crypto');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -11,7 +12,14 @@ const jwt = require('jsonwebtoken');
 const { sendOtpSms } = require('./smsClient');
 const multer = require('multer');
 
-const JWT_SECRET = 'agri_waste_super_secret_key_2026';
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET 环境变量未配置，生产环境禁止启动。');
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+if (!process.env.JWT_SECRET) {
+    console.warn('[Security] JWT_SECRET 未配置，当前使用进程级临时密钥（重启后失效）。');
+}
 const AMAP_WEB_KEY = process.env.AMAP_WEB_KEY || '';
 
 const DB_PATH = path.join(__dirname, 'data', 'agri.db');
@@ -37,6 +45,73 @@ function ensureDataDir() {
 function openDb() {
     ensureDataDir();
     return new sqlite3.Database(DB_PATH);
+}
+
+function toPositiveInt(value) {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function getActorId(req) {
+    return toPositiveInt(req && req.user ? req.user.id : null);
+}
+
+function isAdmin(req) {
+    return !!(req && req.user && req.user.role === 'admin');
+}
+
+function ensureSelfOrAdmin(req, targetId) {
+    if (isAdmin(req)) return true;
+    const actorId = getActorId(req);
+    const parsedTarget = toPositiveInt(targetId);
+    return !!actorId && !!parsedTarget && actorId === parsedTarget;
+}
+
+function isRecyclerActor(req) {
+    return !!(req && req.user && (req.user.role === 'recycler' || req.user.role === 'merchant'));
+}
+
+function isProcessorActor(req) {
+    return !!(req && req.user && req.user.role === 'processor');
+}
+
+function requireAdmin(req, res) {
+    if (!isAdmin(req)) {
+        res.status(403).json({ error: '仅管理员可操作' });
+        return false;
+    }
+    return true;
+}
+
+function adminOnly(req, res, next) {
+    if (!requireAdmin(req, res)) return;
+    return next();
+}
+
+function canManageIntentionTarget(db, targetType, targetId, actorId, callback) {
+    const parsedTargetId = toPositiveInt(targetId);
+    if (!parsedTargetId) return callback(null, false);
+
+    let sql = '';
+    let evaluator = () => false;
+
+    if (targetType === 'farmer_report') {
+        sql = `SELECT farmer_id, recycler_id FROM farmer_reports WHERE id = ?`;
+        evaluator = (row) => !!row && (toPositiveInt(row.farmer_id) === actorId || toPositiveInt(row.recycler_id) === actorId);
+    } else if (targetType === 'recycler_request') {
+        sql = `SELECT recycler_id FROM recycler_requests WHERE id = ?`;
+        evaluator = (row) => !!row && toPositiveInt(row.recycler_id) === actorId;
+    } else if (targetType === 'processor_request') {
+        sql = `SELECT processor_id, recycler_id FROM processor_requests WHERE id = ?`;
+        evaluator = (row) => !!row && (toPositiveInt(row.processor_id) === actorId || toPositiveInt(row.recycler_id) === actorId);
+    } else {
+        return callback(null, false);
+    }
+
+    db.get(sql, [parsedTargetId], (err, row) => {
+        if (err) return callback(err, false);
+        return callback(null, evaluator(row));
+    });
 }
 
 function runSqlFromFile(db, filePath) {
@@ -247,7 +322,7 @@ const otpLimiter = rateLimit({
     message: '请求过于频繁，请在 1 分钟后重试',
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, res) => req.body.phone || req.ip, // Rate limit by phone number
+    keyGenerator: (req) => req.body.phone || rateLimit.ipKeyGenerator(req.ip), // Rate limit by phone number
 });
 
 // JWT 鉴权中间件
@@ -259,15 +334,22 @@ const authMiddleware = (req, res, next) => {
     const publicRoutes = ['/health', '/init', '/auth/request-otp', '/auth/register-phone', '/register', '/login', '/config/amap'];
     // CMS 内容读接口（首页展示，游客可见）
     const publicPrefixes = ['/cms/', '/farmer-nearby', '/config/'];
+    const authHeader = req.headers.authorization;
     if (
         publicRoutes.includes(req.path) ||
-        req.path.startsWith('/uploads') ||
         (req.method === 'GET' && publicPrefixes.some(p => req.path.startsWith(p)))
     ) {
+        // 公共读接口允许匿名访问；若携带 token 则解析用户上下文，供路由做细粒度授权。
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                req.user = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+            } catch (err) {
+                // 公共接口下忽略无效 token，保持匿名访问行为。
+            }
+        }
         return next();
     }
 
-    const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         console.warn(`[Auth] 401 拒绝: ${req.method} ${req.originalUrl} (req.path=${req.path}, 无 Bearer Token)`);
         return res.status(401).json({ error: '未授权，请先登录' });
@@ -427,10 +509,86 @@ function createMagicValidator(allowedExts) {
 const validateArbitrationUploadMagic = createMagicValidator(['jpeg', 'jpg', 'png', 'pdf', 'doc', 'docx', 'mp4', 'avi']);
 const validateCmsUploadMagic = createMagicValidator(['jpeg', 'jpg', 'png']);
 
+function getTokenFromRequest(req) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.split(' ')[1];
+    }
+    if (req.query && typeof req.query.token === 'string') {
+        return req.query.token;
+    }
+    return null;
+}
+
+function verifyArbitrationFileAccess(req, res, next) {
+    const rawName = String(req.params.filename || '').trim();
+    const safeName = path.basename(rawName);
+    if (!safeName || safeName !== rawName) {
+        return res.status(400).json({ error: '非法文件名' });
+    }
+
+    const token = getTokenFromRequest(req);
+    if (!token) {
+        return res.status(401).json({ error: '访问文件需要登录' });
+    }
+
+    let decoded;
+    try {
+        decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+        return res.status(401).json({ error: 'Token 无效或已过期' });
+    }
+
+    const actorId = toPositiveInt(decoded.id);
+    if (!actorId) {
+        return res.status(401).json({ error: '无效用户身份' });
+    }
+
+    const fullPath = path.join(uploadDir, safeName);
+    if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: '文件不存在' });
+    }
+
+    if (decoded.role === 'admin') {
+        req.secureFilePath = fullPath;
+        return next();
+    }
+
+    const fileRef = `/uploads/arbitration/${safeName}`;
+    const likePattern = `%${fileRef}%`;
+    const db = openDb();
+    db.get(
+        `SELECT id FROM arbitration_requests
+         WHERE (applicant_id = ? OR respondent_id = ?)
+           AND (
+             penalty_proof LIKE ? OR
+             evidence_trade LIKE ? OR
+             evidence_material LIKE ? OR
+             evidence_payment LIKE ? OR
+             evidence_communication LIKE ? OR
+             evidence_other LIKE ?
+           )
+         LIMIT 1`,
+        [actorId, actorId, likePattern, likePattern, likePattern, likePattern, likePattern, likePattern],
+        (err, row) => {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(403).json({ error: '无权访问该文件' });
+            req.secureFilePath = fullPath;
+            return next();
+        }
+    );
+}
+
 // 提供静态文件（HTML、CSS、JS等）
 app.use(express.static(path.join(__dirname)));
-// 提供上传文件访问
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// 仅公开 CMS 素材，不公开仲裁证据目录
+app.use('/uploads/cms', express.static(path.join(__dirname, 'uploads', 'cms')));
+
+// 仲裁证据文件必须通过 token + 归属校验后访问
+app.get('/uploads/arbitration/:filename', verifyArbitrationFileAccess, (req, res) => {
+    return res.sendFile(req.secureFilePath);
+});
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -443,6 +601,29 @@ app.get('/api/config/amap', (req, res) => {
         version: '2.0',
         plugins: ['AMap.Driving'],
     });
+});
+
+app.get('/api/me', (req, res) => {
+    const actorId = getActorId(req);
+    if (!actorId) {
+        return res.status(401).json({ error: '未授权，请先登录' });
+    }
+
+    const db = openDb();
+    db.get(
+        `SELECT u.id, u.username, u.phone, u.full_name, r.name AS role
+         FROM users u
+         JOIN roles r ON u.role_id = r.id
+         WHERE u.id = ?
+         LIMIT 1`,
+        [actorId],
+        (err, row) => {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: '用户不存在' });
+            return res.json(row);
+        }
+    );
 });
 
 app.post('/init', async (req, res) => {
@@ -671,14 +852,26 @@ app.post('/api/auth/refresh', (req, res) => {
 // Create order
 app.post('/api/orders', (req, res) => {
     const { farmer_id, recycler_id, location_id, weight_kg, price_per_kg, notes } = req.body;
-    if (!farmer_id || !weight_kg) return res.status(400).json({ error: 'missing required fields' });
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && req.user.role !== 'farmer') {
+        return res.status(403).json({ error: '仅农户可创建订单' });
+    }
+
+    const finalFarmerId = isAdmin(req) ? toPositiveInt(farmer_id) : actorId;
+    if (!finalFarmerId || !weight_kg) return res.status(400).json({ error: 'missing required fields' });
+
+    if (!isAdmin(req) && farmer_id && !ensureSelfOrAdmin(req, farmer_id)) {
+        return res.status(403).json({ error: '禁止使用他人 farmer_id 创建订单' });
+    }
 
     const orderNo = 'ORD-' + Date.now();
     const total = price_per_kg ? (price_per_kg * weight_kg) : null;
 
     const db = openDb();
     db.run(`INSERT INTO orders(order_no, farmer_id, recycler_id, location_id, weight_kg, price_per_kg, total_price, notes) VALUES(?,?,?,?,?,?,?,?)`,
-        [orderNo, farmer_id, recycler_id || null, location_id || null, weight_kg, price_per_kg || null, total, notes || null], function(err) {
+        [orderNo, finalFarmerId, recycler_id || null, location_id || null, weight_kg, price_per_kg || null, total, notes || null], function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, order_no: orderNo });
@@ -688,12 +881,29 @@ app.post('/api/orders', (req, res) => {
 // Get orders (optional filters: farmer_id, recycler_id, status)
 app.get('/api/orders', (req, res) => {
     const { farmer_id, recycler_id, status } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
     const db = openDb();
     let q = `SELECT o.*, u.username as farmer_username, r.username as recycler_username FROM orders o LEFT JOIN users u ON o.farmer_id=u.id LEFT JOIN users r ON o.recycler_id=r.id`;
     const params = [];
     const conditions = [];
-    if (farmer_id) { conditions.push('o.farmer_id = ?'); params.push(farmer_id); }
-    if (recycler_id) { conditions.push('o.recycler_id = ?'); params.push(recycler_id); }
+
+    if (isAdmin(req)) {
+        if (farmer_id) { conditions.push('o.farmer_id = ?'); params.push(farmer_id); }
+        if (recycler_id) { conditions.push('o.recycler_id = ?'); params.push(recycler_id); }
+    } else if (req.user.role === 'farmer') {
+        conditions.push('o.farmer_id = ?');
+        params.push(actorId);
+    } else if (req.user.role === 'recycler' || req.user.role === 'merchant' || req.user.role === 'processor') {
+        // 兼容历史数据：处理商订单沿用 recycler_id 字段
+        conditions.push('o.recycler_id = ?');
+        params.push(actorId);
+    } else {
+        db.close();
+        return res.status(403).json({ error: '当前角色无权查看订单' });
+    }
+
     if (status) { conditions.push('o.status = ?'); params.push(status); }
     if (conditions.length) q += ' WHERE ' + conditions.join(' AND ');
 
@@ -810,8 +1020,19 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 app.post('/api/farmer-reports', (req, res) => {
     const { farmer_id, pickup_date, weight_kg, location_address, location_lat, location_lng,
             citrus_variety, contact_name, contact_phone, grade, photo_urls, status, notes, id } = req.body;
-    
-    if (!farmer_id) return res.status(400).json({ error: '缺少农户ID' });
+
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && req.user.role !== 'farmer') {
+        return res.status(403).json({ error: '仅农户可提交申报' });
+    }
+
+    const finalFarmerId = isAdmin(req) ? toPositiveInt(farmer_id) : actorId;
+    if (!finalFarmerId) return res.status(400).json({ error: '缺少农户ID' });
+    if (!isAdmin(req) && farmer_id && !ensureSelfOrAdmin(req, farmer_id)) {
+        return res.status(403).json({ error: '禁止提交他人申报' });
+    }
     
     const db = openDb();
     
@@ -824,7 +1045,7 @@ app.post('/api/farmer-reports', (req, res) => {
             WHERE id = ? AND farmer_id = ?`,
             [pickup_date, weight_kg, location_address, location_lat, location_lng,
              citrus_variety, contact_name, contact_phone, grade || 'grade2', 
-             JSON.stringify(photo_urls || []), status || 'draft', notes, id, farmer_id],
+             JSON.stringify(photo_urls || []), status || 'draft', notes, id, finalFarmerId],
             function(err) {
                 db.close();
                 if (err) return res.status(500).json({ error: err.message });
@@ -837,7 +1058,7 @@ app.post('/api/farmer-reports', (req, res) => {
         db.run(`INSERT INTO farmer_reports (report_no, farmer_id, pickup_date, weight_kg, location_address,
             location_lat, location_lng, citrus_variety, contact_name, contact_phone, grade, photo_urls, status, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [reportNo, farmer_id, pickup_date, weight_kg, location_address, location_lat, location_lng,
+            [reportNo, finalFarmerId, pickup_date, weight_kg, location_address, location_lat, location_lng,
              citrus_variety, contact_name, contact_phone, grade || 'grade2',
              JSON.stringify(photo_urls || []), status || 'draft', notes],
             function(err) {
@@ -851,6 +1072,8 @@ app.post('/api/farmer-reports', (req, res) => {
 // Get farmer reports (supports filtering by farmer_id OR recycler_id)
 app.get('/api/farmer-reports', (req, res) => {
     const { farmer_id, recycler_id, status } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
     
     const db = openDb();
     let q = `SELECT fr.*, u.full_name as farmer_name, u.phone as farmer_phone 
@@ -858,18 +1081,28 @@ app.get('/api/farmer-reports', (req, res) => {
              LEFT JOIN users u ON fr.farmer_id = u.id 
              WHERE 1=1`;
     const params = [];
-    
-    if (farmer_id) {
+
+    if (isAdmin(req)) {
+        if (farmer_id) {
+            q += ` AND fr.farmer_id = ?`;
+            params.push(farmer_id);
+        }
+        if (recycler_id) {
+            q += ` AND fr.recycler_id = ?`;
+            params.push(recycler_id);
+        }
+        if (!farmer_id && !recycler_id) {
+            // 管理员允许查询全部
+        }
+    } else if (req.user.role === 'farmer') {
         q += ` AND fr.farmer_id = ?`;
-        params.push(farmer_id);
-    } else if (recycler_id) {
+        params.push(actorId);
+    } else if (req.user.role === 'recycler' || req.user.role === 'merchant') {
         q += ` AND fr.recycler_id = ?`;
-        params.push(recycler_id);
+        params.push(actorId);
     } else {
-        // If neither is provided, maybe return error or empty? 
-        // For security, let's require at least one.
-        // Actually, existing frontend calls it with farmer_id.
-        return res.status(400).json({ error: 'Need farmer_id or recycler_id' });
+        db.close();
+        return res.status(403).json({ error: '当前角色无权查看申报' });
     }
     
     if (status && status !== 'all') {
@@ -887,11 +1120,23 @@ app.get('/api/farmer-reports', (req, res) => {
 
 // Get single report by ID
 app.get('/api/farmer-reports/:id', (req, res) => {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
     const db = openDb();
     db.get(`SELECT * FROM farmer_reports WHERE id = ?`, [req.params.id], (err, row) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: '申报不存在' });
+
+        if (!isAdmin(req)) {
+            const ownFarmer = toPositiveInt(row.farmer_id) === actorId;
+            const ownRecycler = toPositiveInt(row.recycler_id) === actorId;
+            if (!ownFarmer && !ownRecycler) {
+                return res.status(403).json({ error: '无权查看该申报' });
+            }
+        }
+
         res.json({ ...row, photo_urls: JSON.parse(row.photo_urls || '[]') });
     });
 });
@@ -936,6 +1181,9 @@ app.get('/api/farmer-supplies', (req, res) => {
 // Get recycler supplies list
 app.get('/api/recycler-supplies', (req, res) => {
     const { recycler_id, status } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
     const db = openDb();
     
     let query = `SELECT rs.*, u.full_name as recycler_name, u.phone as recycler_phone
@@ -943,18 +1191,32 @@ app.get('/api/recycler-supplies', (req, res) => {
                  LEFT JOIN users u ON rs.recycler_id = u.id
                  WHERE 1=1`;
     const params = [];
-    
-    if (recycler_id) {
+
+    if (isAdmin(req)) {
+        if (recycler_id) {
+            query += ` AND rs.recycler_id = ?`;
+            params.push(recycler_id);
+        }
+        if (status && status !== 'all') {
+            query += ` AND rs.status = ?`;
+            params.push(status);
+        } else if (!status) {
+            // 管理员默认查看激活状态，避免一次返回过多历史数据
+            query += ` AND rs.status = 'active'`;
+        }
+    } else if (isRecyclerActor(req)) {
         query += ` AND rs.recycler_id = ?`;
-        params.push(recycler_id);
-    }
-    
-    if (status) {
-        query += ` AND rs.status = ?`;
-        params.push(status);
-    } else {
-        // 默认只显示激活状态
+        params.push(actorId);
+        if (status && status !== 'all') {
+            query += ` AND rs.status = ?`;
+            params.push(status);
+        }
+    } else if (isProcessorActor(req) || req.user.role === 'farmer') {
+        // 非回收商仅可查看市场中可见的激活供应
         query += ` AND rs.status = 'active'`;
+    } else {
+        db.close();
+        return res.status(403).json({ error: '当前角色无权查看回收商供应' });
     }
     
     query += ` AND (rs.valid_until IS NULL OR rs.valid_until >= date('now'))`;
@@ -975,8 +1237,22 @@ app.get('/api/recycler-supplies', (req, res) => {
 // Create recycler supply
 app.post('/api/recycler-supplies', (req, res) => {
     const { recycler_id, grade, stock_weight, contact_name, contact_phone, address, notes, valid_until, status } = req.body;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && !isRecyclerActor(req)) {
+        return res.status(403).json({ error: '仅回收商可发布供应' });
+    }
+
+    const finalRecyclerId = isAdmin(req) ? toPositiveInt(recycler_id) : actorId;
+    if (!finalRecyclerId) {
+        return res.status(400).json({ error: '缺少有效回收商ID' });
+    }
+    if (!isAdmin(req) && recycler_id && !ensureSelfOrAdmin(req, recycler_id)) {
+        return res.status(403).json({ error: '禁止为其他账号发布供应' });
+    }
     
-    if (!recycler_id || !grade || !stock_weight || !contact_name || !contact_phone) {
+    if (!grade || !stock_weight || !contact_name || !contact_phone) {
         return res.status(400).json({ error: '缺少必填字段' });
     }
     
@@ -985,7 +1261,7 @@ app.post('/api/recycler-supplies', (req, res) => {
     
     db.run(`INSERT INTO recycler_supplies (supply_no, recycler_id, grade, stock_weight, contact_name, contact_phone, address, notes, valid_until, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [supplyNo, recycler_id, grade, stock_weight, contact_name, contact_phone, address || null, notes || null, valid_until || null, status || 'draft'],
+        [supplyNo, finalRecyclerId, grade, stock_weight, contact_name, contact_phone, address || null, notes || null, valid_until || null, status || 'draft'],
         function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
@@ -997,10 +1273,23 @@ app.post('/api/recycler-supplies', (req, res) => {
 // Update recycler supply status
 app.patch('/api/recycler-supplies/:id/status', (req, res) => {
     const { status } = req.body;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+    if (!isAdmin(req) && !isRecyclerActor(req)) {
+        return res.status(403).json({ error: '仅回收商可修改供应状态' });
+    }
+
     const db = openDb();
-    
-    db.run(`UPDATE recycler_supplies SET status = ?, updated_at = datetime('now') WHERE id = ?`,
-        [status, req.params.id],
+
+    let sql = `UPDATE recycler_supplies SET status = ?, updated_at = datetime('now') WHERE id = ?`;
+    const params = [status, req.params.id];
+    if (!isAdmin(req)) {
+        sql += ` AND recycler_id = ?`;
+        params.push(actorId);
+    }
+
+    db.run(sql,
+        params,
         function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
@@ -1013,6 +1302,17 @@ app.patch('/api/recycler-supplies/:id/status', (req, res) => {
 // Update report status (for recycler accepting or completing orders)
 app.patch('/api/farmer-reports/:id/status', (req, res) => {
     const { status, recycler_id } = req.body;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const parsedRecyclerId = recycler_id !== undefined ? toPositiveInt(recycler_id) : null;
+    if (recycler_id !== undefined && !parsedRecyclerId) {
+        return res.status(400).json({ error: '无效 recycler_id' });
+    }
+    if (!isAdmin(req) && parsedRecyclerId && !ensureSelfOrAdmin(req, parsedRecyclerId)) {
+        return res.status(403).json({ error: '禁止将订单指派给其他账号' });
+    }
+
     const db = openDb();
     
     let q = `UPDATE farmer_reports SET status = ?, updated_at = datetime('now')`;
@@ -1020,11 +1320,16 @@ app.patch('/api/farmer-reports/:id/status', (req, res) => {
 
     if (recycler_id !== undefined) {
         q += `, recycler_id = ?`;
-        params.push(recycler_id);
+        params.push(parsedRecyclerId);
     }
     
     q += ` WHERE id = ?`;
     params.push(req.params.id);
+
+    if (!isAdmin(req)) {
+        q += ` AND (farmer_id = ? OR recycler_id = ?)`;
+        params.push(actorId, actorId);
+    }
 
     db.run(q, params, function(err) {
             db.close();
@@ -1038,10 +1343,30 @@ app.patch('/api/farmer-reports/:id/status', (req, res) => {
 app.post('/api/farmer-reports/:id/accept', (req, res) => {
     const { recycler_id, processor_id } = req.body;
     const reportId = req.params.id;
+    const actorId = getActorId(req);
+
+    if (!actorId) {
+        return res.status(401).json({ error: '未授权，请先登录' });
+    }
+
+    if (processor_id) {
+        return res.status(400).json({ error: '当前版本 farmer_reports 仅支持回收商接单' });
+    }
     
     // 必须有回收商或处理商ID
     if (!recycler_id && !processor_id) {
         return res.status(400).json({ error: '缺少接单方ID' });
+    }
+
+    const parsedRecyclerId = toPositiveInt(recycler_id);
+    if (recycler_id && !parsedRecyclerId) return res.status(400).json({ error: '无效 recycler_id' });
+
+    if (!isAdmin(req)) {
+        if (parsedRecyclerId) {
+            if ((req.user.role !== 'recycler' && req.user.role !== 'merchant') || !ensureSelfOrAdmin(req, parsedRecyclerId)) {
+                return res.status(403).json({ error: '仅回收商本人可接单' });
+            }
+        }
     }
     
     const db = openDb();
@@ -1061,26 +1386,52 @@ app.post('/api/farmer-reports/:id/accept', (req, res) => {
             return res.status(400).json({ error: '该订单已被接受或已完成' });
         }
         
-        // 更新申报状态为 accepted，设置接单方
-        const updateField = processor_id ? 'processor_id' : 'recycler_id';
-        const updateValue = processor_id || recycler_id;
-        
-        db.run(`UPDATE farmer_reports SET status = 'accepted', ${updateField} = ?, updated_at = datetime('now') WHERE id = ?`,
-            [updateValue, reportId], function(err) {
+        // SEC-003: 避免动态字段拼接，固定使用参数化 SQL
+        db.run(
+            `UPDATE farmer_reports
+             SET status = 'accepted', recycler_id = ?, updated_at = datetime('now')
+             WHERE id = ?`,
+            [parsedRecyclerId, reportId],
+            function(err2) {
                 db.close();
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ success: true, message: '订单接受成功' });
-            });
+                if (err2) return res.status(500).json({ error: err2.message });
+                return res.json({ success: true, message: '订单接受成功' });
+            }
+        );
     });
 });
 
 // Delete report (only drafts can be deleted)
 app.delete('/api/farmer-reports/:id', (req, res) => {
     const { farmer_id } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && farmer_id && !ensureSelfOrAdmin(req, farmer_id)) {
+        return res.status(403).json({ error: '禁止删除他人申报' });
+    }
+
+    const parsedFarmerId = farmer_id !== undefined ? toPositiveInt(farmer_id) : null;
+    if (farmer_id !== undefined && !parsedFarmerId) {
+        return res.status(400).json({ error: '缺少有效 farmer_id' });
+    }
+
     const db = openDb();
-    
-    db.run(`DELETE FROM farmer_reports WHERE id = ? AND farmer_id = ? AND status = 'draft'`,
-        [req.params.id, farmer_id], function(err) {
+
+    let sql = `DELETE FROM farmer_reports WHERE id = ? AND status = 'draft'`;
+    const params = [req.params.id];
+    if (isAdmin(req)) {
+        if (parsedFarmerId) {
+            sql += ` AND farmer_id = ?`;
+            params.push(parsedFarmerId);
+        }
+    } else {
+        sql += ` AND farmer_id = ?`;
+        params.push(actorId);
+    }
+
+    db.run(sql,
+        params, function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(400).json({ error: '无法删除：申报不存在或已提交' });
@@ -1093,8 +1444,22 @@ app.delete('/api/farmer-reports/:id', (req, res) => {
 // Create or update purchase request
 app.post('/api/recycler-requests', (req, res) => {
     const { id, recycler_id, grade, contact_name, contact_phone, notes, valid_until, status } = req.body;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && !isRecyclerActor(req)) {
+        return res.status(403).json({ error: '仅回收商可发布求购' });
+    }
+
+    const finalRecyclerId = isAdmin(req) ? toPositiveInt(recycler_id) : actorId;
+    if (!finalRecyclerId) {
+        return res.status(400).json({ error: '请填写有效回收商ID' });
+    }
+    if (!isAdmin(req) && recycler_id && !ensureSelfOrAdmin(req, recycler_id)) {
+        return res.status(403).json({ error: '禁止为其他账号发布求购' });
+    }
     
-    if (!recycler_id || !grade || !contact_name || !contact_phone) {
+    if (!grade || !contact_name || !contact_phone) {
         return res.status(400).json({ error: '请填写必填项' });
     }
     
@@ -1106,7 +1471,7 @@ app.post('/api/recycler-requests', (req, res) => {
                 SET grade = ?, contact_name = ?, contact_phone = ?, notes = ?, 
                     valid_until = ?, status = ?, updated_at = datetime('now')
                 WHERE id = ? AND recycler_id = ?`,
-            [grade, contact_name, contact_phone, notes, valid_until, status || 'draft', id, recycler_id],
+            [grade, contact_name, contact_phone, notes, valid_until, status || 'draft', id, finalRecyclerId],
             function(err) {
                 db.close();
                 if (err) return res.status(500).json({ error: err.message });
@@ -1120,7 +1485,7 @@ app.post('/api/recycler-requests', (req, res) => {
         db.run(`INSERT INTO recycler_requests 
                 (request_no, recycler_id, grade, contact_name, contact_phone, notes, valid_until, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [request_no, recycler_id, grade, contact_name, contact_phone, notes, valid_until, status || 'draft'],
+            [request_no, finalRecyclerId, grade, contact_name, contact_phone, notes, valid_until, status || 'draft'],
             function(err) {
                 db.close();
                 if (err) return res.status(500).json({ error: err.message });
@@ -1132,10 +1497,26 @@ app.post('/api/recycler-requests', (req, res) => {
 // Get recycler's own requests
 app.get('/api/recycler-requests', (req, res) => {
     const { recycler_id, status } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
     const db = openDb();
-    
-    let q = `SELECT * FROM recycler_requests WHERE recycler_id = ?`;
-    const params = [recycler_id];
+
+    let q = `SELECT * FROM recycler_requests WHERE 1=1`;
+    const params = [];
+
+    if (isAdmin(req)) {
+        if (recycler_id) {
+            q += ` AND recycler_id = ?`;
+            params.push(recycler_id);
+        }
+    } else if (isRecyclerActor(req)) {
+        q += ` AND recycler_id = ?`;
+        params.push(actorId);
+    } else {
+        db.close();
+        return res.status(403).json({ error: '当前角色无权查看回收商求购' });
+    }
     
     if (status && status !== 'all') {
         q += ` AND status = ?`;
@@ -1169,11 +1550,26 @@ app.get('/api/purchase-requests', (req, res) => {
 
 // Get single request by ID
 app.get('/api/recycler-requests/:id', (req, res) => {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
     const db = openDb();
-    db.get(`SELECT rr.*, u.full_name as recycler_name, u.phone as recycler_phone
+    let sql = `SELECT rr.*, u.full_name as recycler_name, u.phone as recycler_phone
             FROM recycler_requests rr
             JOIN users u ON rr.recycler_id = u.id
-            WHERE rr.id = ?`, [req.params.id], (err, row) => {
+            WHERE rr.id = ?`;
+    const params = [req.params.id];
+
+    if (!isAdmin(req)) {
+        if (isRecyclerActor(req)) {
+            sql += ` AND (rr.recycler_id = ? OR rr.status = 'active')`;
+            params.push(actorId);
+        } else {
+            sql += ` AND rr.status = 'active'`;
+        }
+    }
+
+    db.get(sql, params, (err, row) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: '求购信息不存在' });
@@ -1184,11 +1580,38 @@ app.get('/api/recycler-requests/:id', (req, res) => {
 // Update request status
 app.patch('/api/recycler-requests/:id/status', (req, res) => {
     const { status, recycler_id } = req.body;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && !isRecyclerActor(req)) {
+        return res.status(403).json({ error: '仅回收商可更新求购状态' });
+    }
+
+    if (!isAdmin(req) && recycler_id && !ensureSelfOrAdmin(req, recycler_id)) {
+        return res.status(403).json({ error: '禁止更新他人求购状态' });
+    }
+
+    const parsedRecyclerId = recycler_id !== undefined ? toPositiveInt(recycler_id) : null;
+    if (recycler_id !== undefined && !parsedRecyclerId) {
+        return res.status(400).json({ error: '缺少有效回收商ID' });
+    }
+
     const db = openDb();
-    
-    db.run(`UPDATE recycler_requests SET status = ?, updated_at = datetime('now')
-            WHERE id = ? AND recycler_id = ?`,
-        [status, req.params.id, recycler_id], function(err) {
+
+    let sql = `UPDATE recycler_requests SET status = ?, updated_at = datetime('now') WHERE id = ?`;
+    const params = [status, req.params.id];
+    if (isAdmin(req)) {
+        if (parsedRecyclerId) {
+            sql += ` AND recycler_id = ?`;
+            params.push(parsedRecyclerId);
+        }
+    } else {
+        sql += ` AND recycler_id = ?`;
+        params.push(actorId);
+    }
+
+    db.run(sql,
+        params, function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(404).json({ error: '求购信息不存在' });
@@ -1199,10 +1622,38 @@ app.patch('/api/recycler-requests/:id/status', (req, res) => {
 // Delete request (only drafts)
 app.delete('/api/recycler-requests/:id', (req, res) => {
     const { recycler_id } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && !isRecyclerActor(req)) {
+        return res.status(403).json({ error: '仅回收商可删除求购' });
+    }
+
+    if (!isAdmin(req) && recycler_id && !ensureSelfOrAdmin(req, recycler_id)) {
+        return res.status(403).json({ error: '禁止删除他人求购' });
+    }
+
+    const parsedRecyclerId = recycler_id !== undefined ? toPositiveInt(recycler_id) : null;
+    if (recycler_id !== undefined && !parsedRecyclerId) {
+        return res.status(400).json({ error: '缺少有效回收商ID' });
+    }
+
     const db = openDb();
-    
-    db.run(`DELETE FROM recycler_requests WHERE id = ? AND recycler_id = ? AND status = 'draft'`,
-        [req.params.id, recycler_id], function(err) {
+
+    let sql = `DELETE FROM recycler_requests WHERE id = ? AND status = 'draft'`;
+    const params = [req.params.id];
+    if (isAdmin(req)) {
+        if (parsedRecyclerId) {
+            sql += ` AND recycler_id = ?`;
+            params.push(parsedRecyclerId);
+        }
+    } else {
+        sql += ` AND recycler_id = ?`;
+        params.push(actorId);
+    }
+
+    db.run(sql,
+        params, function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(400).json({ error: '无法删除：求购信息不存在或已发布' });
@@ -1215,8 +1666,22 @@ app.delete('/api/recycler-requests/:id', (req, res) => {
 // Create or update processor request
 app.post('/api/processor-requests', (req, res) => {
     const { id, processor_id, weight_kg, grade, citrus_type, location_address, contact_name, contact_phone, has_transport, notes, valid_until, status } = req.body;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && !isProcessorActor(req)) {
+        return res.status(403).json({ error: '仅处理商可发布求购' });
+    }
+
+    const finalProcessorId = isAdmin(req) ? toPositiveInt(processor_id) : actorId;
+    if (!finalProcessorId) {
+        return res.status(400).json({ error: '请填写有效处理商ID' });
+    }
+    if (!isAdmin(req) && processor_id && !ensureSelfOrAdmin(req, processor_id)) {
+        return res.status(403).json({ error: '禁止为其他账号发布求购' });
+    }
     
-    if (!processor_id || !weight_kg || !grade || !citrus_type || !location_address || !contact_name || !contact_phone) {
+    if (!weight_kg || !grade || !citrus_type || !location_address || !contact_name || !contact_phone) {
         return res.status(400).json({ error: '请填写必填项' });
     }
     
@@ -1226,7 +1691,7 @@ app.post('/api/processor-requests', (req, res) => {
         // Update existing - use DB column names: citrus_variety, address
         db.run(`UPDATE processor_requests SET weight_kg = ?, grade = ?, citrus_variety = ?, address = ?, contact_name = ?, contact_phone = ?, has_transport = ?, notes = ?, valid_until = ?, status = ?, updated_at = datetime('now')
                 WHERE id = ? AND processor_id = ?`,
-            [weight_kg, grade, citrus_type, location_address, contact_name, contact_phone, has_transport ? 1 : 0, notes || null, valid_until || null, status || 'draft', id, processor_id], function(err) {
+            [weight_kg, grade, citrus_type, location_address, contact_name, contact_phone, has_transport ? 1 : 0, notes || null, valid_until || null, status || 'draft', id, finalProcessorId], function(err) {
                 db.close();
                 if (err) return res.status(500).json({ error: err.message });
                 if (this.changes === 0) return res.status(404).json({ error: '求购信息不存在' });
@@ -1237,7 +1702,7 @@ app.post('/api/processor-requests', (req, res) => {
         const requestNo = 'PREQ-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
         db.run(`INSERT INTO processor_requests (request_no, processor_id, weight_kg, grade, citrus_variety, address, contact_name, contact_phone, has_transport, notes, valid_until, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [requestNo, processor_id, weight_kg, grade, citrus_type, location_address, contact_name, contact_phone, has_transport ? 1 : 0, notes || null, valid_until || null, status || 'draft'], function(err) {
+            [requestNo, finalProcessorId, weight_kg, grade, citrus_type, location_address, contact_name, contact_phone, has_transport ? 1 : 0, notes || null, valid_until || null, status || 'draft'], function(err) {
                 db.close();
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ success: true, id: this.lastID, request_no: requestNo });
@@ -1248,6 +1713,9 @@ app.post('/api/processor-requests', (req, res) => {
 // Get processor requests (with filters) - return citrus_variety as citrus_type and address as location_address for API consistency
 app.get('/api/processor-requests', (req, res) => {
     const { processor_id, recycler_id, status, for_recyclers, for_farmers } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
     console.log('[API /api/processor-requests] Query params:', req.query);
     const db = openDb();
     
@@ -1257,31 +1725,51 @@ app.get('/api/processor-requests', (req, res) => {
     const params = [];
     const conditions = [];
     
-    if (processor_id) {
+    if (isAdmin(req)) {
+        if (processor_id) {
+            conditions.push('pr.processor_id = ?');
+            params.push(processor_id);
+            console.log('[API /api/processor-requests] Added processor_id condition:', processor_id);
+        }
+        if (recycler_id) {
+            conditions.push('pr.recycler_id = ?');
+            params.push(recycler_id);
+        }
+        if (status) {
+            conditions.push('pr.status = ?');
+            params.push(status);
+        }
+    } else if (isProcessorActor(req)) {
         conditions.push('pr.processor_id = ?');
-        params.push(processor_id);
-        console.log('[API /api/processor-requests] Added processor_id condition:', processor_id);
-    }
-    // 回收商查看自己接单的处理商订单
-    if (recycler_id) {
-        conditions.push('pr.recycler_id = ?');
-        params.push(recycler_id);
-    }
-    if (status) {
-        conditions.push('pr.status = ?');
-        params.push(status);
-    }
-    // 回收商查看所有活跃的处理商求购（未被接单的）
-    if (for_recyclers === 'true') {
-        conditions.push("pr.status = 'active'");
-        conditions.push("pr.recycler_id IS NULL");
-        conditions.push("(pr.valid_until IS NULL OR pr.valid_until >= date('now'))");
-    }
-    // 农户只能看到有运输能力的处理商求购
-    if (for_farmers === 'true') {
+        params.push(actorId);
+        if (status && status !== 'all') {
+            conditions.push('pr.status = ?');
+            params.push(status);
+        }
+    } else if (isRecyclerActor(req)) {
+        if (for_recyclers === 'true') {
+            conditions.push("pr.status = 'active'");
+            conditions.push("pr.recycler_id IS NULL");
+            conditions.push("(pr.valid_until IS NULL OR pr.valid_until >= date('now'))");
+        } else {
+            conditions.push('pr.recycler_id = ?');
+            params.push(actorId);
+            if (status && status !== 'all') {
+                conditions.push('pr.status = ?');
+                params.push(status);
+            }
+        }
+    } else if (req.user.role === 'farmer') {
+        if (for_farmers !== 'true') {
+            db.close();
+            return res.status(403).json({ error: '当前角色无权查看该请求列表' });
+        }
         conditions.push("pr.status = 'active'");
         conditions.push("pr.has_transport = 1");
         conditions.push("(pr.valid_until IS NULL OR pr.valid_until >= date('now'))");
+    } else {
+        db.close();
+        return res.status(403).json({ error: '当前角色无权查看处理商求购' });
     }
     
     if (conditions.length) {
@@ -1305,6 +1793,9 @@ app.get('/api/processor-requests', (req, res) => {
 
 // Get single processor request
 app.get('/api/processor-requests/:id', (req, res) => {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
     const db = openDb();
     // Return with aliased fields for API consistency
     db.get(`SELECT pr.*, 
@@ -1318,6 +1809,25 @@ app.get('/api/processor-requests/:id', (req, res) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: '求购信息不存在' });
+
+        if (!isAdmin(req)) {
+            const ownProcessor = toPositiveInt(row.processor_id) === actorId;
+            const ownRecycler = toPositiveInt(row.recycler_id) === actorId;
+            if (isProcessorActor(req)) {
+                if (!ownProcessor) return res.status(403).json({ error: '无权查看该求购信息' });
+            } else if (isRecyclerActor(req)) {
+                if (!ownRecycler && row.status !== 'active') {
+                    return res.status(403).json({ error: '无权查看该求购信息' });
+                }
+            } else if (req.user.role === 'farmer') {
+                if (!(row.status === 'active' && Number(row.has_transport) === 1)) {
+                    return res.status(403).json({ error: '无权查看该求购信息' });
+                }
+            } else {
+                return res.status(403).json({ error: '无权查看该求购信息' });
+            }
+        }
+
         res.json(row);
     });
 });
@@ -1325,11 +1835,38 @@ app.get('/api/processor-requests/:id', (req, res) => {
 // Update processor request status
 app.patch('/api/processor-requests/:id/status', (req, res) => {
     const { status, processor_id } = req.body;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && !isProcessorActor(req)) {
+        return res.status(403).json({ error: '仅处理商可更新求购状态' });
+    }
+
+    if (!isAdmin(req) && processor_id && !ensureSelfOrAdmin(req, processor_id)) {
+        return res.status(403).json({ error: '禁止更新他人求购状态' });
+    }
+
+    const parsedProcessorId = processor_id !== undefined ? toPositiveInt(processor_id) : null;
+    if (processor_id !== undefined && !parsedProcessorId) {
+        return res.status(400).json({ error: '缺少有效处理商ID' });
+    }
+
     const db = openDb();
-    
-    db.run(`UPDATE processor_requests SET status = ?, updated_at = datetime('now')
-            WHERE id = ? AND processor_id = ?`,
-        [status, req.params.id, processor_id], function(err) {
+
+    let sql = `UPDATE processor_requests SET status = ?, updated_at = datetime('now') WHERE id = ?`;
+    const params = [status, req.params.id];
+    if (isAdmin(req)) {
+        if (parsedProcessorId) {
+            sql += ` AND processor_id = ?`;
+            params.push(parsedProcessorId);
+        }
+    } else {
+        sql += ` AND processor_id = ?`;
+        params.push(actorId);
+    }
+
+    db.run(sql,
+        params, function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(404).json({ error: '求购信息不存在' });
@@ -1340,7 +1877,14 @@ app.patch('/api/processor-requests/:id/status', (req, res) => {
 // Recycler accepts processor request
 app.post('/api/processor-requests/:id/accept', (req, res) => {
     const { recycler_id } = req.body;
-    if (!recycler_id) return res.status(400).json({ error: '缺少回收商ID' });
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const parsedRecyclerId = toPositiveInt(recycler_id);
+    if (!parsedRecyclerId) return res.status(400).json({ error: '缺少回收商ID' });
+    if (!isAdmin(req) && ((req.user.role !== 'recycler' && req.user.role !== 'merchant') || !ensureSelfOrAdmin(req, parsedRecyclerId))) {
+        return res.status(403).json({ error: '仅回收商本人可接单' });
+    }
     
     const db = openDb();
     
@@ -1351,7 +1895,7 @@ app.post('/api/processor-requests/:id/accept', (req, res) => {
         if (row.recycler_id) { db.close(); return res.status(400).json({ error: '该订单已被其他回收商接单' }); }
         
         db.run(`UPDATE processor_requests SET recycler_id = ?, updated_at = datetime('now') WHERE id = ?`,
-            [recycler_id, req.params.id], function(err) {
+            [parsedRecyclerId, req.params.id], function(err) {
                 db.close();
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ success: true });
@@ -1362,10 +1906,38 @@ app.post('/api/processor-requests/:id/accept', (req, res) => {
 // Delete processor request (only drafts)
 app.delete('/api/processor-requests/:id', (req, res) => {
     const { processor_id } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (!isAdmin(req) && !isProcessorActor(req)) {
+        return res.status(403).json({ error: '仅处理商可删除求购' });
+    }
+
+    if (!isAdmin(req) && processor_id && !ensureSelfOrAdmin(req, processor_id)) {
+        return res.status(403).json({ error: '禁止删除他人求购' });
+    }
+
+    const parsedProcessorId = processor_id !== undefined ? toPositiveInt(processor_id) : null;
+    if (processor_id !== undefined && !parsedProcessorId) {
+        return res.status(400).json({ error: '缺少有效处理商ID' });
+    }
+
     const db = openDb();
-    
-    db.run(`DELETE FROM processor_requests WHERE id = ? AND processor_id = ? AND status = 'draft'`,
-        [req.params.id, processor_id], function(err) {
+
+    let sql = `DELETE FROM processor_requests WHERE id = ? AND status = 'draft'`;
+    const params = [req.params.id];
+    if (isAdmin(req)) {
+        if (parsedProcessorId) {
+            sql += ` AND processor_id = ?`;
+            params.push(parsedProcessorId);
+        }
+    } else {
+        sql += ` AND processor_id = ?`;
+        params.push(actorId);
+    }
+
+    db.run(sql,
+        params, function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(400).json({ error: '无法删除：求购信息不存在或已发布' });
@@ -1401,7 +1973,7 @@ app.post('/api/upload-arbitration-files', upload.array('files', 20), validateArb
 // --- 公告管理 ---
 app.get('/api/cms/announcements', (req, res) => {
     const db = openDb();
-    const activeOnly = req.query.active === '1';
+    const activeOnly = req.query.active === '1' || !isAdmin(req);
     const sql = activeOnly
         ? `SELECT * FROM cms_announcements WHERE is_active = 1 ORDER BY sort_order ASC, created_at DESC`
         : `SELECT * FROM cms_announcements ORDER BY sort_order ASC, created_at DESC`;
@@ -1413,11 +1985,13 @@ app.get('/api/cms/announcements', (req, res) => {
 });
 
 app.post('/api/cms/announcements', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { type, title, summary, image_url, link_url, doc_number, sort_order, is_active, created_by } = req.body;
+    const actorId = getActorId(req);
     if (!type || !title) return res.status(400).json({ error: '类型和标题为必填' });
     const db = openDb();
     db.run(`INSERT INTO cms_announcements(type, title, summary, image_url, link_url, doc_number, sort_order, is_active, created_by) VALUES(?,?,?,?,?,?,?,?,?)`,
-        [type, title, summary || '', image_url || '', link_url || '', doc_number || '', sort_order || 0, is_active !== undefined ? is_active : 1, created_by || null],
+        [type, title, summary || '', image_url || '', link_url || '', doc_number || '', sort_order || 0, is_active !== undefined ? is_active : 1, actorId || created_by || null],
         function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
@@ -1426,6 +2000,7 @@ app.post('/api/cms/announcements', (req, res) => {
 });
 
 app.put('/api/cms/announcements/:id', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { type, title, summary, image_url, link_url, doc_number, sort_order, is_active } = req.body;
     const db = openDb();
     db.run(`UPDATE cms_announcements SET type=?, title=?, summary=?, image_url=?, link_url=?, doc_number=?, sort_order=?, is_active=?, updated_at=datetime('now') WHERE id=?`,
@@ -1438,6 +2013,7 @@ app.put('/api/cms/announcements/:id', (req, res) => {
 });
 
 app.delete('/api/cms/announcements/:id', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const db = openDb();
     db.run(`DELETE FROM cms_announcements WHERE id=?`, [req.params.id], function(err) {
         db.close();
@@ -1449,7 +2025,7 @@ app.delete('/api/cms/announcements/:id', (req, res) => {
 // --- 成功案例管理 ---
 app.get('/api/cms/cases', (req, res) => {
     const db = openDb();
-    const activeOnly = req.query.active === '1';
+    const activeOnly = req.query.active === '1' || !isAdmin(req);
     const sql = activeOnly
         ? `SELECT * FROM cms_cases WHERE is_active = 1 ORDER BY sort_order ASC, created_at DESC`
         : `SELECT * FROM cms_cases ORDER BY sort_order ASC, created_at DESC`;
@@ -1461,11 +2037,13 @@ app.get('/api/cms/cases', (req, res) => {
 });
 
 app.post('/api/cms/cases', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { title, description, buyer_name, seller_name, trade_data, thumbnail_url, logo_url, sort_order, is_active, created_by } = req.body;
+    const actorId = getActorId(req);
     if (!title) return res.status(400).json({ error: '标题为必填' });
     const db = openDb();
     db.run(`INSERT INTO cms_cases(title, description, buyer_name, seller_name, trade_data, thumbnail_url, logo_url, sort_order, is_active, created_by) VALUES(?,?,?,?,?,?,?,?,?,?)`,
-        [title, description || '', buyer_name || '', seller_name || '', trade_data || '', thumbnail_url || '', logo_url || '', sort_order || 0, is_active !== undefined ? is_active : 1, created_by || null],
+        [title, description || '', buyer_name || '', seller_name || '', trade_data || '', thumbnail_url || '', logo_url || '', sort_order || 0, is_active !== undefined ? is_active : 1, actorId || created_by || null],
         function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
@@ -1474,6 +2052,7 @@ app.post('/api/cms/cases', (req, res) => {
 });
 
 app.put('/api/cms/cases/:id', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { title, description, buyer_name, seller_name, trade_data, thumbnail_url, logo_url, sort_order, is_active } = req.body;
     const db = openDb();
     db.run(`UPDATE cms_cases SET title=?, description=?, buyer_name=?, seller_name=?, trade_data=?, thumbnail_url=?, logo_url=?, sort_order=?, is_active=?, updated_at=datetime('now') WHERE id=?`,
@@ -1486,6 +2065,7 @@ app.put('/api/cms/cases/:id', (req, res) => {
 });
 
 app.delete('/api/cms/cases/:id', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const db = openDb();
     db.run(`DELETE FROM cms_cases WHERE id=?`, [req.params.id], function(err) {
         db.close();
@@ -1497,7 +2077,7 @@ app.delete('/api/cms/cases/:id', (req, res) => {
 // --- 广告位管理 ---
 app.get('/api/cms/ads', (req, res) => {
     const db = openDb();
-    const activeOnly = req.query.active === '1';
+    const activeOnly = req.query.active === '1' || !isAdmin(req);
     const sql = activeOnly
         ? `SELECT * FROM cms_ads WHERE is_active = 1 ORDER BY sort_order ASC, created_at DESC`
         : `SELECT * FROM cms_ads ORDER BY sort_order ASC, created_at DESC`;
@@ -1509,11 +2089,13 @@ app.get('/api/cms/ads', (req, res) => {
 });
 
 app.post('/api/cms/ads', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { title, company_name, description, image_url, contact_info, badge, sort_order, is_active, created_by } = req.body;
+    const actorId = getActorId(req);
     if (!title) return res.status(400).json({ error: '标题为必填' });
     const db = openDb();
     db.run(`INSERT INTO cms_ads(title, company_name, description, image_url, contact_info, badge, sort_order, is_active, created_by) VALUES(?,?,?,?,?,?,?,?,?)`,
-        [title, company_name || '', description || '', image_url || '', contact_info || '', badge || '官方认证合作商', sort_order || 0, is_active !== undefined ? is_active : 1, created_by || null],
+        [title, company_name || '', description || '', image_url || '', contact_info || '', badge || '官方认证合作商', sort_order || 0, is_active !== undefined ? is_active : 1, actorId || created_by || null],
         function(err) {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
@@ -1522,6 +2104,7 @@ app.post('/api/cms/ads', (req, res) => {
 });
 
 app.put('/api/cms/ads/:id', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { title, company_name, description, image_url, contact_info, badge, sort_order, is_active } = req.body;
     const db = openDb();
     db.run(`UPDATE cms_ads SET title=?, company_name=?, description=?, image_url=?, contact_info=?, badge=?, sort_order=?, is_active=?, updated_at=datetime('now') WHERE id=?`,
@@ -1534,6 +2117,7 @@ app.put('/api/cms/ads/:id', (req, res) => {
 });
 
 app.delete('/api/cms/ads/:id', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const db = openDb();
     db.run(`DELETE FROM cms_ads WHERE id=?`, [req.params.id], function(err) {
         db.close();
@@ -1555,6 +2139,7 @@ app.get('/api/cms/site-info', (req, res) => {
 });
 
 app.put('/api/cms/site-info', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const db = openDb();
     const entries = Object.entries(req.body);
     let done = 0;
@@ -1599,7 +2184,7 @@ const cmsUpload = multer({
     }
 });
 
-app.post('/api/cms/upload', cmsUpload.single('file'), validateCmsUploadMagic, (req, res) => {
+app.post('/api/cms/upload', adminOnly, cmsUpload.single('file'), validateCmsUploadMagic, (req, res) => {
     if (!req.file) return res.status(400).json({ error: '没有上传文件' });
     res.json({ success: true, url: `/uploads/cms/${req.file.filename}`, originalName: req.file.originalname });
 });
@@ -1613,8 +2198,19 @@ app.post('/api/arbitration-requests', (req, res) => {
         evidence_trade, evidence_material, evidence_payment, 
         evidence_communication, evidence_other 
     } = req.body;
+
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const finalApplicantId = isAdmin(req) ? toPositiveInt(applicant_id) : actorId;
+    if (!finalApplicantId) {
+        return res.status(400).json({ error: '缺少有效申请人ID' });
+    }
+    if (!isAdmin(req) && applicant_id && !ensureSelfOrAdmin(req, applicant_id)) {
+        return res.status(403).json({ error: '禁止代他人提交仲裁' });
+    }
     
-    if (!applicant_id || !order_type || !order_id || !order_no || !reason || !description) {
+    if (!order_type || !order_id || !order_no || !reason || !description) {
         return res.status(400).json({ error: '请填写所有必填项' });
     }
     
@@ -1631,7 +2227,7 @@ app.post('/api/arbitration-requests', (req, res) => {
         evidence_trade, evidence_material, evidence_payment, evidence_communication, evidence_other
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-        arbitrationNo, applicant_id, order_type, order_id, order_no, reason, description,
+        arbitrationNo, finalApplicantId, order_type, order_id, order_no, reason, description,
         JSON.stringify(evidence_trade || []),
         JSON.stringify(evidence_material || []),
         JSON.stringify(evidence_payment || []),
@@ -1647,9 +2243,15 @@ app.post('/api/arbitration-requests', (req, res) => {
 // Get arbitration requests (for applicant)
 app.get('/api/arbitration-requests', (req, res) => {
     const { applicant_id, status } = req.query;
-    
-    if (!applicant_id) {
-        return res.status(400).json({ error: '缺少申请人ID' });
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const finalApplicantId = isAdmin(req) ? toPositiveInt(applicant_id || actorId) : actorId;
+    if (!finalApplicantId) {
+        return res.status(400).json({ error: '缺少有效申请人ID' });
+    }
+    if (!isAdmin(req) && applicant_id && !ensureSelfOrAdmin(req, applicant_id)) {
+        return res.status(403).json({ error: '禁止查看他人仲裁申请' });
     }
     
     const db = openDb();
@@ -1665,7 +2267,7 @@ app.get('/api/arbitration-requests', (req, res) => {
         WHERE ar.applicant_id = ?
     `;
     
-    const params = [applicant_id];
+    const params = [finalApplicantId];
     
     if (status && status !== 'all') {
         sql += ' AND ar.status = ?';
@@ -1694,6 +2296,7 @@ app.get('/api/arbitration-requests', (req, res) => {
 
 // Get all arbitration requests (for admin)
 app.get('/api/arbitration-requests/all', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { status } = req.query;
     
     const db = openDb();
@@ -1737,6 +2340,7 @@ app.get('/api/arbitration-requests/all', (req, res) => {
 
 // Update arbitration request (for admin)
 app.patch('/api/arbitration-requests/:id', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { id } = req.params;
     const { status, admin_notes, decision, decided_by, respondent_id, decided_at,
             penalty_amount, penalty_party, penalty_reason, penalty_status, order_amount } = req.body;
@@ -1815,6 +2419,7 @@ app.patch('/api/arbitration-requests/:id', (req, res) => {
 
 // Set penalty for arbitration (管理员设置罚款)
 app.post('/api/arbitration-requests/:id/penalty', (req, res) => {
+    if (!requireAdmin(req, res)) return;
     const { id } = req.params;
     const { penalty_party, penalty_amount, penalty_reason, order_amount } = req.body;
     
@@ -1868,9 +2473,16 @@ function updatePenalty(db, id, penalty_party, penalty_amount, penalty_reason, or
 app.post('/api/arbitration-requests/:id/pay-penalty', upload.single('proof'), validateArbitrationUploadMagic, (req, res) => {
     const { id } = req.params;
     const { user_id } = req.body;
-    
-    if (!user_id) {
-        return res.status(400).json({ error: '缺少用户ID' });
+
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const payerId = isAdmin(req) ? toPositiveInt(user_id) : actorId;
+    if (!payerId) {
+        return res.status(400).json({ error: '缺少有效用户ID' });
+    }
+    if (!isAdmin(req) && user_id && !ensureSelfOrAdmin(req, user_id)) {
+        return res.status(403).json({ error: '禁止替他人支付罚款' });
     }
     
     const db = openDb();
@@ -1892,8 +2504,8 @@ app.post('/api/arbitration-requests/:id/pay-penalty', upload.single('proof'), va
         
         // 检查用户是否是被罚方
         const isPenaltyTarget = (
-            (row.penalty_party === 'applicant' && row.applicant_id == user_id) ||
-            (row.penalty_party === 'respondent' && row.respondent_id == user_id)
+            (row.penalty_party === 'applicant' && toPositiveInt(row.applicant_id) === payerId) ||
+            (row.penalty_party === 'respondent' && toPositiveInt(row.respondent_id) === payerId)
         );
         
         if (!isPenaltyTarget) {
@@ -1933,21 +2545,34 @@ app.post('/api/arbitration-requests/:id/pay-penalty', upload.single('proof'), va
 // POST /api/intentions — 提交意向
 app.post('/api/intentions', (req, res) => {
     const { applicant_id, applicant_name, target_type, target_id, target_no, target_name, estimated_weight, expected_date, notes } = req.body;
-    if (!applicant_id || !target_type || !target_id) {
+    const actorId = getActorId(req);
+    if (!actorId) {
+        return res.status(401).json({ code: 401, msg: '未授权，请先登录', data: null });
+    }
+
+    const finalApplicantId = isAdmin(req) ? toPositiveInt(applicant_id) : actorId;
+    if (!finalApplicantId || !target_type || !target_id) {
         return res.status(400).json({ code: 400, msg: '缺少必填参数', data: null });
     }
+    if (!isAdmin(req) && applicant_id && !ensureSelfOrAdmin(req, applicant_id)) {
+        return res.status(403).json({ code: 403, msg: '禁止代他人提交意向', data: null });
+    }
+
+    const finalApplicantName =
+        (req.user && (req.user.full_name || req.user.username)) || applicant_name || '';
+
     const db = openDb();
     // 防重复：同一用户对同一目标只能提交一次（pending 状态）
     db.get(
         `SELECT id FROM intentions WHERE applicant_id = ? AND target_type = ? AND target_id = ? AND status = 'pending'`,
-        [applicant_id, target_type, target_id],
+        [finalApplicantId, target_type, target_id],
         (err, row) => {
             if (err) { db.close(); return res.status(500).json({ code: 500, msg: err.message, data: null }); }
             if (row) { db.close(); return res.status(409).json({ code: 409, msg: '您已提交过意向，请等待对方回复', data: null }); }
             db.run(
                 `INSERT INTO intentions (applicant_id, applicant_name, target_type, target_id, target_no, target_name, estimated_weight, expected_date, notes)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [applicant_id, applicant_name || '', target_type, target_id, target_no || '', target_name || '', estimated_weight || null, expected_date || null, notes || ''],
+                [finalApplicantId, finalApplicantName, target_type, target_id, target_no || '', target_name || '', estimated_weight || null, expected_date || null, notes || ''],
                 function(err2) {
                     db.close();
                     if (err2) return res.status(500).json({ code: 500, msg: err2.message, data: null });
@@ -1963,23 +2588,68 @@ app.post('/api/intentions', (req, res) => {
 //   ?target_type=X&target_id=Y  → 查询某需求收到的所有意向（需求方使用）
 app.get('/api/intentions', (req, res) => {
     const { applicant_id, target_type, target_id } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) {
+        return res.status(401).json({ code: 401, msg: '未授权，请先登录', data: null });
+    }
+
     const db = openDb();
-    let sql, params;
+
+    const queryAndReturn = (sql, params) => {
+        db.all(sql, params, (err, rows) => {
+            db.close();
+            if (err) return res.status(500).json({ code: 500, msg: err.message, data: null });
+            return res.json({ code: 200, msg: 'ok', data: rows });
+        });
+    };
+
     if (applicant_id) {
-        sql = `SELECT * FROM intentions WHERE applicant_id = ? ORDER BY created_at DESC`;
-        params = [applicant_id];
+        const finalApplicantId = isAdmin(req) ? toPositiveInt(applicant_id) : actorId;
+        if (!finalApplicantId) {
+            db.close();
+            return res.status(400).json({ code: 400, msg: '缺少有效 applicant_id', data: null });
+        }
+        if (!isAdmin(req) && !ensureSelfOrAdmin(req, applicant_id)) {
+            db.close();
+            return res.status(403).json({ code: 403, msg: '禁止查看他人意向记录', data: null });
+        }
+        return queryAndReturn(
+            `SELECT * FROM intentions WHERE applicant_id = ? ORDER BY created_at DESC`,
+            [finalApplicantId]
+        );
     } else if (target_type && target_id) {
-        sql = `SELECT * FROM intentions WHERE target_type = ? AND target_id = ? ORDER BY created_at DESC`;
-        params = [target_type, target_id];
+        const parsedTargetId = toPositiveInt(target_id);
+        if (!parsedTargetId) {
+            db.close();
+            return res.status(400).json({ code: 400, msg: 'target_id 无效', data: null });
+        }
+
+        if (isAdmin(req)) {
+            return queryAndReturn(
+                `SELECT * FROM intentions WHERE target_type = ? AND target_id = ? ORDER BY created_at DESC`,
+                [target_type, parsedTargetId]
+            );
+        }
+
+        return canManageIntentionTarget(db, target_type, parsedTargetId, actorId, (authErr, allowed) => {
+            if (authErr) {
+                db.close();
+                return res.status(500).json({ code: 500, msg: authErr.message, data: null });
+            }
+            if (!allowed) {
+                db.close();
+                return res.status(403).json({ code: 403, msg: '无权查看该目标的意向列表', data: null });
+            }
+
+            return queryAndReturn(
+                `SELECT * FROM intentions WHERE target_type = ? AND target_id = ? ORDER BY created_at DESC`,
+                [target_type, parsedTargetId]
+            );
+        });
     } else {
         db.close();
         return res.status(400).json({ code: 400, msg: '请提供 applicant_id 或 target_type+target_id', data: null });
     }
-    db.all(sql, params, (err, rows) => {
-        db.close();
-        if (err) return res.status(500).json({ code: 500, msg: err.message, data: null });
-        res.json({ code: 200, msg: 'ok', data: rows });
-    });
 });
 
 // PATCH /api/intentions/:id/status — 更新意向状态（需求方操作：接受/拒绝）
@@ -1987,6 +2657,11 @@ app.get('/api/intentions', (req, res) => {
 app.patch('/api/intentions/:id/status', (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
+    const actorId = getActorId(req);
+    if (!actorId) {
+        return res.status(401).json({ code: 401, msg: '未授权，请先登录', data: null });
+    }
+
     if (!['accepted', 'rejected', 'pending'].includes(status)) {
         return res.status(400).json({ code: 400, msg: '无效状态值', data: null });
     }
@@ -1998,80 +2673,98 @@ app.patch('/api/intentions/:id/status', (req, res) => {
         if (err) { db.close(); return res.status(500).json({ code: 500, msg: err.message, data: null }); }
         if (!intention) { db.close(); return res.status(404).json({ code: 404, msg: '意向记录不存在', data: null }); }
 
-        // 若不是接受操作，直接更新状态即可
-        if (status !== 'accepted') {
-            db.run(`UPDATE intentions SET status = ? WHERE id = ?`, [status, id], function(e2) {
-                db.close();
-                if (e2) return res.status(500).json({ code: 500, msg: e2.message, data: null });
-                res.json({ code: 200, msg: '状态已更新', data: null });
-            });
-            return;
-        }
-
-        // ── 接受意向：查目标表 → 生成订单 ──────────────────────────────────
-        const { applicant_id, target_type, target_id, estimated_weight } = intention;
-
-        // 根据 target_type 确定目标表和字段
-        let targetTableSql = '';
-        if (target_type === 'farmer_report') {
-            targetTableSql = `SELECT farmer_id, recycler_id, weight_kg FROM farmer_reports WHERE id = ?`;
-        } else if (target_type === 'recycler_request') {
-            targetTableSql = `SELECT recycler_id FROM recycler_requests WHERE id = ?`;
-        } else if (target_type === 'processor_request') {
-            targetTableSql = `SELECT processor_id FROM processor_requests WHERE id = ?`;
-        } else {
-            db.close();
-            return res.status(400).json({ code: 400, msg: '不支持的意向目标类型', data: null });
-        }
-
-        db.get(targetTableSql, [target_id], (err2, target) => {
-            if (err2 || !target) {
-                db.close();
-                return res.status(500).json({ code: 500, msg: err2 ? err2.message : '目标记录不存在', data: null });
+        const continueUpdate = () => {
+            // 若不是接受操作，直接更新状态即可
+            if (status !== 'accepted') {
+                db.run(`UPDATE intentions SET status = ? WHERE id = ?`, [status, id], function(e2) {
+                    db.close();
+                    if (e2) return res.status(500).json({ code: 500, msg: e2.message, data: null });
+                    res.json({ code: 200, msg: '状态已更新', data: null });
+                });
+                return;
             }
 
-            // 推导 farmer_id / recycler_id（orders 表复用 recycler_id 存放处理商 ID）
-            let farmer_id, recycler_id;
+            // ── 接受意向：查目标表 → 生成订单 ──────────────────────────────────
+            const { applicant_id, target_type, target_id, estimated_weight } = intention;
+
+            // 根据 target_type 确定目标表和字段
+            let targetTableSql = '';
             if (target_type === 'farmer_report') {
-                // 投递人是回收商/处理商，目标是农户的申报
-                farmer_id  = target.farmer_id;
-                recycler_id = applicant_id;
+                targetTableSql = `SELECT farmer_id, recycler_id, weight_kg FROM farmer_reports WHERE id = ?`;
             } else if (target_type === 'recycler_request') {
-                // 投递人是农户，目标是回收商求购
-                farmer_id  = applicant_id;
-                recycler_id = target.recycler_id;
+                targetTableSql = `SELECT recycler_id FROM recycler_requests WHERE id = ?`;
+            } else if (target_type === 'processor_request') {
+                targetTableSql = `SELECT processor_id FROM processor_requests WHERE id = ?`;
             } else {
-                // processor_request: 投递人是农户或回收商
-                farmer_id  = applicant_id;
-                recycler_id = target.processor_id;
+                db.close();
+                return res.status(400).json({ code: 400, msg: '不支持的意向目标类型', data: null });
             }
 
-            const weight    = estimated_weight || (target.weight_kg) || 0;
-            const order_no  = `ORD-${Date.now()}`;
-            const orderStatus = 'pending_ship';
-
-            const insertSql = `INSERT INTO orders (order_no, farmer_id, recycler_id, weight_kg, status, notes)
-                                VALUES (?, ?, ?, ?, ?, ?)`;
-            const notes = `由意向 #${id} 自动生成（${intention.target_no || target_type}）`;
-
-            db.run(insertSql, [order_no, farmer_id, recycler_id, weight, orderStatus, notes], function(err3) {
-                if (err3) {
+            db.get(targetTableSql, [target_id], (err2, target) => {
+                if (err2 || !target) {
                     db.close();
-                    return res.status(500).json({ code: 500, msg: '创建订单失败: ' + err3.message, data: null });
+                    return res.status(500).json({ code: 500, msg: err2 ? err2.message : '目标记录不存在', data: null });
                 }
-                const order_id = this.lastID;
 
-                // 更新意向状态
-                db.run(`UPDATE intentions SET status = 'accepted' WHERE id = ?`, [id], (err4) => {
-                    db.close();
-                    if (err4) return res.status(500).json({ code: 500, msg: err4.message, data: null });
-                    res.json({
-                        code: 200,
-                        msg: '意向已接受，订单已自动生成',
-                        data: { order_no, order_id }
+                // 推导 farmer_id / recycler_id（orders 表复用 recycler_id 存放处理商 ID）
+                let farmer_id, recycler_id;
+                if (target_type === 'farmer_report') {
+                    // 投递人是回收商/处理商，目标是农户的申报
+                    farmer_id  = target.farmer_id;
+                    recycler_id = applicant_id;
+                } else if (target_type === 'recycler_request') {
+                    // 投递人是农户，目标是回收商求购
+                    farmer_id  = applicant_id;
+                    recycler_id = target.recycler_id;
+                } else {
+                    // processor_request: 投递人是农户或回收商
+                    farmer_id  = applicant_id;
+                    recycler_id = target.processor_id;
+                }
+
+                const weight    = estimated_weight || (target.weight_kg) || 0;
+                const order_no  = `ORD-${Date.now()}`;
+                const orderStatus = 'pending_ship';
+
+                const insertSql = `INSERT INTO orders (order_no, farmer_id, recycler_id, weight_kg, status, notes)
+                                VALUES (?, ?, ?, ?, ?, ?)`;
+                const notes = `由意向 #${id} 自动生成（${intention.target_no || target_type}）`;
+
+                db.run(insertSql, [order_no, farmer_id, recycler_id, weight, orderStatus, notes], function(err3) {
+                    if (err3) {
+                        db.close();
+                        return res.status(500).json({ code: 500, msg: '创建订单失败: ' + err3.message, data: null });
+                    }
+                    const order_id = this.lastID;
+
+                    // 更新意向状态
+                    db.run(`UPDATE intentions SET status = 'accepted' WHERE id = ?`, [id], (err4) => {
+                        db.close();
+                        if (err4) return res.status(500).json({ code: 500, msg: err4.message, data: null });
+                        res.json({
+                            code: 200,
+                            msg: '意向已接受，订单已自动生成',
+                            data: { order_no, order_id }
+                        });
                     });
                 });
             });
+        };
+
+        if (isAdmin(req)) {
+            return continueUpdate();
+        }
+
+        return canManageIntentionTarget(db, intention.target_type, intention.target_id, actorId, (authErr, allowed) => {
+            if (authErr) {
+                db.close();
+                return res.status(500).json({ code: 500, msg: authErr.message, data: null });
+            }
+            if (!allowed) {
+                db.close();
+                return res.status(403).json({ code: 403, msg: '无权处理该意向', data: null });
+            }
+            return continueUpdate();
         });
     });
 });

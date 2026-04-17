@@ -238,7 +238,54 @@ onShow(() => {
   } catch (e) {
     console.warn('[Index] 读取 CMS 缓存失败', e);
   }
+
+  // 安全校验：每次进入首页都以服务端身份覆盖本地角色缓存
+  syncAuthenticatedUser();
 });
+
+const syncAuthenticatedUser = async () => {
+  const token = uni.getStorageSync('agri_auth_token');
+  if (!token) {
+    uni.removeStorageSync('current_role');
+    uni.removeStorageSync('current_user_name');
+    uni.removeStorageSync('current_user_phone');
+    return null;
+  }
+
+  try {
+    const base = process.env.NODE_ENV === 'development' ? 'http://localhost:4000' : 'https://api.yourdomain.com';
+    const me = await new Promise((resolve, reject) => {
+      uni.request({
+        url: `${base}/api/me`,
+        method: 'GET',
+        header: { Authorization: `Bearer ${token}` },
+        success: (res) => {
+          const data = res.data || {};
+          if (res.statusCode === 200 && data.code === 200 && data.data) {
+            resolve(data.data);
+          } else {
+            reject(new Error('unauthorized'));
+          }
+        },
+        fail: reject
+      });
+    });
+
+    if (me && me.role) {
+      uni.setStorageSync('current_role', me.role);
+      uni.setStorageSync('current_user_name', me.full_name || me.username || '用户');
+      uni.setStorageSync('current_user_phone', me.phone || '');
+      return me;
+    }
+  } catch (e) {
+    // 未登录或 token 失效时，清空角色缓存，避免伪造残留
+    uni.removeStorageSync('agri_auth_token');
+    uni.removeStorageSync('current_role');
+    uni.removeStorageSync('current_user_name');
+    uni.removeStorageSync('current_user_phone');
+  }
+  return null;
+};
 
 // ===== 跳转文章详情 =====
 const goArticle = (item) => {
@@ -251,16 +298,18 @@ const goArticle = (item) => {
 };
 
 // ===== 通用导航 =====
-const navigateTo = (url, role) => {
-  if (role) {
-    uni.setStorageSync('current_role', role);
-    let mockName = '张大伯'; let mockPhone = '13811112222';
-    if (role === 'merchant') { mockName = '李老板'; mockPhone = '13933334444'; }
-    if (role === 'processor') { mockName = '新会处理厂'; mockPhone = '13788889999'; }
-    if (role === 'admin') { mockName = '管理员'; mockPhone = '13600000000'; }
-    uni.setStorageSync('current_user_name', mockName);
-    uni.setStorageSync('current_user_phone', mockPhone);
+const navigateTo = async (url, role) => {
+  const me = await syncAuthenticatedUser();
+  if (!me) {
+    uni.showToast({ title: '请先登录', icon: 'none' });
+    return uni.navigateTo({ url: '/pages/login/index' });
   }
+
+  if (role && me.role !== role && me.role !== 'admin') {
+    uni.showToast({ title: '无权进入该工作台', icon: 'none' });
+    return;
+  }
+
   uni.navigateTo({
     url,
     fail: (err) => {
@@ -270,14 +319,17 @@ const navigateTo = (url, role) => {
   });
 };
 
-const navigateToProcessor = (role) => {
-  if (role) {
-    uni.setStorageSync('current_role', role);
-    let mockName = '新会处理厂'; let mockPhone = '13788889999';
-    if (role === 'merchant') { mockName = '李老板'; mockPhone = '13933334444'; }
-    uni.setStorageSync('current_user_name', mockName);
-    uni.setStorageSync('current_user_phone', mockPhone);
+const navigateToProcessor = async (role) => {
+  const me = await syncAuthenticatedUser();
+  if (!me) {
+    uni.showToast({ title: '请先登录', icon: 'none' });
+    return uni.navigateTo({ url: '/pages/login/index' });
   }
+  if (role && me.role !== role && me.role !== 'admin') {
+    uni.showToast({ title: '无权进入处理商工作台', icon: 'none' });
+    return;
+  }
+
   uni.navigateTo({
     url: '/pages/processor/dashboard/index',
     fail: (err) => {

@@ -28,6 +28,24 @@ const authSystem = {
         return trimmed.startsWith('/uploads/') ? trimmed : '';
     },
 
+    getAuthToken() {
+        return localStorage.getItem('agri_token') || this.currentUser?.token || '';
+    },
+
+    buildProtectedFileUrl(filePath) {
+        if (typeof filePath !== 'string') return '';
+        const normalized = filePath.trim();
+        if (!normalized.startsWith('/')) return '';
+
+        const token = this.getAuthToken();
+        if (normalized.startsWith('/uploads/arbitration/')) {
+            if (!token) return `${this.API_BASE}${normalized}`;
+            const sep = normalized.includes('?') ? '&' : '?';
+            return `${this.API_BASE}${normalized}${sep}token=${encodeURIComponent(token)}`;
+        }
+        return `${this.API_BASE}${normalized}`;
+    },
+
     renderImagePreview(previewEl, imageUrl, maxWidth = 240) {
         if (!previewEl) return;
         previewEl.innerHTML = '';
@@ -688,10 +706,49 @@ const authSystem = {
                 }
                 this.updateSidebar(this.currentUser.role);
                 this.updateNavbar();
+                this.syncCurrentUserFromServer();
             } catch (e) {
                 sessionStorage.removeItem('currentUser');
                 localStorage.removeItem('agri_token');
             }
+            return;
+        }
+
+        if (storedToken) {
+            this.currentUser = { token: storedToken };
+            this.syncCurrentUserFromServer();
+        }
+    },
+
+    async syncCurrentUserFromServer() {
+        const token = this.getAuthToken();
+        if (!token) return;
+
+        try {
+            const profile = await this.authFetch('/api/me');
+            if (!profile || !profile.id || !profile.role) {
+                throw new Error('用户信息无效');
+            }
+
+            this.currentUser = {
+                id: profile.id,
+                username: profile.username,
+                role: profile.role,
+                name: profile.full_name || profile.username,
+                phone: profile.phone || '',
+                token,
+                loginTime: this.currentUser?.loginTime || new Date().toLocaleString('zh-CN')
+            };
+
+            sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+            this.updateSidebar(this.currentUser.role);
+            this.updateNavbar();
+        } catch (err) {
+            console.warn('[AuthSystem] syncCurrentUserFromServer failed:', err.message);
+            sessionStorage.removeItem('currentUser');
+            localStorage.removeItem('agri_token');
+            this.currentUser = null;
+            this.updateNavbar();
         }
     },
     
@@ -4198,6 +4255,18 @@ const authSystem = {
                         
                         const fileName = fileInfo.originalName || fileStr;
                         const filePath = fileInfo.path;
+                        const safeTitle = String(fileName)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#39;');
+                        const jsSafeName = String(fileName)
+                            .replace(/\\/g, '\\\\')
+                            .replace(/'/g, "\\'");
+                        const jsSafePath = String(filePath || '')
+                            .replace(/\\/g, '\\\\')
+                            .replace(/'/g, "\\'");
                         const isImage = /\.(jpg|jpeg|png|gif|bmp)$/i.test(fileName);
                         const isPdf = /\.pdf$/i.test(fileName);
                         const isVideo = /\.(mp4|avi|mov)$/i.test(fileName);
@@ -4208,13 +4277,13 @@ const authSystem = {
                         else if (isVideo) icon = '📹';
                         
                         const clickHandler = filePath 
-                            ? `onclick="authSystem.viewFile('${filePath}', '${fileName}', ${isImage})"` 
+                            ? `onclick="authSystem.viewFile('${jsSafePath}', '${jsSafeName}', ${isImage})"` 
                             : '';
                         
                         return `
                             <div ${clickHandler} style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; ${filePath ? 'cursor: pointer; transition: transform 0.2s;' : ''}" ${filePath ? 'onmouseenter="this.style.transform=\'scale(1.05)\'" onmouseleave="this.style.transform=\'scale(1)\'"' : ''}>
                                 ${icon}
-                                <span style="font-size: 14px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${fileName}">${fileName}</span>
+                                <span style="font-size: 14px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${safeTitle}">${safeTitle}</span>
                                 ${filePath ? '<span style="color: #3498db; font-size: 12px;">点击查看</span>' : ''}
                             </div>
                         `;
@@ -4462,6 +4531,12 @@ const authSystem = {
     
     // 查看文件
     viewFile(filePath, fileName, isImage) {
+        const fileUrl = this.buildProtectedFileUrl(filePath);
+        if (!fileUrl) {
+            this.showAlert('文件路径无效，无法预览', 'error');
+            return;
+        }
+
         // 创建模态框显示文件
         const modal = document.createElement('div');
         modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;';
@@ -4480,7 +4555,7 @@ const authSystem = {
         
         if (isImage) {
             const img = document.createElement('img');
-            img.src = `${this.API_BASE}${filePath}`;
+            img.src = fileUrl;
             img.style.cssText = 'max-width: 100%; max-height: 70vh; object-fit: contain;';
             img.onerror = () => {
                 contentWrapper.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 40px;">图片加载失败</p>';
@@ -4488,13 +4563,13 @@ const authSystem = {
             contentWrapper.appendChild(img);
         } else if (filePath.endsWith('.pdf')) {
             const iframe = document.createElement('iframe');
-            iframe.src = `${this.API_BASE}${filePath}`;
+            iframe.src = fileUrl;
             iframe.style.cssText = 'width: 80vw; height: 80vh; border: none;';
             iframe.onerror = () => {
                 contentWrapper.innerHTML = `
                     <div style="text-align: center; padding: 40px;">
                         <p style="color: #e74c3c; margin-bottom: 20px;">PDF预览失败</p>
-                        <a href="${this.API_BASE}${filePath}" download="${fileName}" style="padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 8px;">下载文件</a>
+                        <a href="${fileUrl}" download="${fileName}" style="padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 8px;">下载文件</a>
                     </div>
                 `;
             };
@@ -4505,7 +4580,7 @@ const authSystem = {
                 <div style="text-align: center; padding: 40px;">
                     <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
                     <p style="margin-bottom: 20px; color: #666;">暂不支持在线预览此文件类型</p>
-                    <a href="${this.API_BASE}${filePath}" download="${fileName}" style="padding: 12px 24px; background: #3498db; color: white; text-decoration: none; border-radius: 8px; display: inline-block;">
+                    <a href="${fileUrl}" download="${fileName}" style="padding: 12px 24px; background: #3498db; color: white; text-decoration: none; border-radius: 8px; display: inline-block;">
                         ⬇️ 下载文件
                     </a>
                 </div>
