@@ -13,6 +13,7 @@
 ## 2. 本地环境变量配置
 在项目根目录创建/修改 `.env`（或以其他方式导出环境变量）：
 ```
+SMS_PROVIDER=aliyun            # 生产建议固定 aliyun；开发可用 auto 或 mock
 ALIYUN_ACCESS_KEY_ID=你的KeyId
 ALIYUN_ACCESS_KEY_SECRET=你的KeySecret
 ALIYUN_SMS_SIGN=农废宝
@@ -24,7 +25,6 @@ ALIYUN_SMS_TEMPLATE=SMS_XXXXXX   # 你的模板ID，需包含 ${code}
 已在 `package.json` 中加入以下依赖：
 - `@alicloud/dysmsapi20170525`
 - `@alicloud/openapi-client`
-- `@alicloud/tea-openapi`
 - `@alicloud/tea-util`
 
 执行安装：
@@ -37,6 +37,7 @@ npm install
 - 使用上述环境变量初始化客户端
 - 调用阿里云短信 API 发送 6 位验证码
 - 在失败时抛出错误（不记录验证码内容）
+- 在 `SMS_PROVIDER=auto` 且非生产环境时，若阿里云发送失败会自动降级为 Mock
 
 ## 5. 后端接口
 - `POST /api/auth/request-otp`

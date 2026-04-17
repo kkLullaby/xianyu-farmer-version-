@@ -27,6 +27,9 @@
 - [01-security-findings.md](./01-security-findings.md)
 - [02-bug-findings.md](./02-bug-findings.md)
 - [03-unfinished-items.md](./03-unfinished-items.md)
+- [04-rescan-and-progress-2026-04-17.md](./04-rescan-and-progress-2026-04-17.md)
+- [05-release-readiness-phase-plan-2026-04-17.md](./05-release-readiness-phase-plan-2026-04-17.md)
+- [06-step1-release-gates-2026-04-17.md](./06-step1-release-gates-2026-04-17.md)
 
 ## 6. 最高优先级修复路线（建议）
 1. 修复认证与授权边界（前端存储不可作为信任源）。
@@ -39,3 +42,8 @@
 1. 先处理 P0，再处理 P1；P2 可并行排期。
 2. 每个修复项必须配套最小复测：接口用例 + 页面回归。
 3. 统一更新 `docs/ARCHITECTURE.md` 与 `docs/README.md`，避免文档继续漂移。
+
+## 8. 阶段状态（2026-04-17）
+- 当前阶段：`Step 1 - 上线门禁定义（In Review）`
+- 阶段文档：`05-release-readiness-phase-plan-2026-04-17.md`
+- 当前执行文档：`06-step1-release-gates-2026-04-17.md`

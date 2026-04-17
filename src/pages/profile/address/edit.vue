@@ -54,10 +54,12 @@
 <script setup>
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
+import { syncSessionFromServer } from '@/utils/session';
 
 const isEdit = ref(false);
 const editId = ref('');
 const regionArray = ref([]);
+const currentRole = ref('');
 
 const form = ref({
   name: '',
@@ -69,6 +71,14 @@ const form = ref({
 });
 
 onLoad((query) => {
+  syncSessionFromServer()
+    .then((me) => {
+      currentRole.value = me.role;
+    })
+    .catch((e) => {
+      console.warn('[AddressEdit] syncSessionFromServer failed', e);
+    });
+
   if (query && query.id) {
     isEdit.value = true;
     editId.value = query.id;
@@ -99,7 +109,8 @@ const saveAddress = () => {
   if (!form.value.region) return showToast('请选择所在地区');
   if (!form.value.detail) return showToast('请输入详细地址');
 
-  const currentRole = uni.getStorageSync('current_role') || 'farmer';
+  if (!currentRole.value) return showToast('请先登录');
+
   let allAddresses = uni.getStorageSync('global_addresses') || [];
 
   const baseLat = 22.5431;
@@ -127,7 +138,7 @@ const saveAddress = () => {
 
     if (form.value.is_default) {
       allAddresses = allAddresses.map(a => {
-        if (a.role === currentRole && a.id !== editId.value) {
+        if (a.role === currentRole.value && a.id !== editId.value) {
           a.is_default = false;
         }
         return a;
@@ -136,7 +147,7 @@ const saveAddress = () => {
   } else {
     const newAddress = {
       id: 'ADDR-' + Date.now(),
-      role: currentRole,
+      role: currentRole.value,
       name: form.value.name,
       phone: form.value.phone,
       region: form.value.region,
@@ -149,7 +160,7 @@ const saveAddress = () => {
 
     if (form.value.is_default) {
       allAddresses = allAddresses.map(a => {
-        if (a.role === currentRole) {
+        if (a.role === currentRole.value) {
           a.is_default = false;
         }
         return a;

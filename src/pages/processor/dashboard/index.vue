@@ -59,6 +59,7 @@
 <script setup>
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const userInfo = ref({
   name: '处理商企业',
@@ -68,14 +69,24 @@ const userInfo = ref({
 const roleNameMap = {
   farmer: '农户朋友',
   merchant: '回收商老板',
+  recycler: '回收商老板',
   processor: '处理商企业',
   admin: '管理员'
 };
 
-onShow(() => {
-  const role = uni.getStorageSync('current_role') || 'processor';
-  userInfo.value.role = role;
-  userInfo.value.name = roleNameMap[role] || '处理商企业';
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'processor')) {
+      uni.showToast({ title: '无权访问处理商工作台', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+
+    userInfo.value.role = me.role;
+    userInfo.value.name = me.full_name || me.username || roleNameMap[me.role] || '处理商企业';
+  } catch (e) {
+    console.warn('[ProcessorDashboard] syncSessionFromServer failed', e);
+  }
 });
 
 const navigateTo = (url) => {

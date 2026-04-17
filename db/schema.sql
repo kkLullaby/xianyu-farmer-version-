@@ -176,22 +176,25 @@ CREATE TABLE IF NOT EXISTS processor_requests (
     processor_id INTEGER NOT NULL,
     weight_kg REAL NOT NULL,                -- 需求重量（斤）
     grade TEXT NOT NULL,                    -- 品级: grade1, grade2, grade3, offgrade, any
-    citrus_type TEXT NOT NULL,              -- 柑肉种类: mandarin, orange, pomelo, tangerine, any
-    location_address TEXT NOT NULL,         -- 收货地址
+    citrus_variety TEXT NOT NULL,           -- 柑肉种类: mandarin, orange, pomelo, tangerine, any
+    address TEXT NOT NULL,                  -- 收货地址
     contact_name TEXT NOT NULL,             -- 联系人
     contact_phone TEXT NOT NULL,            -- 联系电话
     has_transport BOOLEAN DEFAULT 0,        -- 是否具备运输能力（1=是，向农户和回收商推送；0=否，仅向回收商推送）
+    recycler_id INTEGER,                    -- 接单回收商（可为空）
     notes TEXT,                             -- 备注
     valid_until DATE,                       -- 有效期截止日期，NULL表示长期有效
     status TEXT DEFAULT 'draft',            -- draft, active, expired, cancelled
     created_at DATETIME DEFAULT (datetime('now')),
     updated_at DATETIME DEFAULT (datetime('now')),
-    FOREIGN KEY(processor_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY(processor_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(recycler_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_processor_requests_processor ON processor_requests(processor_id);
 CREATE INDEX IF NOT EXISTS idx_processor_requests_status ON processor_requests(status);
 CREATE INDEX IF NOT EXISTS idx_processor_requests_transport ON processor_requests(has_transport);
+CREATE INDEX IF NOT EXISTS idx_processor_requests_recycler ON processor_requests(recycler_id);
 
 -- Chat messages for processor purchase requests
 CREATE TABLE IF NOT EXISTS processor_chat_messages (
@@ -368,4 +371,3 @@ CREATE TABLE IF NOT EXISTS otp_store (
 );
 
 CREATE INDEX IF NOT EXISTS idx_otp_phone_expires ON otp_store(phone, expires_at);
-);

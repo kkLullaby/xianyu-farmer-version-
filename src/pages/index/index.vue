@@ -188,6 +188,14 @@ const footerContact = ref({
   address: '广东省江门市新会区陈皮产业园'
 });
 
+const normalizeClientRole = (role) => role === 'recycler' ? 'merchant' : role;
+
+const isRoleAllowed = (actualRole, expectedRole) => {
+  const normalizedActual = normalizeClientRole(actualRole);
+  const normalizedExpected = normalizeClientRole(expectedRole);
+  return normalizedActual === 'admin' || normalizedActual === normalizedExpected;
+};
+
 // ===== onShow：每次进入页面均从缓存拉取最新数据 =====
 onShow(() => {
   try {
@@ -272,10 +280,11 @@ const syncAuthenticatedUser = async () => {
     });
 
     if (me && me.role) {
-      uni.setStorageSync('current_role', me.role);
+      const normalizedRole = normalizeClientRole(me.role);
+      uni.setStorageSync('current_role', normalizedRole);
       uni.setStorageSync('current_user_name', me.full_name || me.username || '用户');
       uni.setStorageSync('current_user_phone', me.phone || '');
-      return me;
+      return { ...me, role: normalizedRole };
     }
   } catch (e) {
     // 未登录或 token 失效时，清空角色缓存，避免伪造残留
@@ -305,7 +314,7 @@ const navigateTo = async (url, role) => {
     return uni.navigateTo({ url: '/pages/login/index' });
   }
 
-  if (role && me.role !== role && me.role !== 'admin') {
+  if (role && !isRoleAllowed(me.role, role)) {
     uni.showToast({ title: '无权进入该工作台', icon: 'none' });
     return;
   }
@@ -325,7 +334,7 @@ const navigateToProcessor = async (role) => {
     uni.showToast({ title: '请先登录', icon: 'none' });
     return uni.navigateTo({ url: '/pages/login/index' });
   }
-  if (role && me.role !== role && me.role !== 'admin') {
+  if (role && !isRoleAllowed(me.role, role)) {
     uni.showToast({ title: '无权进入处理商工作台', icon: 'none' });
     return;
   }

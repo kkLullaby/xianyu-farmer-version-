@@ -28,6 +28,21 @@ const authSystem = {
         return trimmed.startsWith('/uploads/') ? trimmed : '';
     },
 
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    escapeJsSingleQuotedString(value) {
+        return String(value ?? '')
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'");
+    },
+
     getAuthToken() {
         return localStorage.getItem('agri_token') || this.currentUser?.token || '';
     },
@@ -36,14 +51,36 @@ const authSystem = {
         if (typeof filePath !== 'string') return '';
         const normalized = filePath.trim();
         if (!normalized.startsWith('/')) return '';
-
-        const token = this.getAuthToken();
-        if (normalized.startsWith('/uploads/arbitration/')) {
-            if (!token) return `${this.API_BASE}${normalized}`;
-            const sep = normalized.includes('?') ? '&' : '?';
-            return `${this.API_BASE}${normalized}${sep}token=${encodeURIComponent(token)}`;
-        }
         return `${this.API_BASE}${normalized}`;
+    },
+
+    async fetchProtectedFileBlob(filePath) {
+        const fileUrl = this.buildProtectedFileUrl(filePath);
+        if (!fileUrl) {
+            throw new Error('文件路径无效，无法预览');
+        }
+
+        const headers = {};
+        const token = this.getAuthToken();
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(fileUrl, { headers });
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('请先登录后再查看文件');
+            }
+            if (response.status === 403) {
+                throw new Error('无权访问该文件');
+            }
+            if (response.status === 404) {
+                throw new Error('文件不存在或已被删除');
+            }
+            throw new Error(`文件加载失败（${response.status}）`);
+        }
+
+        return response.blob();
     },
 
     renderImagePreview(previewEl, imageUrl, maxWidth = 240) {
@@ -320,17 +357,27 @@ const authSystem = {
             list.innerHTML = '<div class="glass-card" style="padding:20px;">暂无公告数据</div>';
             return;
         }
-        list.innerHTML = data.map(item => `
-            <div class="glass-card" style="padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
-                ${item.image_url ? `<img src="${this.API_BASE}${item.image_url}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;">` : '<div style="width:80px;height:60px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;">📰</div>'}
-                <div style="flex:1;">
-                    <div style="font-weight:bold;">${item.title}</div>
-                    <div style="font-size:12px;color:#666;">${item.type} | ${item.doc_number || '无编号'} | ${item.is_active ? '启用' : '停用'}</div>
+        list.innerHTML = data.map((item) => {
+            const safeId = Number(item.id);
+            if (!Number.isInteger(safeId) || safeId <= 0) return '';
+
+            const safeImage = this.sanitizeRelativeAssetPath(item.image_url || '');
+            const safeTitle = this.escapeHtml(item.title);
+            const safeType = this.escapeHtml(item.type);
+            const safeDocNo = this.escapeHtml(item.doc_number || '无编号');
+
+            return `
+                <div class="glass-card" style="padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
+                    ${safeImage ? `<img src="${this.API_BASE}${safeImage}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;">` : '<div style="width:80px;height:60px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;">📰</div>'}
+                    <div style="flex:1;">
+                        <div style="font-weight:bold;">${safeTitle}</div>
+                        <div style="font-size:12px;color:#666;">${safeType} | ${safeDocNo} | ${item.is_active ? '启用' : '停用'}</div>
+                    </div>
+                    <button onclick="authSystem.fillCmsAnnouncement(${safeId})" style="padding:6px 10px;">编辑</button>
+                    <button onclick="authSystem.deleteCmsAnnouncement(${safeId})" style="padding:6px 10px; color:#e74c3c;">删除</button>
                 </div>
-                <button onclick="authSystem.fillCmsAnnouncement(${item.id})" style="padding:6px 10px;">编辑</button>
-                <button onclick="authSystem.deleteCmsAnnouncement(${item.id})" style="padding:6px 10px; color:#e74c3c;">删除</button>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     },
 
     fillCmsAnnouncement(id) {
@@ -401,17 +448,26 @@ const authSystem = {
             list.innerHTML = '<div class="glass-card" style="padding:20px;">暂无案例数据</div>';
             return;
         }
-        list.innerHTML = data.map(item => `
-            <div class="glass-card" style="padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
-                ${item.thumbnail_url ? `<img src="${this.API_BASE}${item.thumbnail_url}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;">` : '<div style="width:80px;height:60px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;">🏆</div>'}
-                <div style="flex:1;">
-                    <div style="font-weight:bold;">${item.title}</div>
-                    <div style="font-size:12px;color:#666;">${item.trade_data || ''} | ${item.is_active ? '启用' : '停用'}</div>
+        list.innerHTML = data.map((item) => {
+            const safeId = Number(item.id);
+            if (!Number.isInteger(safeId) || safeId <= 0) return '';
+
+            const safeThumb = this.sanitizeRelativeAssetPath(item.thumbnail_url || '');
+            const safeTitle = this.escapeHtml(item.title);
+            const safeTradeData = this.escapeHtml(item.trade_data || '');
+
+            return `
+                <div class="glass-card" style="padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
+                    ${safeThumb ? `<img src="${this.API_BASE}${safeThumb}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;">` : '<div style="width:80px;height:60px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;">🏆</div>'}
+                    <div style="flex:1;">
+                        <div style="font-weight:bold;">${safeTitle}</div>
+                        <div style="font-size:12px;color:#666;">${safeTradeData} | ${item.is_active ? '启用' : '停用'}</div>
+                    </div>
+                    <button onclick="authSystem.fillCmsCase(${safeId})" style="padding:6px 10px;">编辑</button>
+                    <button onclick="authSystem.deleteCmsCase(${safeId})" style="padding:6px 10px; color:#e74c3c;">删除</button>
                 </div>
-                <button onclick="authSystem.fillCmsCase(${item.id})" style="padding:6px 10px;">编辑</button>
-                <button onclick="authSystem.deleteCmsCase(${item.id})" style="padding:6px 10px; color:#e74c3c;">删除</button>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     },
 
     fillCmsCase(id) {
@@ -487,17 +543,26 @@ const authSystem = {
             list.innerHTML = '<div class="glass-card" style="padding:20px;">暂无广告数据</div>';
             return;
         }
-        list.innerHTML = data.map(item => `
-            <div class="glass-card" style="padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
-                ${item.image_url ? `<img src="${this.API_BASE}${item.image_url}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;">` : '<div style="width:80px;height:60px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;">🤝</div>'}
-                <div style="flex:1;">
-                    <div style="font-weight:bold;">${item.title}</div>
-                    <div style="font-size:12px;color:#666;">${item.company_name || ''} | ${item.is_active ? '启用' : '停用'}</div>
+        list.innerHTML = data.map((item) => {
+            const safeId = Number(item.id);
+            if (!Number.isInteger(safeId) || safeId <= 0) return '';
+
+            const safeImage = this.sanitizeRelativeAssetPath(item.image_url || '');
+            const safeTitle = this.escapeHtml(item.title);
+            const safeCompany = this.escapeHtml(item.company_name || '');
+
+            return `
+                <div class="glass-card" style="padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
+                    ${safeImage ? `<img src="${this.API_BASE}${safeImage}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;">` : '<div style="width:80px;height:60px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;">🤝</div>'}
+                    <div style="flex:1;">
+                        <div style="font-weight:bold;">${safeTitle}</div>
+                        <div style="font-size:12px;color:#666;">${safeCompany} | ${item.is_active ? '启用' : '停用'}</div>
+                    </div>
+                    <button onclick="authSystem.fillCmsAd(${safeId})" style="padding:6px 10px;">编辑</button>
+                    <button onclick="authSystem.deleteCmsAd(${safeId})" style="padding:6px 10px; color:#e74c3c;">删除</button>
                 </div>
-                <button onclick="authSystem.fillCmsAd(${item.id})" style="padding:6px 10px;">编辑</button>
-                <button onclick="authSystem.deleteCmsAd(${item.id})" style="padding:6px 10px; color:#e74c3c;">删除</button>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     },
 
     fillCmsAd(id) {
@@ -3728,10 +3793,26 @@ const authSystem = {
                 item.style.cssText = 'position: relative; padding: 8px 12px; background: #e8f5e9; border-radius: 6px; font-size: 12px; display: flex; align-items: center; gap: 6px;';
                 
                 const icon = file.type.includes('image') ? '🖼️' : (file.type.includes('pdf') ? '📄' : '📹');
-                item.innerHTML = `
-                    ${icon} <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${file.name}</span>
-                    <button type="button" onclick="this.parentElement.remove(); document.getElementById('${inputId}').value = '';" style="background: #e74c3c; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; margin-left: 5px;">×</button>
-                `;
+
+                const iconEl = document.createElement('span');
+                iconEl.textContent = icon;
+
+                const nameEl = document.createElement('span');
+                nameEl.style.cssText = 'max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+                nameEl.textContent = file.name;
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.textContent = '×';
+                removeBtn.style.cssText = 'background: #e74c3c; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; margin-left: 5px;';
+                removeBtn.onclick = () => {
+                    item.remove();
+                    input.value = '';
+                };
+
+                item.appendChild(iconEl);
+                item.appendChild(nameEl);
+                item.appendChild(removeBtn);
                 preview.appendChild(item);
             });
         };
@@ -3771,13 +3852,31 @@ const authSystem = {
                     'other': '其他原因'
                 };
                 
+                const currentUserId = Number(this.currentUser?.id);
+
                 listDiv.innerHTML = data.map(item => {
+                    const safeId = Number(item.id);
+                    if (!Number.isInteger(safeId) || safeId <= 0) return '';
+
                     const status = statusLabels[item.status] || statusLabels.pending;
+                    const applicantId = Number(item.applicant_id);
+                    const respondentId = Number(item.respondent_id);
+                    const safeArbitrationNo = this.escapeHtml(item.arbitration_no);
+                    const safeOrderNo = this.escapeHtml(item.order_no);
+                    const safeReason = this.escapeHtml(reasonLabels[item.reason] || item.reason || '');
+                    const safeDescription = this.escapeHtml(item.description);
+                    const safeCreatedAt = this.escapeHtml(item.created_at);
+                    const safePenaltyAmount = Number.isFinite(Number(item.penalty_amount)) ? Number(item.penalty_amount).toString() : '0';
+                    const safePenaltyReason = this.escapeHtml(item.penalty_reason || '');
+                    const safePenaltyPaidAt = this.escapeHtml(item.penalty_paid_at || '');
+                    const safeDecision = this.escapeHtml(item.decision || '');
+                    const safeDecidedAt = this.escapeHtml(item.decided_at || '');
+                    const safeAdminNotes = this.escapeHtml(item.admin_notes || '');
                     
                     // 判断当前用户是否是被罚方
                     const isPenaltyTarget = (
-                        (item.penalty_party === 'applicant' && item.applicant_id === this.currentUser.id) ||
-                        (item.penalty_party === 'respondent' && item.respondent_id === this.currentUser.id)
+                        (item.penalty_party === 'applicant' && Number.isInteger(applicantId) && applicantId === currentUserId) ||
+                        (item.penalty_party === 'respondent' && Number.isInteger(respondentId) && respondentId === currentUserId)
                     );
                     
                     return `
@@ -3785,9 +3884,9 @@ const authSystem = {
                             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
                                 <div>
                                     <h3 style="margin: 0; font-size: 18px;">
-                                        ${status.icon} 仲裁编号：${item.arbitration_no}
+                                        ${status.icon} 仲裁编号：${safeArbitrationNo}
                                     </h3>
-                                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">订单编号：${item.order_no}</p>
+                                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">订单编号：${safeOrderNo}</p>
                                 </div>
                                 <span style="padding: 6px 14px; border-radius: 20px; background: ${status.color}; color: white; font-size: 13px; font-weight: bold;">
                                     ${status.text}
@@ -3795,51 +3894,51 @@ const authSystem = {
                             </div>
                             
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                                <p style="margin: 0 0 8px 0;"><strong>仲裁原因：</strong>${reasonLabels[item.reason] || item.reason}</p>
-                                <p style="margin: 0 0 8px 0;"><strong>详细说明：</strong>${item.description}</p>
-                                <p style="margin: 0;"><strong>提交时间：</strong>${item.created_at}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>仲裁原因：</strong>${safeReason}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>详细说明：</strong>${safeDescription}</p>
+                                <p style="margin: 0;"><strong>提交时间：</strong>${safeCreatedAt}</p>
                             </div>
                             
                             ${item.penalty_status && item.penalty_status !== 'none' && isPenaltyTarget ? `
                                 <div style="background: ${item.penalty_status === 'paid' ? '#e8f5e9' : '#fff3cd'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${item.penalty_status === 'paid' ? '#27ae60' : '#f39c12'}; margin-bottom: 15px;">
                                     <strong style="color: #e74c3c;">💰 罚款通知</strong>
                                     <p style="margin: 8px 0; color: #333;">
-                                        根据仲裁结果，您需要支付罚款：<span style="font-size: 20px; font-weight: bold; color: #e74c3c;">¥${item.penalty_amount}</span>
+                                        根据仲裁结果，您需要支付罚款：<span style="font-size: 20px; font-weight: bold; color: #e74c3c;">¥${safePenaltyAmount}</span>
                                     </p>
-                                    ${item.penalty_reason ? `<p style="margin: 8px 0 0 0; font-size: 13px; color: #666;">罚款原因：${item.penalty_reason}</p>` : ''}
+                                    ${item.penalty_reason ? `<p style="margin: 8px 0 0 0; font-size: 13px; color: #666;">罚款原因：${safePenaltyReason}</p>` : ''}
                                     <p style="margin: 8px 0 0 0; font-size: 13px; color: #666;">
                                         状态：${item.penalty_status === 'pending' ? '<span style="color: #f39c12;">⏳ 待支付</span>' : ''}
                                         ${item.penalty_status === 'paid' ? '<span style="color: #27ae60;">✅ 已支付</span>' : ''}
                                         ${item.penalty_status === 'waived' ? '<span style="color: #95a5a6;">🔓 已豁免</span>' : ''}
                                     </p>
                                     ${item.penalty_status === 'pending' ? `
-                                        <button onclick="authSystem.payPenalty(${item.id})" style="margin-top: 12px; padding: 10px 20px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                        <button onclick="authSystem.payPenalty(${safeId})" style="margin-top: 12px; padding: 10px 20px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
                                             立即支付罚款
                                         </button>
                                     ` : ''}
-                                    ${item.penalty_paid_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">支付时间：${item.penalty_paid_at}</p>` : ''}
+                                    ${item.penalty_paid_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">支付时间：${safePenaltyPaidAt}</p>` : ''}
                                 </div>
                             ` : ''}
                             
                             ${item.status === 'resolved' && item.decision ? `
                                 <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 4px solid #27ae60; margin-bottom: 15px;">
                                     <strong style="color: #27ae60;">✅ 裁决结果：</strong>
-                                    <p style="margin: 8px 0 0 0; color: #333;">${item.decision}</p>
-                                    ${item.decided_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">裁决时间：${item.decided_at}</p>` : ''}
+                                    <p style="margin: 8px 0 0 0; color: #333;">${safeDecision}</p>
+                                    ${item.decided_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">裁决时间：${safeDecidedAt}</p>` : ''}
                                 </div>
                             ` : ''}
                             
                             ${item.status === 'rejected' && item.admin_notes ? `
                                 <div style="background: #ffebee; padding: 15px; border-radius: 8px; border-left: 4px solid #e74c3c;">
                                     <strong style="color: #e74c3c;">❌ 驳回原因：</strong>
-                                    <p style="margin: 8px 0 0 0; color: #333;">${item.admin_notes}</p>
+                                    <p style="margin: 8px 0 0 0; color: #333;">${safeAdminNotes}</p>
                                 </div>
                             ` : ''}
                             
                             ${item.status === 'investigating' && item.admin_notes ? `
                                 <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db;">
                                     <strong style="color: #3498db;">🔍 管理员备注：</strong>
-                                    <p style="margin: 8px 0 0 0; color: #333;">${item.admin_notes}</p>
+                                    <p style="margin: 8px 0 0 0; color: #333;">${safeAdminNotes}</p>
                                 </div>
                             ` : ''}
                         </div>
@@ -4028,16 +4127,38 @@ const authSystem = {
                 };
                 
                 listDiv.innerHTML = data.map(item => {
+                    const safeId = Number(item.id);
+                    if (!Number.isInteger(safeId) || safeId <= 0) return '';
+
                     const status = statusLabels[item.status] || statusLabels.pending;
+                    const evidenceTrade = Array.isArray(item.evidence_trade) ? item.evidence_trade : [];
+                    const evidenceMaterial = Array.isArray(item.evidence_material) ? item.evidence_material : [];
+                    const evidencePayment = Array.isArray(item.evidence_payment) ? item.evidence_payment : [];
+                    const evidenceCommunication = Array.isArray(item.evidence_communication) ? item.evidence_communication : [];
+                    const evidenceOther = Array.isArray(item.evidence_other) ? item.evidence_other : [];
+
+                    const safeArbitrationNo = this.escapeHtml(item.arbitration_no);
+                    const safeApplicantName = this.escapeHtml(item.applicant_name);
+                    const safeApplicantPhone = this.escapeHtml(fuzzPhone(item.applicant_phone));
+                    const safeOrderType = this.escapeHtml(orderTypeLabels[item.order_type] || item.order_type || '');
+                    const safeOrderNo = this.escapeHtml(item.order_no);
+                    const safeReason = this.escapeHtml(reasonLabels[item.reason] || item.reason || '');
+                    const safeDescription = this.escapeHtml(item.description);
+                    const safeCreatedAt = this.escapeHtml(item.created_at);
+                    const safeAdminNotes = this.escapeHtml(item.admin_notes || '');
+                    const safeDecision = this.escapeHtml(item.decision || '');
+                    const safeDecidedAt = this.escapeHtml(item.decided_at || '');
+                    const safeDecidedBy = this.escapeHtml(item.decided_by_name || '管理员');
+
                     return `
-                        <div class="glass-card" onclick="authSystem.showArbitrationDetail(${item.id})" style="padding: 24px; margin-bottom: 20px; cursor: pointer; transition: all 0.3s;">
+                        <div class="glass-card" onclick="authSystem.showArbitrationDetail(${safeId})" style="padding: 24px; margin-bottom: 20px; cursor: pointer; transition: all 0.3s;">
                             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
                                 <div>
                                     <h3 style="margin: 0; font-size: 18px;">
-                                        ${status.icon} 仲裁编号：${item.arbitration_no}
+                                        ${status.icon} 仲裁编号：${safeArbitrationNo}
                                     </h3>
                                     <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">
-                                        申请人：${item.applicant_name} (${fuzzPhone(item.applicant_phone)})
+                                        申请人：${safeApplicantName} (${safeApplicantPhone})
                                     </p>
                                 </div>
                                 <span style="padding: 6px 14px; border-radius: 20px; background: ${status.color}; color: white; font-size: 13px; font-weight: bold;">
@@ -4047,12 +4168,12 @@ const authSystem = {
                             
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                                    <p style="margin: 0;"><strong>订单类型：</strong>${orderTypeLabels[item.order_type] || item.order_type}</p>
-                                    <p style="margin: 0;"><strong>订单编号：</strong>${item.order_no}</p>
+                                    <p style="margin: 0;"><strong>订单类型：</strong>${safeOrderType}</p>
+                                    <p style="margin: 0;"><strong>订单编号：</strong>${safeOrderNo}</p>
                                 </div>
-                                <p style="margin: 0 0 8px 0;"><strong>仲裁原因：</strong>${reasonLabels[item.reason] || item.reason}</p>
-                                <p style="margin: 0 0 8px 0;"><strong>详细说明：</strong>${item.description}</p>
-                                <p style="margin: 0;"><strong>提交时间：</strong>${item.created_at}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>仲裁原因：</strong>${safeReason}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>详细说明：</strong>${safeDescription}</p>
+                                <p style="margin: 0;"><strong>提交时间：</strong>${safeCreatedAt}</p>
                             </div>
                             
                             <!-- 证据材料 -->
@@ -4061,32 +4182,32 @@ const authSystem = {
                                 <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
                                     <div>
                                         <strong>平台交易凭证：</strong>
-                                        <span style="color: ${item.evidence_trade.length > 0 ? '#27ae60' : '#e74c3c'};">
-                                            ${item.evidence_trade.length > 0 ? `✅ ${item.evidence_trade.length}个文件` : '❌ 未提交'}
+                                        <span style="color: ${evidenceTrade.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                            ${evidenceTrade.length > 0 ? `✅ ${evidenceTrade.length}个文件` : '❌ 未提交'}
                                         </span>
                                     </div>
                                     <div>
                                         <strong>废料相关证据：</strong>
-                                        <span style="color: ${item.evidence_material.length > 0 ? '#27ae60' : '#e74c3c'};">
-                                            ${item.evidence_material.length > 0 ? `✅ ${item.evidence_material.length}个文件` : '❌ 未提交'}
+                                        <span style="color: ${evidenceMaterial.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                            ${evidenceMaterial.length > 0 ? `✅ ${evidenceMaterial.length}个文件` : '❌ 未提交'}
                                         </span>
                                     </div>
                                     <div>
                                         <strong>资金往来凭证：</strong>
-                                        <span style="color: ${item.evidence_payment.length > 0 ? '#27ae60' : '#e74c3c'};">
-                                            ${item.evidence_payment.length > 0 ? `✅ ${item.evidence_payment.length}个文件` : '❌ 未提交'}
+                                        <span style="color: ${evidencePayment.length > 0 ? '#27ae60' : '#e74c3c'};">
+                                            ${evidencePayment.length > 0 ? `✅ ${evidencePayment.length}个文件` : '❌ 未提交'}
                                         </span>
                                     </div>
                                     <div>
                                         <strong>沟通记录：</strong>
                                         <span style="color: #666;">
-                                            ${item.evidence_communication.length > 0 ? `📄 ${item.evidence_communication.length}个文件` : '未提交'}
+                                            ${evidenceCommunication.length > 0 ? `📄 ${evidenceCommunication.length}个文件` : '未提交'}
                                         </span>
                                     </div>
                                     <div>
                                         <strong>其他材料：</strong>
                                         <span style="color: #666;">
-                                            ${item.evidence_other.length > 0 ? `📄 ${item.evidence_other.length}个文件` : '未提交'}
+                                            ${evidenceOther.length > 0 ? `📄 ${evidenceOther.length}个文件` : '未提交'}
                                         </span>
                                     </div>
                                 </div>
@@ -4095,15 +4216,15 @@ const authSystem = {
                             ${item.admin_notes ? `
                                 <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; margin-bottom: 15px;">
                                     <strong style="color: #3498db;">📝 管理员备注：</strong>
-                                    <p style="margin: 8px 0 0 0; color: #333;">${item.admin_notes}</p>
+                                    <p style="margin: 8px 0 0 0; color: #333;">${safeAdminNotes}</p>
                                 </div>
                             ` : ''}
                             
                             ${item.decision ? `
                                 <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 4px solid #27ae60; margin-bottom: 15px;">
                                     <strong style="color: #27ae60;">⚖️ 裁决结果：</strong>
-                                    <p style="margin: 8px 0 0 0; color: #333;">${item.decision}</p>
-                                    ${item.decided_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">裁决时间：${item.decided_at} | 裁决人：${item.decided_by_name || '管理员'}</p>` : ''}
+                                    <p style="margin: 8px 0 0 0; color: #333;">${safeDecision}</p>
+                                    ${item.decided_at ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">裁决时间：${safeDecidedAt} | 裁决人：${safeDecidedBy}</p>` : ''}
                                 </div>
                             ` : ''}
                             
@@ -4111,17 +4232,17 @@ const authSystem = {
                             ${item.status === 'pending' || item.status === 'investigating' ? `
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                                     ${item.status === 'pending' ? `
-                                        <button onclick="authSystem.updateArbitrationStatus(${item.id}, 'investigating')" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                        <button onclick="authSystem.updateArbitrationStatus(${safeId}, 'investigating')" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                                             🔍 开始调查
                                         </button>
                                     ` : ''}
-                                    <button onclick="authSystem.resolveArbitration(${item.id})" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                    <button onclick="authSystem.resolveArbitration(${safeId})" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                                         ✅ 做出裁决
                                     </button>
-                                    <button onclick="authSystem.rejectArbitration(${item.id})" style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                    <button onclick="authSystem.rejectArbitration(${safeId})" style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                                         ❌ 驳回申请
                                     </button>
-                                    <button onclick="authSystem.addArbitrationNote(${item.id})" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                    <button onclick="authSystem.addArbitrationNote(${safeId})" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">
                                         📝 添加备注
                                     </button>
                                 </div>
@@ -4254,19 +4375,10 @@ const authSystem = {
                         }
                         
                         const fileName = fileInfo.originalName || fileStr;
-                        const filePath = fileInfo.path;
-                        const safeTitle = String(fileName)
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                            .replace(/"/g, '&quot;')
-                            .replace(/'/g, '&#39;');
-                        const jsSafeName = String(fileName)
-                            .replace(/\\/g, '\\\\')
-                            .replace(/'/g, "\\'");
-                        const jsSafePath = String(filePath || '')
-                            .replace(/\\/g, '\\\\')
-                            .replace(/'/g, "\\'");
+                        const filePath = this.sanitizeRelativeAssetPath(fileInfo.path || '');
+                        const safeTitle = this.escapeHtml(fileName);
+                        const jsSafeName = this.escapeJsSingleQuotedString(fileName);
+                        const jsSafePath = this.escapeJsSingleQuotedString(filePath);
                         const isImage = /\.(jpg|jpeg|png|gif|bmp)$/i.test(fileName);
                         const isPdf = /\.pdf$/i.test(fileName);
                         const isVideo = /\.(mp4|avi|mov)$/i.test(fileName);
@@ -4324,6 +4436,37 @@ const authSystem = {
                 };
                 
                 const status = statusLabels[item.status] || statusLabels.pending;
+                const safeId = Number(item.id);
+                const evidenceTrade = Array.isArray(item.evidence_trade) ? item.evidence_trade : [];
+                const evidenceMaterial = Array.isArray(item.evidence_material) ? item.evidence_material : [];
+                const evidencePayment = Array.isArray(item.evidence_payment) ? item.evidence_payment : [];
+                const evidenceCommunication = Array.isArray(item.evidence_communication) ? item.evidence_communication : [];
+                const evidenceOther = Array.isArray(item.evidence_other) ? item.evidence_other : [];
+
+                const safeArbitrationNo = this.escapeHtml(item.arbitration_no);
+                const safeApplicantName = this.escapeHtml(item.applicant_name);
+                const safeApplicantPhone = this.escapeHtml(fuzzPhone(item.applicant_phone));
+                const safeOrderType = this.escapeHtml(orderTypeLabels[item.order_type] || item.order_type || '');
+                const safeOrderNo = this.escapeHtml(item.order_no);
+                const safeReason = this.escapeHtml(reasonLabels[item.reason] || item.reason || '');
+                const safeCreatedAt = this.escapeHtml(item.created_at);
+                const safeDescription = this.escapeHtml(item.description);
+                const safeAdminNotes = this.escapeHtml(item.admin_notes || '');
+                const safeRespondentName = this.escapeHtml(item.respondent_name || '被申请人');
+                const safePenaltyReason = this.escapeHtml(item.penalty_reason || '');
+                const safePenaltyPaidAt = this.escapeHtml(item.penalty_paid_at || '');
+                const safeDecision = this.escapeHtml(item.decision || '');
+                const safeDecidedAt = this.escapeHtml(item.decided_at || '');
+                const safeDecidedByName = this.escapeHtml(item.decided_by_name || '管理员');
+                const safePenaltyProof = this.sanitizeRelativeAssetPath(item.penalty_proof || '');
+                const safePenaltyProofJs = this.escapeJsSingleQuotedString(safePenaltyProof);
+                const safePenaltyAmount = Number.isFinite(Number(item.penalty_amount)) ? Number(item.penalty_amount).toString() : '0';
+                const safeOrderAmount = Number.isFinite(Number(item.order_amount)) ? Number(item.order_amount) : 0;
+
+                if (!Number.isInteger(safeId) || safeId <= 0) {
+                    container.innerHTML = '<p style="text-align: center; padding: 40px; color: #e74c3c;">仲裁记录 ID 无效</p>';
+                    return;
+                }
                 
                 container.innerHTML = `
                     <div style="animation: fadeIn 0.5s;">
@@ -4341,7 +4484,7 @@ const authSystem = {
                                     <h1 style="margin: 0 0 10px 0; font-size: 24px; color: #2c3e50;">
                                         ${status.icon} 仲裁详情
                                     </h1>
-                                    <p style="margin: 0; font-size: 16px; color: #666;">仲裁编号：${item.arbitration_no}</p>
+                                    <p style="margin: 0; font-size: 16px; color: #666;">仲裁编号：${safeArbitrationNo}</p>
                                 </div>
                                 <span style="padding: 10px 20px; border-radius: 25px; background: ${status.color}; color: white; font-size: 15px; font-weight: bold;">
                                     ${status.text}
@@ -4351,27 +4494,27 @@ const authSystem = {
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8f9fa; padding: 20px; border-radius: 10px;">
                                 <div>
                                     <strong style="color: #555;">申请人：</strong>
-                                    <span>${item.applicant_name}</span>
+                                    <span>${safeApplicantName}</span>
                                 </div>
                                 <div>
                                     <strong style="color: #555;">联系电话：</strong>
-                                    <span>${fuzzPhone(item.applicant_phone)}</span>
+                                    <span>${safeApplicantPhone}</span>
                                 </div>
                                 <div>
                                     <strong style="color: #555;">订单类型：</strong>
-                                    <span>${orderTypeLabels[item.order_type] || item.order_type}</span>
+                                    <span>${safeOrderType}</span>
                                 </div>
                                 <div>
                                     <strong style="color: #555;">订单编号：</strong>
-                                    <span>${item.order_no}</span>
+                                    <span>${safeOrderNo}</span>
                                 </div>
                                 <div>
                                     <strong style="color: #555;">仲裁原因：</strong>
-                                    <span>${reasonLabels[item.reason] || item.reason}</span>
+                                    <span>${safeReason}</span>
                                 </div>
                                 <div>
                                     <strong style="color: #555;">提交时间：</strong>
-                                    <span>${item.created_at}</span>
+                                    <span>${safeCreatedAt}</span>
                                 </div>
                             </div>
                         </div>
@@ -4380,7 +4523,7 @@ const authSystem = {
                         <div class="glass-card" style="padding: 25px; margin-bottom: 25px;">
                             <h3 style="margin: 0 0 15px 0; color: #2c3e50;">📄 详细说明</h3>
                             <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #3498db; line-height: 1.8;">
-                                ${item.description}
+                                ${safeDescription}
                             </div>
                         </div>
                         
@@ -4389,48 +4532,48 @@ const authSystem = {
                             <h3 style="margin: 0 0 20px 0; color: #2c3e50;">📎 提交的证据材料</h3>
                             
                             <!-- 1. 平台交易凭证 -->
-                            <div style="margin-bottom: 20px; background: ${item.evidence_trade.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${item.evidence_trade.length > 0 ? '#27ae60' : '#e74c3c'};">
+                            <div style="margin-bottom: 20px; background: ${evidenceTrade.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${evidenceTrade.length > 0 ? '#27ae60' : '#e74c3c'};">
                                 <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
-                                    ${item.evidence_trade.length > 0 ? '✅' : '❌'} 1. 平台交易凭证 <span style="color: #e74c3c;">*（必须）</span>
+                                    ${evidenceTrade.length > 0 ? '✅' : '❌'} 1. 平台交易凭证 <span style="color: #e74c3c;">*（必须）</span>
                                 </h4>
                                 <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">平台订单、回收报价单、废料交付确认单、平台系统操作日志</p>
-                                ${renderFileList(item.evidence_trade)}
+                                ${renderFileList(evidenceTrade)}
                             </div>
                             
                             <!-- 2. 废料相关证据 -->
-                            <div style="margin-bottom: 20px; background: ${item.evidence_material.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${item.evidence_material.length > 0 ? '#27ae60' : '#e74c3c'};">
+                            <div style="margin-bottom: 20px; background: ${evidenceMaterial.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${evidenceMaterial.length > 0 ? '#27ae60' : '#e74c3c'};">
                                 <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
-                                    ${item.evidence_material.length > 0 ? '✅' : '❌'} 2. 废料相关证据 <span style="color: #e74c3c;">*（必须）</span>
+                                    ${evidenceMaterial.length > 0 ? '✅' : '❌'} 2. 废料相关证据 <span style="color: #e74c3c;">*（必须）</span>
                                 </h4>
                                 <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">新会柑果肉/果渣交付清单、质量检测报告、称重单据、现场照片/视频</p>
-                                ${renderFileList(item.evidence_material)}
+                                ${renderFileList(evidenceMaterial)}
                             </div>
                             
                             <!-- 3. 资金往来凭证 -->
-                            <div style="margin-bottom: 20px; background: ${item.evidence_payment.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${item.evidence_payment.length > 0 ? '#27ae60' : '#e74c3c'};">
+                            <div style="margin-bottom: 20px; background: ${evidencePayment.length > 0 ? '#e8f5e9' : '#ffebee'}; padding: 20px; border-radius: 10px; border-left: 5px solid ${evidencePayment.length > 0 ? '#27ae60' : '#e74c3c'};">
                                 <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
-                                    ${item.evidence_payment.length > 0 ? '✅' : '❌'} 3. 资金往来凭证 <span style="color: #e74c3c;">*（必须）</span>
+                                    ${evidencePayment.length > 0 ? '✅' : '❌'} 3. 资金往来凭证 <span style="color: #e74c3c;">*（必须）</span>
                                 </h4>
                                 <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">转账记录、收款收据、平台结算账单</p>
-                                ${renderFileList(item.evidence_payment)}
+                                ${renderFileList(evidencePayment)}
                             </div>
                             
                             <!-- 4. 沟通记录（可选）-->
-                            <div style="margin-bottom: 20px; background: ${item.evidence_communication.length > 0 ? '#e3f2fd' : '#f8f9fa'}; padding: 20px; border-radius: 10px; border-left: 5px solid #3498db;">
+                            <div style="margin-bottom: 20px; background: ${evidenceCommunication.length > 0 ? '#e3f2fd' : '#f8f9fa'}; padding: 20px; border-radius: 10px; border-left: 5px solid #3498db;">
                                 <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
-                                    ${item.evidence_communication.length > 0 ? '📄' : '📭'} 4. 沟通记录 <span style="color: #3498db;">（可选）</span>
+                                    ${evidenceCommunication.length > 0 ? '📄' : '📭'} 4. 沟通记录 <span style="color: #3498db;">（可选）</span>
                                 </h4>
                                 <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">平台聊天、微信/短信、邮件往来</p>
-                                ${renderFileList(item.evidence_communication)}
+                                ${renderFileList(evidenceCommunication)}
                             </div>
                             
                             <!-- 5. 其他材料（可选）-->
-                            <div style="background: ${item.evidence_other.length > 0 ? '#e3f2fd' : '#f8f9fa'}; padding: 20px; border-radius: 10px; border-left: 5px solid #3498db;">
+                            <div style="background: ${evidenceOther.length > 0 ? '#e3f2fd' : '#f8f9fa'}; padding: 20px; border-radius: 10px; border-left: 5px solid #3498db;">
                                 <h4 style="margin: 0 0 15px 0; color: #2c3e50;">
-                                    ${item.evidence_other.length > 0 ? '📄' : '📭'} 5. 其他材料 <span style="color: #3498db;">（可选）</span>
+                                    ${evidenceOther.length > 0 ? '📄' : '📭'} 5. 其他材料 <span style="color: #3498db;">（可选）</span>
                                 </h4>
                                 <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">平台服务协议、行业标准、损失核算明细</p>
-                                ${renderFileList(item.evidence_other)}
+                                ${renderFileList(evidenceOther)}
                             </div>
                         </div>
                         
@@ -4439,7 +4582,7 @@ const authSystem = {
                             <div class="glass-card" style="padding: 25px; margin-bottom: 25px;">
                                 <h3 style="margin: 0 0 15px 0; color: #2c3e50;">📝 管理员备注</h3>
                                 <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #3498db; line-height: 1.8;">
-                                    ${item.admin_notes}
+                                    ${safeAdminNotes}
                                 </div>
                             </div>
                         ` : ''}
@@ -4450,21 +4593,21 @@ const authSystem = {
                                 <h3 style="margin: 0 0 15px 0; color: #2c3e50;">💰 罚款处罚</h3>
                                 <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid ${item.penalty_status === 'paid' ? '#27ae60' : '#f39c12'};">
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                        <div><strong>被罚方：</strong>${item.penalty_party === 'applicant' ? item.applicant_name + '（申请人）' : (item.respondent_name || '被申请人')}</div>
-                                        <div><strong>罚款金额：</strong><span style="color: #e74c3c; font-size: 18px; font-weight: bold;">¥${item.penalty_amount}</span></div>
-                                        <div><strong>订单金额：</strong>¥${item.order_amount || 0}</div>
+                                        <div><strong>被罚方：</strong>${item.penalty_party === 'applicant' ? `${safeApplicantName}（申请人）` : safeRespondentName}</div>
+                                        <div><strong>罚款金额：</strong><span style="color: #e74c3c; font-size: 18px; font-weight: bold;">¥${safePenaltyAmount}</span></div>
+                                        <div><strong>订单金额：</strong>¥${safeOrderAmount}</div>
                                         <div><strong>罚款状态：</strong>
                                             ${item.penalty_status === 'pending' ? '<span style="color: #f39c12;">⏳ 待支付</span>' : ''}
                                             ${item.penalty_status === 'paid' ? '<span style="color: #27ae60;">✅ 已支付</span>' : ''}
                                             ${item.penalty_status === 'waived' ? '<span style="color: #95a5a6;">🔓 已豁免</span>' : ''}
                                         </div>
                                     </div>
-                                    ${item.penalty_reason ? `<div style="margin-top: 10px;"><strong>罚款原因：</strong>${item.penalty_reason}</div>` : ''}
-                                    ${item.penalty_paid_at ? `<div style="margin-top: 10px;"><strong>支付时间：</strong>${item.penalty_paid_at}</div>` : ''}
-                                    ${item.penalty_proof ? `
+                                    ${item.penalty_reason ? `<div style="margin-top: 10px;"><strong>罚款原因：</strong>${safePenaltyReason}</div>` : ''}
+                                    ${item.penalty_paid_at ? `<div style="margin-top: 10px;"><strong>支付时间：</strong>${safePenaltyPaidAt}</div>` : ''}
+                                    ${safePenaltyProof ? `
                                         <div style="margin-top: 10px;">
                                             <strong>支付凭证：</strong>
-                                            <button onclick="authSystem.viewFile('${item.penalty_proof}', '支付凭证', true)" style="padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                                            <button onclick="authSystem.viewFile('${safePenaltyProofJs}', '支付凭证', true)" style="padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
                                                 查看凭证
                                             </button>
                                         </div>
@@ -4478,11 +4621,11 @@ const authSystem = {
                             <div class="glass-card" style="padding: 25px; margin-bottom: 25px;">
                                 <h3 style="margin: 0 0 15px 0; color: #2c3e50;">⚖️ 裁决结果</h3>
                                 <div style="background: #e8f5e9; padding: 20px; border-radius: 8px; border-left: 4px solid #27ae60; line-height: 1.8;">
-                                    ${item.decision}
+                                    ${safeDecision}
                                 </div>
                                 ${item.decided_at ? `
                                     <p style="margin: 15px 0 0 0; font-size: 13px; color: #666;">
-                                        裁决时间：${item.decided_at} | 裁决人：${item.decided_by_name || '管理员'}
+                                        裁决时间：${safeDecidedAt} | 裁决人：${safeDecidedByName}
                                     </p>
                                 ` : ''}
                             </div>
@@ -4494,20 +4637,20 @@ const authSystem = {
                                 <h3 style="margin: 0 0 20px 0; color: #2c3e50;">🔧 仲裁操作</h3>
                                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                     ${item.status === 'pending' ? `
-                                        <button onclick="authSystem.updateArbitrationStatus(${item.id}, 'investigating'); setTimeout(() => authSystem.showArbitrationDetail(${item.id}), 1000);" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                        <button onclick="authSystem.updateArbitrationStatus(${safeId}, 'investigating'); setTimeout(() => authSystem.showArbitrationDetail(${safeId}), 1000);" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                             🔍 开始调查
                                         </button>
                                     ` : ''}
-                                    <button onclick="authSystem.setPenalty(${item.id}, ${item.order_amount || 0})" style="padding: 12px 24px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                    <button onclick="authSystem.setPenalty(${safeId}, ${safeOrderAmount})" style="padding: 12px 24px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                         💰 设置罚款
                                     </button>
-                                    <button onclick="authSystem.resolveArbitration(${item.id})" style="padding: 12px 24px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                    <button onclick="authSystem.resolveArbitration(${safeId})" style="padding: 12px 24px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                         ✅ 做出裁决
                                     </button>
-                                    <button onclick="authSystem.rejectArbitration(${item.id})" style="padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                    <button onclick="authSystem.rejectArbitration(${safeId})" style="padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                         ❌ 驳回申请
                                     </button>
-                                    <button onclick="authSystem.addArbitrationNote(${item.id})" style="padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                    <button onclick="authSystem.addArbitrationNote(${safeId})" style="padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                         📝 添加备注
                                     </button>
                                 </div>
@@ -4530,21 +4673,30 @@ const authSystem = {
     },
     
     // 查看文件
-    viewFile(filePath, fileName, isImage) {
-        const fileUrl = this.buildProtectedFileUrl(filePath);
-        if (!fileUrl) {
-            this.showAlert('文件路径无效，无法预览', 'error');
+    async viewFile(filePath, fileName, isImage) {
+        let fileBlob;
+        try {
+            fileBlob = await this.fetchProtectedFileBlob(filePath);
+        } catch (err) {
+            this.showAlert(err.message || '文件加载失败', 'error');
             return;
         }
+
+        const blobUrl = URL.createObjectURL(fileBlob);
 
         // 创建模态框显示文件
         const modal = document.createElement('div');
         modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;';
+
+        const cleanupAndRemove = () => {
+            URL.revokeObjectURL(blobUrl);
+            modal.remove();
+        };
         
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '✕ 关闭';
         closeBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; z-index: 10001;';
-        closeBtn.onclick = () => modal.remove();
+        closeBtn.onclick = cleanupAndRemove;
         
         const title = document.createElement('div');
         title.style.cssText = 'position: absolute; top: 20px; left: 20px; color: white; font-size: 18px; font-weight: bold; z-index: 10001; max-width: calc(100% - 180px);';
@@ -4555,7 +4707,7 @@ const authSystem = {
         
         if (isImage) {
             const img = document.createElement('img');
-            img.src = fileUrl;
+            img.src = blobUrl;
             img.style.cssText = 'max-width: 100%; max-height: 70vh; object-fit: contain;';
             img.onerror = () => {
                 contentWrapper.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 40px;">图片加载失败</p>';
@@ -4563,13 +4715,13 @@ const authSystem = {
             contentWrapper.appendChild(img);
         } else if (filePath.endsWith('.pdf')) {
             const iframe = document.createElement('iframe');
-            iframe.src = fileUrl;
+            iframe.src = blobUrl;
             iframe.style.cssText = 'width: 80vw; height: 80vh; border: none;';
             iframe.onerror = () => {
                 contentWrapper.innerHTML = `
                     <div style="text-align: center; padding: 40px;">
                         <p style="color: #e74c3c; margin-bottom: 20px;">PDF预览失败</p>
-                        <a href="${fileUrl}" download="${fileName}" style="padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 8px;">下载文件</a>
+                        <a href="${blobUrl}" download="${fileName}" style="padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 8px;">下载文件</a>
                     </div>
                 `;
             };
@@ -4580,7 +4732,7 @@ const authSystem = {
                 <div style="text-align: center; padding: 40px;">
                     <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
                     <p style="margin-bottom: 20px; color: #666;">暂不支持在线预览此文件类型</p>
-                    <a href="${fileUrl}" download="${fileName}" style="padding: 12px 24px; background: #3498db; color: white; text-decoration: none; border-radius: 8px; display: inline-block;">
+                    <a href="${blobUrl}" download="${fileName}" style="padding: 12px 24px; background: #3498db; color: white; text-decoration: none; border-radius: 8px; display: inline-block;">
                         ⬇️ 下载文件
                     </a>
                 </div>
@@ -4593,7 +4745,7 @@ const authSystem = {
         
         // 点击背景关闭
         modal.onclick = (e) => {
-            if (e.target === modal) modal.remove();
+            if (e.target === modal) cleanupAndRemove();
         };
         
         document.body.appendChild(modal);

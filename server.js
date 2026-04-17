@@ -22,6 +22,19 @@ if (!process.env.JWT_SECRET) {
 }
 const AMAP_WEB_KEY = process.env.AMAP_WEB_KEY || '';
 
+function resolveBcryptRounds(value) {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 8 && parsed <= 14) {
+        return parsed;
+    }
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+        console.warn(`[Security] BCRYPT_ROUNDS 配置无效（${value}），已回退默认值 10`);
+    }
+    return 10;
+}
+
+const BCRYPT_ROUNDS = resolveBcryptRounds(process.env.BCRYPT_ROUNDS);
+
 const DB_PATH = path.join(__dirname, 'data', 'agri.db');
 const SCHEMA_SQL = path.join(__dirname, 'db', 'schema.sql');
 
@@ -114,6 +127,14 @@ function canManageIntentionTarget(db, targetType, targetId, actorId, callback) {
     });
 }
 
+function normalizeRoleInput(role) {
+    return String(role || '').trim().toLowerCase();
+}
+
+function isPrivilegedRole(role) {
+    return normalizeRoleInput(role) === 'admin';
+}
+
 function runSqlFromFile(db, filePath) {
     const sql = fs.readFileSync(filePath, 'utf8');
     return new Promise((resolve, reject) => {
@@ -192,7 +213,7 @@ async function initDb() {
                 });
             });
 
-            const hash = bcrypt.hashSync(u.password, 8);
+            const hash = bcrypt.hashSync(u.password, BCRYPT_ROUNDS);
             await new Promise((res, rej) => {
                 db.run(`INSERT OR IGNORE INTO users(username,password_hash,role_id,full_name) VALUES(?,?,?,?)`, [u.username, hash, roleId, u.full_name], (err) => {
                     if (err) console.error('seed user error', err);
@@ -509,13 +530,10 @@ function createMagicValidator(allowedExts) {
 const validateArbitrationUploadMagic = createMagicValidator(['jpeg', 'jpg', 'png', 'pdf', 'doc', 'docx', 'mp4', 'avi']);
 const validateCmsUploadMagic = createMagicValidator(['jpeg', 'jpg', 'png']);
 
-function getTokenFromRequest(req) {
+function getBearerTokenFromRequest(req) {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         return authHeader.split(' ')[1];
-    }
-    if (req.query && typeof req.query.token === 'string') {
-        return req.query.token;
     }
     return null;
 }
@@ -527,7 +545,7 @@ function verifyArbitrationFileAccess(req, res, next) {
         return res.status(400).json({ error: '非法文件名' });
     }
 
-    const token = getTokenFromRequest(req);
+    const token = getBearerTokenFromRequest(req);
     if (!token) {
         return res.status(401).json({ error: '访问文件需要登录' });
     }
@@ -580,15 +598,40 @@ function verifyArbitrationFileAccess(req, res, next) {
     );
 }
 
-// 提供静态文件（HTML、CSS、JS等）
-app.use(express.static(path.join(__dirname)));
-// 仅公开 CMS 素材，不公开仲裁证据目录
-app.use('/uploads/cms', express.static(path.join(__dirname, 'uploads', 'cms')));
+// 仅公开白名单根资源，避免暴露 server/db/docs 等敏感目录。
+const PUBLIC_ROOT_FILE_MAP = {
+    '/': 'index.html',
+    '/index.html': 'index.html',
+    '/farmer-nearby-recyclers': 'farmer-nearby-recyclers.html',
+    '/farmer-nearby-recyclers.html': 'farmer-nearby-recyclers.html',
+    '/privacy-policy.html': 'privacy-policy.html',
+    '/service-agreement.html': 'service-agreement.html',
+    '/auth.js': 'auth.js',
+    '/main_code.js': 'main_code.js',
+    '/userProfile.js': 'userProfile.js',
+};
 
-// 仲裁证据文件必须通过 token + 归属校验后访问
+app.get(Object.keys(PUBLIC_ROOT_FILE_MAP), (req, res) => {
+    const mappedFile = PUBLIC_ROOT_FILE_MAP[req.path];
+    if (!mappedFile) {
+        return res.status(404).send('Not Found');
+    }
+    return res.sendFile(path.join(__dirname, mappedFile));
+});
+
+// 仲裁证据文件必须通过 token + 归属校验后访问。
+// 路由需在静态资源中间件之前，防止被静态直出绕过。
 app.get('/uploads/arbitration/:filename', verifyArbitrationFileAccess, (req, res) => {
     return res.sendFile(req.secureFilePath);
 });
+
+// 仅公开构建产物与 CMS 素材，不公开项目根目录。
+app.use('/dist', express.static(path.join(__dirname, 'dist'), {
+    dotfiles: 'deny',
+}));
+app.use('/uploads/cms', express.static(path.join(__dirname, 'uploads', 'cms'), {
+    dotfiles: 'deny',
+}));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -627,6 +670,18 @@ app.get('/api/me', (req, res) => {
 });
 
 app.post('/init', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ error: '生产环境禁用初始化接口' });
+    }
+
+    const configuredKey = process.env.INIT_API_KEY;
+    if (configuredKey) {
+        const requestKey = req.get('x-init-key') || '';
+        if (requestKey !== configuredKey) {
+            return res.status(403).json({ error: '初始化密钥无效' });
+        }
+    }
+
     try {
         await initDb();
         res.json({ ok: true });
@@ -689,6 +744,12 @@ app.post('/api/auth/request-otp', otpLimiter, async (req, res) => {
                                 res.json({ success: true });
                             } catch (smsErr) {
                                 console.error('SMS send error', smsErr.message);
+                                const cleanupDb = openDb();
+                                cleanupDb.run(
+                                    `DELETE FROM otp_store WHERE phone = ? AND code = ?`,
+                                    [phone, code],
+                                    () => cleanupDb.close()
+                                );
                                 res.status(500).json({ error: '验证码发送失败，请稍后重试' });
                             }
                         }
@@ -705,12 +766,14 @@ app.post('/api/auth/request-otp', otpLimiter, async (req, res) => {
 // Phone + OTP registration
 app.post('/api/auth/register-phone', registerLimiter, (req, res) => {
     const { phone, otp, password, role, full_name, agreementAccepted } = req.body;
+    const requestedRole = normalizeRoleInput(role);
 
     if (!agreementAccepted) return res.status(400).json({ error: '请先勾选协议' });
     if (!isValidPhone(phone)) return res.status(400).json({ error: '手机号格式不正确' });
     if (!otp) return res.status(400).json({ error: '缺少验证码' });
     if (!isValidPassword(password)) return res.status(400).json({ error: '密码需8-16位，包含数字和字母' });
-    if (!role) return res.status(400).json({ error: '请选择身份' });
+    if (!requestedRole) return res.status(400).json({ error: '请选择身份' });
+    if (isPrivilegedRole(requestedRole)) return res.status(403).json({ error: '不允许自助注册管理员账号' });
 
     // SEC-007: Query OTP from database
     const db = openDb();
@@ -753,11 +816,11 @@ app.post('/api/auth/register-phone', registerLimiter, (req, res) => {
             db.run(`DELETE FROM otp_store WHERE id = ?`, [record.id]);
 
             // Proceed with registration
-            db.get(`SELECT id FROM roles WHERE name = ?`, [role], (err2, roleRow) => {
+            db.get(`SELECT id FROM roles WHERE name = ? AND name <> 'admin'`, [requestedRole], (err2, roleRow) => {
                 if (err2) { db.close(); return res.status(500).json({ error: err2.message }); }
                 if (!roleRow) { db.close(); return res.status(400).json({ error: '无效的身份' }); }
 
-                const hash = bcrypt.hashSync(password, 10);
+                const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
                 const username = phone;
 
                 db.run(`INSERT INTO users(username,password_hash,role_id,full_name,phone) VALUES(?,?,?,?,?)`, [username, hash, roleRow.id, full_name || null, phone], function(err3) {
@@ -769,7 +832,7 @@ app.post('/api/auth/register-phone', registerLimiter, (req, res) => {
                         return res.status(500).json({ error: err3.message });
                     }
                     
-                    const userPayload = { id: this.lastID, username, phone, role, full_name: full_name || null };
+                    const userPayload = { id: this.lastID, username, phone, role: requestedRole, full_name: full_name || null };
                     const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });
                     
                     res.json({ ...userPayload, token });
@@ -782,20 +845,22 @@ app.post('/api/auth/register-phone', registerLimiter, (req, res) => {
 // Register
 app.post('/api/register', registerLimiter, (req, res) => {
     const { username, password, role, full_name } = req.body;
-    if (!username || !password || !role) return res.status(400).json({ error: 'missing fields' });
+    const requestedRole = normalizeRoleInput(role);
+    if (!username || !password || !requestedRole) return res.status(400).json({ error: 'missing fields' });
     if (!isValidPassword(password)) return res.status(400).json({ error: '密码需8-16位，包含数字和字母' });
+    if (isPrivilegedRole(requestedRole)) return res.status(403).json({ error: '不允许自助注册管理员账号' });
 
     const db = openDb();
-    db.get(`SELECT id FROM roles WHERE name = ?`, [role], (err, row) => {
+    db.get(`SELECT id FROM roles WHERE name = ? AND name <> 'admin'`, [requestedRole], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(400).json({ error: 'invalid role' });
 
-        const hash = bcrypt.hashSync(password, 10);
+        const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
         db.run(`INSERT INTO users(username,password_hash,role_id,full_name) VALUES(?,?,?,?)`, [username, hash, row.id, full_name || null], function(err2) {
             db.close();
             if (err2) return res.status(500).json({ error: err2.message });
             
-            const userPayload = { id: this.lastID, username, role, full_name: full_name || null };
+            const userPayload = { id: this.lastID, username, role: requestedRole, full_name: full_name || null };
             const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });
             
             res.json({ ...userPayload, token });
@@ -812,10 +877,10 @@ app.post('/api/login', loginLimiter, (req, res) => {
     db.get(`SELECT u.id,u.username,u.phone,u.password_hash,u.full_name,r.name as role FROM users u JOIN roles r ON u.role_id=r.id WHERE u.username = ? OR u.phone = ?`, [username, username], (err, row) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(401).json({ error: '用户不存在' });
+        if (!row) return res.status(401).json({ error: '用户名或密码错误' });
 
         const ok = bcrypt.compareSync(password, row.password_hash);
-        if (!ok) return res.status(401).json({ error: '密码错误' });
+        if (!ok) return res.status(401).json({ error: '用户名或密码错误' });
 
         const userPayload = { id: row.id, username: row.username, phone: row.phone, full_name: row.full_name, role: row.role };
         const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });
@@ -847,6 +912,11 @@ app.post('/api/auth/refresh', (req, res) => {
     } catch (err) {
         return res.status(401).json({ error: 'Token 无效或已过期，请重新登录' });
     }
+});
+
+// Stateless JWT logout endpoint for client-side session cleanup flow.
+app.post('/api/auth/logout', (req, res) => {
+    return res.json({ success: true, message: 'logged out' });
 });
 
 // Create order
@@ -1892,14 +1962,25 @@ app.post('/api/processor-requests/:id/accept', (req, res) => {
     db.get(`SELECT * FROM processor_requests WHERE id = ?`, [req.params.id], (err, row) => {
         if (err) { db.close(); return res.status(500).json({ error: err.message }); }
         if (!row) { db.close(); return res.status(404).json({ error: '求购信息不存在' }); }
+        if (row.status !== 'active') { db.close(); return res.status(400).json({ error: '仅可接单处于 active 状态的求购信息' }); }
+        if (row.valid_until && new Date(row.valid_until) < new Date()) { db.close(); return res.status(400).json({ error: '该求购信息已过期，无法接单' }); }
         if (row.recycler_id) { db.close(); return res.status(400).json({ error: '该订单已被其他回收商接单' }); }
-        
-        db.run(`UPDATE processor_requests SET recycler_id = ?, updated_at = datetime('now') WHERE id = ?`,
+
+        // 使用条件更新降低并发下重复接单风险
+        db.run(
+            `UPDATE processor_requests
+             SET recycler_id = ?, updated_at = datetime('now')
+             WHERE id = ?
+               AND recycler_id IS NULL
+               AND status = 'active'
+               AND (valid_until IS NULL OR valid_until >= date('now'))`,
             [parsedRecyclerId, req.params.id], function(err) {
                 db.close();
                 if (err) return res.status(500).json({ error: err.message });
+                if (this.changes === 0) return res.status(409).json({ error: '该订单状态已变化，请刷新后重试' });
                 res.json({ success: true });
-            });
+            }
+        );
     });
 });
 
@@ -2469,8 +2550,42 @@ function updatePenalty(db, id, penalty_party, penalty_amount, penalty_reason, or
     });
 }
 
+function verifyPenaltyPaymentAccess(req, res, next) {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    // 管理员保留代付排障能力，具体 payer_id 在处理函数内再次校验。
+    if (isAdmin(req)) return next();
+
+    const arbitrationId = toPositiveInt(req.params.id);
+    if (!arbitrationId) return res.status(400).json({ error: '仲裁ID无效' });
+
+    const db = openDb();
+    db.get(
+        `SELECT id, penalty_party, penalty_status, applicant_id, respondent_id
+         FROM arbitration_requests
+         WHERE id = ?`,
+        [arbitrationId],
+        (err, row) => {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: '仲裁记录不存在' });
+            if (row.penalty_status !== 'pending') {
+                return res.status(400).json({ error: '该罚款不需要支付或已支付' });
+            }
+
+            const canPay =
+                (row.penalty_party === 'applicant' && toPositiveInt(row.applicant_id) === actorId) ||
+                (row.penalty_party === 'respondent' && toPositiveInt(row.respondent_id) === actorId);
+            if (!canPay) return res.status(403).json({ error: '您不是被罚方，无法支付罚款' });
+
+            return next();
+        }
+    );
+}
+
 // Pay penalty (用户支付罚款)
-app.post('/api/arbitration-requests/:id/pay-penalty', upload.single('proof'), validateArbitrationUploadMagic, (req, res) => {
+app.post('/api/arbitration-requests/:id/pay-penalty', verifyPenaltyPaymentAccess, upload.single('proof'), validateArbitrationUploadMagic, (req, res) => {
     const { id } = req.params;
     const { user_id } = req.body;
 
@@ -2673,9 +2788,27 @@ app.patch('/api/intentions/:id/status', (req, res) => {
         if (err) { db.close(); return res.status(500).json({ code: 500, msg: err.message, data: null }); }
         if (!intention) { db.close(); return res.status(404).json({ code: 404, msg: '意向记录不存在', data: null }); }
 
+        if (status === 'accepted') {
+            if (intention.status === 'accepted') {
+                db.close();
+                return res.status(409).json({ code: 409, msg: '该意向已被接受，请勿重复操作', data: null });
+            }
+            if (intention.status !== 'pending') {
+                db.close();
+                return res.status(400).json({ code: 400, msg: '仅待处理意向可执行接受操作', data: null });
+            }
+        } else if (intention.status === 'accepted') {
+            db.close();
+            return res.status(400).json({ code: 400, msg: '已接受的意向不可再修改状态', data: null });
+        }
+
         const continueUpdate = () => {
             // 若不是接受操作，直接更新状态即可
             if (status !== 'accepted') {
+                if (status === intention.status) {
+                    db.close();
+                    return res.json({ code: 200, msg: '状态未变化', data: null });
+                }
                 db.run(`UPDATE intentions SET status = ? WHERE id = ?`, [status, id], function(e2) {
                     db.close();
                     if (e2) return res.status(500).json({ code: 500, msg: e2.message, data: null });
@@ -2775,6 +2908,19 @@ const PORT = process.env.PORT || 4000;
 // 自动迁移：每次启动都执行，确保新表存在
 async function runMigrations() {
     const db = openDb();
+    const run = (sql, params = []) => new Promise((resolve, reject) => {
+        db.run(sql, params, (err) => {
+            if (err) return reject(err);
+            resolve();
+        });
+    });
+    const all = (sql, params = []) => new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows || []);
+        });
+    });
+
     const migrations = [
         `CREATE TABLE IF NOT EXISTS intentions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2791,13 +2937,38 @@ async function runMigrations() {
             created_at DATETIME DEFAULT (datetime('now', 'localtime'))
         )`
     ];
-    for (const sql of migrations) {
-        await new Promise((resolve, reject) => {
-            db.run(sql, (err) => { if (err) reject(err); else resolve(); });
-        });
+
+    try {
+        for (const sql of migrations) {
+            await run(sql);
+        }
+
+        // BUG-001/BUG-002 兼容迁移：修正 processor_requests 历史字段差异
+        const processorCols = await all(`PRAGMA table_info(processor_requests)`);
+        if (processorCols.length > 0) {
+            const colSet = new Set(processorCols.map(c => c.name));
+
+            if (!colSet.has('citrus_variety') && colSet.has('citrus_type')) {
+                await run(`ALTER TABLE processor_requests ADD COLUMN citrus_variety TEXT`);
+                await run(`UPDATE processor_requests SET citrus_variety = citrus_type WHERE citrus_variety IS NULL OR citrus_variety = ''`);
+            }
+
+            if (!colSet.has('address') && colSet.has('location_address')) {
+                await run(`ALTER TABLE processor_requests ADD COLUMN address TEXT`);
+                await run(`UPDATE processor_requests SET address = location_address WHERE address IS NULL OR address = ''`);
+            }
+
+            if (!colSet.has('recycler_id')) {
+                await run(`ALTER TABLE processor_requests ADD COLUMN recycler_id INTEGER`);
+            }
+
+            await run(`CREATE INDEX IF NOT EXISTS idx_processor_requests_recycler ON processor_requests(recycler_id)`);
+        }
+
+        console.log('[migrations] Done');
+    } finally {
+        db.close();
     }
-    db.close();
-    console.log('[migrations] Done');
 }
 
 if (require.main === module) {

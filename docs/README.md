@@ -59,7 +59,7 @@
 *   **数据库 (Database)**:
     *   SQLite3 (轻量级关系型数据库，使用 `sqlite3` 驱动)
 *   **第三方服务 (Third-party Services)**:
-    *   阿里云短信服务 (Aliyun SMS) - *当前为 Mock 实现 (`smsClient.js`)*
+    *   阿里云短信服务 (Aliyun SMS) - 生产环境真实发送，开发环境可按配置降级 Mock (`smsClient.js`)
 
 ---
 
@@ -72,7 +72,7 @@
 ├── index.html              # 平台主页与登录/注册入口
 ├── farmer-nearby-recyclers.html # 农户端：附近处理点地图与列表视图
 ├── server.js               # 后端核心：Express 服务器、API 接口、Socket.IO 逻辑
-├── smsClient.js            # 阿里云短信发送模块 (当前为 Mock)
+├── smsClient.js            # 阿里云短信发送模块 (支持真实发送与开发降级)
 ├── package.json            # 项目依赖与 npm 脚本
 ├── data/                   # SQLite 数据库文件存储目录
 │   └── agri.db             # 运行时生成的数据库文件
@@ -93,7 +93,7 @@
 ## 🚧 当前开发状态 (Current Project Status)
 
 **✅ 已完成并正常工作的功能：**
-*   基于手机号+验证码（Mock）的注册与基于密码的登录系统。
+*   基于手机号+验证码（支持阿里云真实发送）的注册与基于密码的登录系统。
 *   基于角色的动态前端路由与工作台渲染 (`auth.js`)。
 *   完整的 SQLite 数据库 Schema，包含用户、订单、申报、求购、仲裁、CMS 等表结构。
 *   基于 Haversine 公式的附近处理点查询 API (`/api/recyclers/nearby`) 及前端地图展示。
@@ -102,7 +102,7 @@
 *   CMS 内容管理系统的增删改查与图片上传。
 
 **⚠️ 待完善或缺失的功能 (Incomplete/Missing)：**
-*   **短信网关**：`smsClient.js` 目前仅在控制台打印验证码，需接入真实的阿里云 SDK 凭证。
+*   **短信网关配置**：生产部署需配置阿里云凭证与签名模板（`SMS_PROVIDER=aliyun`），否则验证码发送会失败。
 *   **支付系统**：目前订单金额与仲裁罚款仅为数据库记录，尚未接入微信/支付宝等真实支付网关。
 *   **部分前端页面占位**：`main_code.js` 中部分未实现的菜单点击会显示 "正在开发中..."。
 *   **地理围栏 (Geofences)**：数据库中存在 `geofences` 表，但后端 API 尚未实现相关的业务逻辑。

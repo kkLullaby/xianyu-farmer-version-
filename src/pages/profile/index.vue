@@ -118,8 +118,10 @@ const ROLE_WALLET_MAP = {
   admin: { balance: '0.00', pendingAmount: '0.00' }
 };
 
+const normalizeClientRole = (role) => (role === 'recycler' ? 'merchant' : role);
+
 const applyUserInfo = (me) => {
-  const role = me.role || 'farmer';
+  const role = normalizeClientRole(me.role || 'farmer');
   const wallet = ROLE_WALLET_MAP[role] || ROLE_WALLET_MAP.farmer;
   userInfo.value = {
     avatar: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
@@ -136,10 +138,11 @@ const syncProfileFromServer = async () => {
   try {
     const me = await request.get('/api/me');
     if (!me || !me.role) return;
-    uni.setStorageSync('current_role', me.role);
+    const normalizedRole = normalizeClientRole(me.role);
+    uni.setStorageSync('current_role', normalizedRole);
     uni.setStorageSync('current_user_name', me.full_name || me.username || '用户');
     uni.setStorageSync('current_user_phone', me.phone || '');
-    applyUserInfo(me);
+    applyUserInfo({ ...me, role: normalizedRole });
   } catch (e) {
     // request.js 已统一处理 401 跳转，这里仅兜底
     console.warn('[Profile] syncProfileFromServer failed', e);
@@ -178,9 +181,17 @@ const handleLogout = () => {
   uni.showModal({
     title: '提示',
     content: '确定要退出登录吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        uni.clearStorageSync();
+        try {
+          await request.post('/api/auth/logout', {});
+        } catch (e) {
+          // 忽略登出接口异常，继续本地清理
+        }
+        uni.removeStorageSync('agri_auth_token');
+        uni.removeStorageSync('current_role');
+        uni.removeStorageSync('current_user_name');
+        uni.removeStorageSync('current_user_phone');
         uni.reLaunch({
           url: '/pages/login/index'
         });

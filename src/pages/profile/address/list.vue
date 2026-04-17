@@ -48,8 +48,10 @@
 <script setup>
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import { syncSessionFromServer } from '@/utils/session';
 
 const addressList = ref([]);
+const currentRole = ref('');
 
 const initSeedData = () => {
   const existing = uni.getStorageSync('global_addresses');
@@ -84,11 +86,20 @@ const initSeedData = () => {
   }
 };
 
-onShow(() => {
-  initSeedData();
-  const currentRole = uni.getStorageSync('current_role') || 'farmer';
+const reloadAddressList = () => {
   const allAddresses = uni.getStorageSync('global_addresses') || [];
-  addressList.value = allAddresses.filter(a => a.role === currentRole);
+  addressList.value = allAddresses.filter(a => a.role === currentRole.value);
+};
+
+onShow(async () => {
+  initSeedData();
+  try {
+    const me = await syncSessionFromServer();
+    currentRole.value = me.role;
+    reloadAddressList();
+  } catch (e) {
+    console.warn('[AddressList] syncSessionFromServer failed', e);
+  }
 });
 
 const goAddAddress = () => {
@@ -101,16 +112,20 @@ const editAddress = (item) => {
 };
 
 const setDefault = (item) => {
-  const currentRole = uni.getStorageSync('current_role') || 'farmer';
+  if (!currentRole.value) {
+    uni.showToast({ title: '请先登录', icon: 'none' });
+    return;
+  }
+
   let allAddresses = uni.getStorageSync('global_addresses') || [];
   allAddresses = allAddresses.map(a => {
-    if (a.role === currentRole) {
+    if (a.role === currentRole.value) {
       a.is_default = (a.id === item.id);
     }
     return a;
   });
   uni.setStorageSync('global_addresses', allAddresses);
-  addressList.value = allAddresses.filter(a => a.role === currentRole);
+  addressList.value = allAddresses.filter(a => a.role === currentRole.value);
   uni.showToast({ title: '已设为默认', icon: 'success' });
 };
 
@@ -123,8 +138,7 @@ const deleteAddress = (item) => {
         let allAddresses = uni.getStorageSync('global_addresses') || [];
         allAddresses = allAddresses.filter(a => a.id !== item.id);
         uni.setStorageSync('global_addresses', allAddresses);
-        const currentRole = uni.getStorageSync('current_role') || 'farmer';
-        addressList.value = allAddresses.filter(a => a.role === currentRole);
+        addressList.value = allAddresses.filter(a => a.role === currentRole.value);
         uni.showToast({ title: '已删除', icon: 'success' });
       }
     }

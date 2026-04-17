@@ -43,10 +43,27 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const userInfo = ref({
   name: '测试管理员',
   role: 'admin'
+});
+
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'admin', false)) {
+      uni.showToast({ title: '仅管理员可访问该页面', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+
+    userInfo.value.role = me.role;
+    userInfo.value.name = me.full_name || me.username || '管理员';
+  } catch (e) {
+    console.warn('[AdminDashboard] syncSessionFromServer failed', e);
+  }
 });
 
 const navigateTo = (url) => {
