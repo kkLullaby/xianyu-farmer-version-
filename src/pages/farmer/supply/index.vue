@@ -31,11 +31,11 @@
           </view>
           <view class="info-row">
             <text class="label">需求重量：</text>
-            <text class="value highlight">{{ item.weight }} 吨</text>
+            <text class="value highlight">{{ item.weight }} 斤</text>
           </view>
           <view class="info-row">
             <text class="label">收购单价：</text>
-            <text class="value price">¥ {{ item.price }}/吨</text>
+            <text class="value price">{{ item.price > 0 ? `¥ ${item.price}/斤` : '待协商' }}</text>
           </view>
           <view class="info-row">
             <text class="label">运输方式：</text>
@@ -91,77 +91,50 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
 
 const currentTab = ref(0);
 const showPopup = ref(false);
 const popupItem = ref({});
 const intentionForm = ref({ price: '', weight: '', date: '' });
 
-const fuzzPhone = (phone) => {
-  if (!phone) return '***';
-  return String(phone).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
-};
-
 const fuzzName = (name) => {
   if (!name) return '***处理厂';
   return name.charAt(0) + '氏处理厂';
 };
 
-const originalMockList = [
-  {
-    id: 'SUP-MOCK-001',
-    buyer_name: '新会生物科技处理厂',
-    variety: '柑肉原料',
-    weight: 50,
-    price: 300,
-    has_transport: true,
-    phone: '07506688999',
-    deadline: '2026-04-01',
-    description: '急需大量新鲜柑肉原料，要求无霉变，提供专业运输车辆上门拉货。'
-  },
-  {
-    id: 'SUP-MOCK-002',
-    buyer_name: '绿源有机肥加工中心',
-    variety: '果渣/废果',
-    weight: 20,
-    price: 150,
-    has_transport: false,
-    phone: '13800138000',
-    deadline: '2026-03-30',
-    description: '长期收购加工后的果渣，需农户自行送货至双水镇加工点。'
-  },
-  {
-    id: 'SUP-MOCK-003',
-    buyer_name: '陈皮村深加工基地',
-    variety: '陈皮原料',
-    weight: 10,
-    price: 800,
-    has_transport: true,
-    phone: '13900139000',
-    deadline: '2026-04-15',
-    description: '高价收购优质二红皮原料，品质要求高，现场结款。'
-  }
-];
-
 const demandList = ref([]);
 
-onShow(() => {
-  const globalList = uni.getStorageSync('global_demand_list') || [];
-  const processorDemands = globalList
-    .filter(i => i._role === 'processor')
-    .map(item => ({
-      id: item.id,
-      buyer_name: item.submitter || '处理商',
-      variety: item.goods_type || item.variety || '柑肉原料',
-      weight: item.weight || 0,
-      price: item.price || 0,
-      has_transport: item.has_transport || false,
-      phone: item.contact_phone || '',
-      deadline: item.deadline || item.create_time || '',
-      description: item.description || ''
-    }));
-  demandList.value = [...processorDemands, ...originalMockList];
+const citrusTypeLabels = {
+  mandarin: '柑橘',
+  orange: '橙子',
+  pomelo: '柚子',
+  tangerine: '橘子',
+  any: '不限种类',
+};
+
+const normalizeDemand = (item = {}) => ({
+  id: item.id,
+  request_no: item.request_no || '',
+  buyer_name: item.processor_name || '处理商',
+  variety: citrusTypeLabels[item.citrus_type] || item.citrus_type || '柑肉原料',
+  weight: Number(item.weight_kg || 0),
+  price: Number(item.price || 0),
+  has_transport: Number(item.has_transport || 0) === 1,
+  deadline: item.valid_until || '长期有效',
+  description: item.notes || '',
 });
+
+const loadDemands = async () => {
+  try {
+    const rows = await request.get('/api/processor-requests?for_farmers=true');
+    demandList.value = Array.isArray(rows) ? rows.map(normalizeDemand) : [];
+  } catch (err) {
+    demandList.value = [];
+  }
+};
+
+onShow(loadDemands);
 
 const filteredList = computed(() => {
   let list = [...demandList.value];
@@ -183,7 +156,7 @@ const closePopup = () => {
   showPopup.value = false;
 };
 
-const submitIntention = () => {
+const submitIntention = async () => {
   if (!intentionForm.value.price) {
     uni.showToast({ title: '请填写报价', icon: 'none' });
     return;
@@ -192,23 +165,21 @@ const submitIntention = () => {
     uni.showToast({ title: '请填写预估重量', icon: 'none' });
     return;
   }
-  const intention = {
-    id: 'INT' + Date.now(),
-    target_merchant_id: popupItem.value.id,
-    target_name: popupItem.value.buyer_name,
-    sender_name: uni.getStorageSync('current_user_name') || '农户用户',
-    sender_phone: uni.getStorageSync('current_user_phone') || '13800000000',
-    price: intentionForm.value.price,
-    weight: intentionForm.value.weight,
-    date: intentionForm.value.date,
-    status: 'pending',
-    create_time: new Date().toLocaleString('zh-CN')
-  };
-  const list = uni.getStorageSync('global_intentions') || [];
-  list.push(intention);
-  uni.setStorageSync('global_intentions', list);
-  showPopup.value = false;
-  uni.showToast({ title: '意向已发送', icon: 'success' });
+  try {
+    await request.post('/api/intentions', {
+      target_type: 'processor_request',
+      target_id: popupItem.value.id,
+      target_no: popupItem.value.request_no || '',
+      target_name: popupItem.value.buyer_name || '处理商求购',
+      estimated_weight: Number(intentionForm.value.weight),
+      expected_date: intentionForm.value.date || null,
+      notes: `农户报价：${intentionForm.value.price} 元/斤`,
+    });
+    showPopup.value = false;
+    uni.showToast({ title: '意向已发送', icon: 'success' });
+  } catch (err) {
+    // request.js 已统一提示
+  }
 };
 </script>
 

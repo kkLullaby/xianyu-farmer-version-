@@ -282,6 +282,20 @@ CREATE INDEX IF NOT EXISTS idx_arbitration_applicant ON arbitration_requests(app
 CREATE INDEX IF NOT EXISTS idx_arbitration_status ON arbitration_requests(status);
 CREATE INDEX IF NOT EXISTS idx_arbitration_order ON arbitration_requests(order_type, order_id);
 
+-- Structured evidence references for arbitration files
+CREATE TABLE IF NOT EXISTS arbitration_file_refs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    arbitration_id INTEGER NOT NULL,
+    file_group TEXT NOT NULL,               -- evidence_trade / evidence_material / evidence_payment / evidence_communication / evidence_other / penalty_proof
+    file_path TEXT NOT NULL,                -- normalized path: /uploads/arbitration/<filename>
+    created_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY(arbitration_id) REFERENCES arbitration_requests(id) ON DELETE CASCADE,
+    UNIQUE(arbitration_id, file_group, file_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_arb_file_refs_arbitration ON arbitration_file_refs(arbitration_id);
+CREATE INDEX IF NOT EXISTS idx_arb_file_refs_path ON arbitration_file_refs(file_path);
+
 -- ============ 首页内容管理表 ============
 
 -- 公告/政策表

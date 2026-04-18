@@ -71,14 +71,35 @@ const request = (options = {}) => {
           return;
         }
 
-        // Handle Business status codes (Standard JSON: { code, msg, data })
-        if (data && data.code === 200) {
-          resolve(data.data);
-        } else {
-          const errorMsg = (data && data.msg) || '请求失败';
-          uni.showToast({ title: errorMsg, icon: 'none' });
-          reject(new Error(errorMsg));
+        // Support both envelope mode ({ code, msg, data }) and plain JSON payload.
+        if (statusCode >= 200 && statusCode < 300) {
+          if (data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'code')) {
+            if (Number(data.code) === 200) {
+              resolve(data.data);
+            } else {
+              const errorMsg = data.msg || data.error || data.message || '请求失败';
+              uni.showToast({ title: errorMsg, icon: 'none' });
+              reject(new Error(errorMsg));
+            }
+            return;
+          }
+
+          if (data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'success')) {
+            if (data.success === false) {
+              const errorMsg = data.msg || data.error || data.message || '请求失败';
+              uni.showToast({ title: errorMsg, icon: 'none' });
+              reject(new Error(errorMsg));
+              return;
+            }
+          }
+
+          resolve(data);
+          return;
         }
+
+        const errorMsg = (data && (data.msg || data.error || data.message)) || '请求失败';
+        uni.showToast({ title: errorMsg, icon: 'none' });
+        reject(new Error(errorMsg));
       },
       fail: (err) => {
         // Network errors, timeout, etc.

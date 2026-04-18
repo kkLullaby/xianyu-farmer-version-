@@ -21,7 +21,7 @@
     <view class="list-container">
       <view class="report-card" v-for="(item, index) in reportList" :key="item.id">
         <view class="card-header">
-          <text class="report-no">单号：{{ item.id }}</text>
+          <text class="report-no">单号：{{ item.report_no || ('ID-' + item.id) }}</text>
           <text class="status-badge" :class="getStatusClass(item.status)">
             {{ getStatusText(item.status) }}
           </text>
@@ -72,56 +72,50 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
-
-// Mock Data
-const originalMockList = [
-  {
-    id: 'RPT-20240315-001',
-    pickup_date: '2024-03-20',
-    weight: 500,
-    goods_type: '新会柑',
-    address: '新会区三江镇xx村果园A区',
-    status: 'pending', // pending, approved, rejected, draft
-    create_time: '2024-03-15 10:30'
-  },
-  {
-    id: 'RPT-20240310-005',
-    pickup_date: '2024-03-12',
-    weight: 1200,
-    goods_type: '茶枝柑',
-    address: '新会区双水镇处理中心旁',
-    status: 'approved',
-    create_time: '2024-03-10 14:20'
-  },
-  {
-    id: 'RPT-20240301-002',
-    pickup_date: '2024-03-05',
-    weight: 300,
-    goods_type: '新会柑',
-    address: '新会区会城街道果园',
-    status: 'draft',
-    create_time: '2024-03-01 09:15'
-  }
-];
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
 
 const reportList = ref([]);
 
-onShow(() => {
-  const globalList = uni.getStorageSync('global_report_list') || [];
-  reportList.value = [...globalList, ...originalMockList];
+const normalizeReport = (row = {}) => ({
+  id: row.id,
+  report_no: row.report_no || '',
+  pickup_date: row.pickup_date || '',
+  weight: Number(row.weight_kg || 0),
+  goods_type: row.citrus_variety || '未填写',
+  address: row.location_address || '未填写',
+  status: row.status || 'pending',
+  create_time: row.created_at || '',
+});
+
+const loadReports = async () => {
+  try {
+    const rows = await request.get('/api/farmer-reports');
+    reportList.value = Array.isArray(rows) ? rows.map(normalizeReport) : [];
+  } catch (err) {
+    reportList.value = [];
+  }
+};
+
+onShow(loadReports);
+
+onPullDownRefresh(async () => {
+  await loadReports();
+  uni.stopPullDownRefresh();
 });
 
 const acceptedCount = computed(() => {
-  return reportList.value.filter(item => item.status === 'approved').length;
+  return reportList.value.filter((item) => item.status === 'accepted' || item.status === 'completed').length;
 });
 
 // Helper Methods
 const getStatusText = (status) => {
   const map = {
     'pending': '待处理',
-    'approved': '已通过',
+    'accepted': '已受理',
+    'completed': '已完成',
     'rejected': '已驳回',
+    'cancelled': '已取消',
     'draft': '草稿'
   };
   return map[status] || status;
@@ -140,13 +134,15 @@ const deleteReport = (id) => {
   uni.showModal({
     title: '确认删除',
     content: '确定要删除这条申报记录吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        reportList.value = reportList.value.filter(item => item.id !== id);
-        uni.showToast({
-          title: '已删除',
-          icon: 'success'
-        });
+        try {
+          await request.delete(`/api/farmer-reports/${id}`);
+          await loadReports();
+          uni.showToast({ title: '已删除', icon: 'success' });
+        } catch (err) {
+          // request.js 已统一提示，这里避免重复弹窗
+        }
       }
     }
   });
@@ -259,6 +255,8 @@ const navigateToCreate = () => {
 .status-accepted { background: #E3F2FD; color: #1565C0; }
 .status-completed { background: #E8F5E9; color: #2E7D32; }
 .status-draft { background: #F5F5F5; color: #999; }
+.status-rejected { background: #FFEBEE; color: #C62828; }
+.status-cancelled { background: #ECEFF1; color: #546E7A; }
 
 .card-body {
   margin-bottom: 24rpx;

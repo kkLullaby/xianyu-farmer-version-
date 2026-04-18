@@ -65,55 +65,47 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
 
 const tabs = ['全部', '待接单', '进行中', '已完成'];
 const currentTab = ref(0);
 
-// Mock Data
-const orders = ref([
-  {
-    id: 1,
-    order_no: 'ORD-20240320-001',
-    farmer_name: '张三',
-    variety: '新会柑',
-    weight: 500,
-    address: '新会区三江镇xx村',
-    status: '待接单',
-    created_at: '2024-03-20 10:00'
-  },
-  {
-    id: 2,
-    order_no: 'ORD-20240319-005',
-    farmer_name: '李四',
-    variety: '茶枝柑',
-    weight: 1200,
-    address: '新会区双水镇xx果园',
-    status: '进行中',
-    created_at: '2024-03-19 14:30'
-  },
-  {
-    id: 3,
-    order_no: 'ORD-20240318-002',
-    farmer_name: '王五',
-    variety: '新会柑',
-    weight: 800,
-    address: '新会区会城街道',
-    status: '已完成',
-    created_at: '2024-03-18 09:15'
-  }
-]);
+const statusMap = {
+  pending_ship: '待接单',
+  shipped: '进行中',
+  completed: '已完成',
+  pending: '待接单',
+  accepted: '进行中',
+};
 
-onShow(() => {
-  const stored = uni.getStorageSync('global_order_list') || [];
-  if (stored.length > 0) {
-    orders.value = stored;
-  }
+const orders = ref([]);
+
+const normalizeOrder = (item = {}) => ({
+  id: item.id,
+  order_no: item.order_no || '',
+  farmer_name: item.farmer_full_name || item.farmer_username || `农户#${item.farmer_id || ''}`,
+  variety: '柑橘果肉',
+  weight: Number(item.weight_kg || 0),
+  address: item.location_name || item.location_address || '待确认',
+  status: statusMap[item.status] || item.status || '待接单',
+  created_at: item.created_at || '',
 });
+
+const loadOrders = async () => {
+  try {
+    const rows = await request.get('/api/orders');
+    orders.value = Array.isArray(rows) ? rows.map(normalizeOrder) : [];
+  } catch (err) {
+    orders.value = [];
+  }
+};
+
+onShow(loadOrders);
 
 const filteredOrders = computed(() => {
   if (currentTab.value === 0) return orders.value;
-  const statusMap = ['全部', '待接单', '进行中', '已完成'];
-  return orders.value.filter(item => item.status === statusMap[currentTab.value]);
+  const tabStatusMap = ['全部', '待接单', '进行中', '已完成'];
+  return orders.value.filter(item => item.status === tabStatusMap[currentTab.value]);
 });
 
 const goToDetail = (id) => {

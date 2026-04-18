@@ -116,6 +116,7 @@ import request from '@/utils/request.js';
 
 const order = ref({
   id: '',
+  backend_status: '',
   order_no: '',
   farmer_name: '',
   farmer_phone: '',
@@ -130,6 +131,60 @@ const order = ref({
   expected_delivery: '',
   created_at: '',
   timeline: []
+});
+
+const merchantStatusMap = {
+  pending_ship: '待接单',
+  shipped: '进行中',
+  completed: '已完成',
+  pending: '待接单',
+  accepted: '进行中',
+};
+
+const toDisplayTime = (value) => {
+  if (!value) return '—';
+  return String(value).replace('T', ' ').replace(/\.\d+Z$/, '');
+};
+
+const buildTimeline = (raw = {}) => {
+  const timeline = [
+    { time: toDisplayTime(raw.created_at), desc: '订单创建，等待回收商接单' },
+  ];
+
+  if (raw.status === 'shipped' || raw.status === 'accepted' || raw.status === 'completed') {
+    timeline.unshift({
+      time: toDisplayTime(raw.updated_at || raw.created_at),
+      desc: '回收商已接单，安排取货中',
+    });
+  }
+
+  if (raw.status === 'completed') {
+    timeline.unshift({
+      time: toDisplayTime(raw.updated_at || raw.created_at),
+      desc: '回收商已完成取货，订单结束',
+    });
+  }
+
+  return timeline;
+};
+
+const normalizeOrder = (raw = {}) => ({
+  id: raw.id,
+  backend_status: raw.status || '',
+  order_no: raw.order_no || '',
+  farmer_name: raw.farmer_full_name || raw.farmer_username || `农户#${raw.farmer_id || ''}`,
+  farmer_phone: raw.farmer_phone || '',
+  address: raw.location_name || raw.location_address || '待确认',
+  variety: '柑橘果肉',
+  weight: Number(raw.weight_kg || 0),
+  unit_price: Number(raw.price_per_kg || 0),
+  total_price: Number(raw.total_price || (Number(raw.weight_kg || 0) * Number(raw.price_per_kg || 0))).toFixed(2),
+  status: merchantStatusMap[raw.status] || raw.status || '待接单',
+  logistics_no: raw.logistics_no || '',
+  logistics_company: raw.logistics_company || '',
+  expected_delivery: raw.expected_delivery || '待确认',
+  created_at: toDisplayTime(raw.created_at),
+  timeline: buildTimeline(raw),
 });
 
 const statusKey = computed(() => {
@@ -152,57 +207,22 @@ const statusTip = computed(() => {
 });
 
 const fetchOrderDetail = async (id) => {
-  const stored = uni.getStorageSync('global_order_list') || [];
-  const found = stored.find(o => String(o.id) === String(id) || o.order_no === id);
-  if (found) {
-    order.value = { ...order.value, ...found };
-    return;
-  }
   try {
-    const res = await request({ url: `/api/merchant/orders/${id}`, method: 'GET' });
-    // ✅ request.js 已剥壳 { code, msg, data }，res 直接就是 order 数据对象
-    if (res) {
-      order.value = res;
-    } else {
-      useMockData(id);
-    }
+    const res = await request.get(`/api/orders/${id}`);
+    order.value = normalizeOrder(res || {});
   } catch (e) {
-    useMockData(id);
+    uni.showToast({ title: '订单详情加载失败', icon: 'none' });
   }
 };
 
-const persistOrderStatus = (newStatus, timelineDesc) => {
-  const stored = uni.getStorageSync('global_order_list') || [];
-  const idx = stored.findIndex(o => String(o.id) === String(order.value.id) || o.order_no === order.value.order_no);
-  if (idx !== -1) {
-    stored[idx].status = newStatus;
-    stored[idx].timeline = stored[idx].timeline || [];
-    stored[idx].timeline.unshift({ time: new Date().toLocaleString('zh-CN').replace(/\//g, '-'), desc: timelineDesc });
-    uni.setStorageSync('global_order_list', stored);
+const updateOrderStatus = async (nextStatus, successText) => {
+  try {
+    await request.patch(`/api/orders/${order.value.id}/status`, { status: nextStatus });
+    await fetchOrderDetail(order.value.id);
+    uni.showToast({ title: successText, icon: 'success' });
+  } catch (e) {
+    // request.js 已统一提示
   }
-};
-
-const useMockData = (id) => {
-  order.value = {
-    id: id,
-    order_no: 'ORD-20240320-' + String(id).padStart(3, '0'),
-    farmer_name: '张三',
-    farmer_phone: '13800138001',
-    address: '广东省江门市新会区三江镇银洲大道88号',
-    variety: '新会柑',
-    weight: 500,
-    unit_price: 0.8,
-    total_price: 400,
-    status: '进行中',
-    logistics_no: 'SF1234567890',
-    logistics_company: '顺丰速运',
-    expected_delivery: '2024-03-22',
-    created_at: '2024-03-20 10:00',
-    timeline: [
-      { time: '2024-03-20 10:00', desc: '订单创建，等待回收商接单' },
-      { time: '2024-03-20 10:35', desc: '回收商已接单，安排取货中' }
-    ]
-  };
 };
 
 onLoad((options) => {
@@ -224,14 +244,9 @@ const handleConfirmReceive = () => {
   uni.showModal({
     title: '确认接单',
     content: '确认接收此订单并安排取货？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        const desc = '回收商已接单，安排取货中';
-        order.value.status = '进行中';
-        order.value.timeline = order.value.timeline || [];
-        order.value.timeline.unshift({ time: new Date().toLocaleString('zh-CN').replace(/\//g, '-'), desc });
-        persistOrderStatus('进行中', desc);
-        uni.showToast({ title: '接单成功', icon: 'success' });
+        await updateOrderStatus('shipped', '接单成功');
       }
     }
   });
@@ -241,14 +256,9 @@ const handleConfirmShip = () => {
   uni.showModal({
     title: '确认取货',
     content: '确认已完成取货？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        const desc = '回收商已完成取货，订单结束';
-        order.value.status = '已完成';
-        order.value.timeline = order.value.timeline || [];
-        order.value.timeline.unshift({ time: new Date().toLocaleString('zh-CN').replace(/\//g, '-'), desc });
-        persistOrderStatus('已完成', desc);
-        uni.showToast({ title: '取货确认成功', icon: 'success' });
+        await updateOrderStatus('completed', '取货确认成功');
       }
     }
   });

@@ -80,6 +80,30 @@ function ensureSelfOrAdmin(req, targetId) {
     return !!actorId && !!parsedTarget && actorId === parsedTarget;
 }
 
+function maskPhone(phone) {
+    const value = String(phone || '').trim();
+    if (!value) return '';
+    return value.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+}
+
+function isTargetUnderActiveArbitration(db, targetType, targetId, callback) {
+    const parsedTargetId = toPositiveInt(targetId);
+    if (!parsedTargetId || !targetType) return callback(null, false);
+
+    db.get(
+        `SELECT id FROM arbitration_requests
+         WHERE order_type = ?
+           AND order_id = ?
+           AND status IN ('pending', 'investigating')
+         LIMIT 1`,
+        [targetType, parsedTargetId],
+        (err, row) => {
+            if (err) return callback(err, false);
+            return callback(null, !!row);
+        }
+    );
+}
+
 function isRecyclerActor(req) {
     return !!(req && req.user && (req.user.role === 'recycler' || req.user.role === 'merchant'));
 }
@@ -538,6 +562,148 @@ function getBearerTokenFromRequest(req) {
     return null;
 }
 
+function normalizeArbitrationFilePath(candidate) {
+    const marker = '/uploads/arbitration/';
+    const value = String(candidate || '').trim().replace(/\\/g, '/');
+    if (!value) return '';
+
+    const markerIndex = value.indexOf(marker);
+    if (markerIndex === -1) return '';
+
+    const tail = value.slice(markerIndex + marker.length);
+    const filename = path.basename(tail);
+    if (!filename || filename === '.' || filename === '..') return '';
+
+    return `${marker}${filename}`;
+}
+
+function parseJsonArraySafely(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw !== 'string') return [];
+
+    const text = raw.trim();
+    if (!text) return [];
+
+    try {
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+        return [];
+    }
+}
+
+function extractArbitrationFilePath(entry) {
+    if (!entry) return '';
+
+    if (typeof entry === 'string') {
+        const trimmed = entry.trim();
+        if (!trimmed) return '';
+
+        try {
+            const parsed = JSON.parse(trimmed);
+            return extractArbitrationFilePath(parsed);
+        } catch (err) {
+            return normalizeArbitrationFilePath(trimmed);
+        }
+    }
+
+    if (Array.isArray(entry)) {
+        for (const item of entry) {
+            const filePath = extractArbitrationFilePath(item);
+            if (filePath) return filePath;
+        }
+        return '';
+    }
+
+    if (typeof entry === 'object') {
+        const candidates = [
+            entry.path,
+            entry.url,
+            entry.filePath,
+            entry.filename ? `/uploads/arbitration/${entry.filename}` : '',
+        ];
+
+        for (const candidate of candidates) {
+            const normalized = normalizeArbitrationFilePath(candidate);
+            if (normalized) return normalized;
+        }
+    }
+
+    return '';
+}
+
+function collectArbitrationFileRefs(source = {}) {
+    const refs = [];
+    const seen = new Set();
+
+    const pushRef = (fileGroup, entry) => {
+        const filePath = extractArbitrationFilePath(entry);
+        if (!filePath) return;
+
+        const key = `${fileGroup}|${filePath}`;
+        if (seen.has(key)) return;
+
+        seen.add(key);
+        refs.push({ file_group: fileGroup, file_path: filePath });
+    };
+
+    const parseEvidenceGroup = (fileGroup, raw) => {
+        const list = Array.isArray(raw) ? raw : parseJsonArraySafely(raw);
+        list.forEach((entry) => pushRef(fileGroup, entry));
+    };
+
+    parseEvidenceGroup('evidence_trade', source.evidence_trade);
+    parseEvidenceGroup('evidence_material', source.evidence_material);
+    parseEvidenceGroup('evidence_payment', source.evidence_payment);
+    parseEvidenceGroup('evidence_communication', source.evidence_communication);
+    parseEvidenceGroup('evidence_other', source.evidence_other);
+    pushRef('penalty_proof', source.penalty_proof);
+
+    return refs;
+}
+
+function saveArbitrationFileRefs(db, arbitrationId, refs, callback) {
+    const parsedArbitrationId = toPositiveInt(arbitrationId);
+    if (!parsedArbitrationId) {
+        return callback(new Error('仲裁ID无效'));
+    }
+
+    const seen = new Set();
+    const normalizedRefs = [];
+
+    (Array.isArray(refs) ? refs : []).forEach((ref) => {
+        const fileGroup = String(ref && ref.file_group ? ref.file_group : '').trim();
+        const filePath = normalizeArbitrationFilePath(ref && ref.file_path ? ref.file_path : '');
+        if (!fileGroup || !filePath) return;
+
+        const key = `${fileGroup}|${filePath}`;
+        if (seen.has(key)) return;
+
+        seen.add(key);
+        normalizedRefs.push({ file_group: fileGroup, file_path: filePath });
+    });
+
+    if (normalizedRefs.length === 0) return callback(null);
+
+    let idx = 0;
+    const insertNext = () => {
+        if (idx >= normalizedRefs.length) return callback(null);
+
+        const ref = normalizedRefs[idx++];
+        db.run(
+            `INSERT OR IGNORE INTO arbitration_file_refs (arbitration_id, file_group, file_path)
+             VALUES (?, ?, ?)`,
+            [parsedArbitrationId, ref.file_group, ref.file_path],
+            (err) => {
+                if (err) return callback(err);
+                return insertNext();
+            }
+        );
+    };
+
+    insertNext();
+}
+
 function verifyArbitrationFileAccess(req, res, next) {
     const rawName = String(req.params.filename || '').trim();
     const safeName = path.basename(rawName);
@@ -572,22 +738,16 @@ function verifyArbitrationFileAccess(req, res, next) {
         return next();
     }
 
-    const fileRef = `/uploads/arbitration/${safeName}`;
-    const likePattern = `%${fileRef}%`;
+        const fileRef = `/uploads/arbitration/${safeName}`;
     const db = openDb();
     db.get(
-        `SELECT id FROM arbitration_requests
-         WHERE (applicant_id = ? OR respondent_id = ?)
-           AND (
-             penalty_proof LIKE ? OR
-             evidence_trade LIKE ? OR
-             evidence_material LIKE ? OR
-             evidence_payment LIKE ? OR
-             evidence_communication LIKE ? OR
-             evidence_other LIKE ?
-           )
+                `SELECT ar.id
+                 FROM arbitration_file_refs afr
+                 JOIN arbitration_requests ar ON ar.id = afr.arbitration_id
+                 WHERE afr.file_path = ?
+                     AND (ar.applicant_id = ? OR ar.respondent_id = ?)
          LIMIT 1`,
-        [actorId, actorId, likePattern, likePattern, likePattern, likePattern, likePattern, likePattern],
+                [fileRef, actorId, actorId],
         (err, row) => {
             db.close();
             if (err) return res.status(500).json({ error: err.message });
@@ -955,7 +1115,21 @@ app.get('/api/orders', (req, res) => {
     if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
 
     const db = openDb();
-    let q = `SELECT o.*, u.username as farmer_username, r.username as recycler_username FROM orders o LEFT JOIN users u ON o.farmer_id=u.id LEFT JOIN users r ON o.recycler_id=r.id`;
+    let q = `SELECT o.*, 
+                u.username as farmer_username,
+                u.full_name as farmer_full_name,
+                u.phone as farmer_phone,
+                r.username as recycler_username,
+                r.full_name as recycler_full_name,
+                r.phone as recycler_phone,
+                loc.name as location_name,
+                loc.address as location_address,
+                loc.latitude as location_lat,
+                loc.longitude as location_lng
+             FROM orders o
+             LEFT JOIN users u ON o.farmer_id = u.id
+             LEFT JOIN users r ON o.recycler_id = r.id
+             LEFT JOIN locations loc ON o.location_id = loc.id`;
     const params = [];
     const conditions = [];
 
@@ -976,12 +1150,140 @@ app.get('/api/orders', (req, res) => {
 
     if (status) { conditions.push('o.status = ?'); params.push(status); }
     if (conditions.length) q += ' WHERE ' + conditions.join(' AND ');
+    q += ' ORDER BY o.created_at DESC';
 
     db.all(q, params, (err, rows) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
+});
+
+// Get single order detail
+app.get('/api/orders/:id', (req, res, next) => {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    if (String(req.params.id || '').trim() === 'nearby') {
+        return next();
+    }
+
+    const idOrNo = String(req.params.id || '').trim();
+    if (!idOrNo) return res.status(400).json({ error: '缺少订单标识' });
+
+    const db = openDb();
+    db.get(
+        `SELECT o.*,
+                u.username as farmer_username,
+                u.full_name as farmer_full_name,
+                u.phone as farmer_phone,
+                r.username as recycler_username,
+                r.full_name as recycler_full_name,
+                r.phone as recycler_phone,
+                loc.name as location_name,
+                loc.address as location_address,
+                loc.latitude as location_lat,
+                loc.longitude as location_lng
+         FROM orders o
+         LEFT JOIN users u ON o.farmer_id = u.id
+         LEFT JOIN users r ON o.recycler_id = r.id
+         LEFT JOIN locations loc ON o.location_id = loc.id
+         WHERE o.id = ? OR o.order_no = ?
+         LIMIT 1`,
+        [idOrNo, idOrNo],
+        (err, row) => {
+            db.close();
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: '订单不存在' });
+
+            if (!isAdmin(req)) {
+                if (req.user.role === 'farmer') {
+                    if (toPositiveInt(row.farmer_id) !== actorId) {
+                        return res.status(403).json({ error: '无权查看该订单' });
+                    }
+                } else if (req.user.role === 'recycler' || req.user.role === 'merchant' || req.user.role === 'processor') {
+                    if (toPositiveInt(row.recycler_id) !== actorId) {
+                        return res.status(403).json({ error: '无权查看该订单' });
+                    }
+                } else {
+                    return res.status(403).json({ error: '当前角色无权查看订单' });
+                }
+            }
+
+            return res.json(row);
+        }
+    );
+});
+
+// Update order status
+app.patch('/api/orders/:id/status', (req, res) => {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const idOrNo = String(req.params.id || '').trim();
+    const nextStatus = String(req.body && req.body.status ? req.body.status : '').trim();
+    const note = String(req.body && req.body.note ? req.body.note : '').trim();
+    const allowedStatuses = new Set(['pending', 'accepted', 'pending_ship', 'shipped', 'completed', 'cancelled']);
+
+    if (!idOrNo) return res.status(400).json({ error: '缺少订单标识' });
+    if (!allowedStatuses.has(nextStatus)) {
+        return res.status(400).json({ error: '无效状态值' });
+    }
+
+    const db = openDb();
+    db.get(
+        `SELECT id, farmer_id, recycler_id, status, order_no
+         FROM orders
+         WHERE id = ? OR order_no = ?
+         LIMIT 1`,
+        [idOrNo, idOrNo],
+        (err, row) => {
+            if (err) {
+                db.close();
+                return res.status(500).json({ error: err.message });
+            }
+            if (!row) {
+                db.close();
+                return res.status(404).json({ error: '订单不存在' });
+            }
+
+            if (!isAdmin(req)) {
+                const actorCanUpdate = (req.user.role === 'recycler' || req.user.role === 'merchant' || req.user.role === 'processor')
+                    && toPositiveInt(row.recycler_id) === actorId;
+                if (!actorCanUpdate) {
+                    db.close();
+                    return res.status(403).json({ error: '当前账号无权更新该订单状态' });
+                }
+            }
+
+            db.run(
+                `UPDATE orders
+                 SET status = ?, updated_at = datetime('now')
+                 WHERE id = ?`,
+                [nextStatus, row.id],
+                function(updateErr) {
+                    if (updateErr) {
+                        db.close();
+                        return res.status(500).json({ error: updateErr.message });
+                    }
+                    if (this.changes === 0) {
+                        db.close();
+                        return res.status(404).json({ error: '订单不存在或状态未更新' });
+                    }
+
+                    db.run(
+                        `INSERT INTO order_status_history (order_id, status, note)
+                         VALUES (?, ?, ?)`,
+                        [row.id, nextStatus, note || null],
+                        () => {
+                            db.close();
+                            return res.json({ success: true, id: row.id, order_no: row.order_no, status: nextStatus });
+                        }
+                    );
+                }
+            );
+        }
+    );
 });
 
 // Nearby orders by location (simple bounding box)
@@ -1051,7 +1353,7 @@ app.get('/api/recyclers/nearby', (req, res) => {
                     return {
                         id: r.id,
                         name: r.full_name || r.username,
-                        phone: r.phone,
+                        phone: isAdmin(req) ? (r.phone || '') : maskPhone(r.phone),
                         address: meta.address || '未提供地址',
                         businessHours: meta.business_hours || '营业时间未知',
                         latitude: meta.latitude,
@@ -1214,6 +1516,9 @@ app.get('/api/farmer-reports/:id', (req, res) => {
 // Get all published reports for recyclers (农户供应列表)
 app.get('/api/farmer-supplies', (req, res) => {
     const { sort_by, recycler_lat, recycler_lng } = req.query;
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
     const db = openDb();
     
     db.all(`SELECT fr.*, u.full_name as farmer_name, u.phone as farmer_phone
@@ -1224,13 +1529,21 @@ app.get('/api/farmer-supplies', (req, res) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
         
-        let results = rows.map(r => ({
-            ...r,
-            photo_urls: JSON.parse(r.photo_urls || '[]'),
-            distance: (recycler_lat && recycler_lng && r.location_lat && r.location_lng) 
-                ? calculateDistance(parseFloat(recycler_lat), parseFloat(recycler_lng), r.location_lat, r.location_lng)
-                : null
-        }));
+        let results = rows.map((r) => {
+            const ownFarmer = toPositiveInt(r.farmer_id) === actorId;
+            const ownRecycler = toPositiveInt(r.recycler_id) === actorId;
+            const canViewFullPhone = isAdmin(req) || ownFarmer || ownRecycler;
+
+            return {
+                ...r,
+                farmer_phone: canViewFullPhone ? (r.farmer_phone || '') : maskPhone(r.farmer_phone),
+                contact_phone: canViewFullPhone ? (r.contact_phone || '') : maskPhone(r.contact_phone),
+                photo_urls: JSON.parse(r.photo_urls || '[]'),
+                distance: (recycler_lat && recycler_lng && r.location_lat && r.location_lng)
+                    ? calculateDistance(parseFloat(recycler_lat), parseFloat(recycler_lng), r.location_lat, r.location_lng)
+                    : null
+            };
+        });
         
         // Sort based on sort_by parameter
         if (sort_by === 'distance' && recycler_lat && recycler_lng) {
@@ -1296,10 +1609,17 @@ app.get('/api/recycler-supplies', (req, res) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
         
-        const results = rows.map(r => ({
-            ...r,
-            photo_urls: JSON.parse(r.photo_urls || '[]')
-        }));
+        const results = rows.map((r) => {
+            const ownRecycler = toPositiveInt(r.recycler_id) === actorId;
+            const canViewFullPhone = isAdmin(req) || ownRecycler;
+
+            return {
+                ...r,
+                recycler_phone: canViewFullPhone ? (r.recycler_phone || '') : maskPhone(r.recycler_phone),
+                contact_phone: canViewFullPhone ? (r.contact_phone || '') : maskPhone(r.contact_phone),
+                photo_urls: JSON.parse(r.photo_urls || '[]')
+            };
+        });
         res.json(results);
     });
 });
@@ -1384,29 +1704,39 @@ app.patch('/api/farmer-reports/:id/status', (req, res) => {
     }
 
     const db = openDb();
-    
-    let q = `UPDATE farmer_reports SET status = ?, updated_at = datetime('now')`;
-    const params = [status];
-
-    if (recycler_id !== undefined) {
-        q += `, recycler_id = ?`;
-        params.push(parsedRecyclerId);
-    }
-    
-    q += ` WHERE id = ?`;
-    params.push(req.params.id);
-
-    if (!isAdmin(req)) {
-        q += ` AND (farmer_id = ? OR recycler_id = ?)`;
-        params.push(actorId, actorId);
-    }
-
-    db.run(q, params, function(err) {
+    isTargetUnderActiveArbitration(db, 'farmer_report', req.params.id, (lockErr, locked) => {
+        if (lockErr) {
             db.close();
-            if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: '申报不存在' });
-            res.json({ success: true });
-        });
+            return res.status(500).json({ error: lockErr.message });
+        }
+        if (locked) {
+            db.close();
+            return res.status(409).json({ error: '仲裁处理中，相关订单已冻结，暂不可变更状态' });
+        }
+
+        let q = `UPDATE farmer_reports SET status = ?, updated_at = datetime('now')`;
+        const params = [status];
+
+        if (recycler_id !== undefined) {
+            q += `, recycler_id = ?`;
+            params.push(parsedRecyclerId);
+        }
+
+        q += ` WHERE id = ?`;
+        params.push(req.params.id);
+
+        if (!isAdmin(req)) {
+            q += ` AND (farmer_id = ? OR recycler_id = ?)`;
+            params.push(actorId, actorId);
+        }
+
+        db.run(q, params, function(err) {
+                db.close();
+                if (err) return res.status(500).json({ error: err.message });
+                if (this.changes === 0) return res.status(404).json({ error: '申报不存在' });
+                res.json({ success: true });
+            });
+    });
 });
 
 // Accept report - recycler accepts a farmer's report
@@ -1451,23 +1781,35 @@ app.post('/api/farmer-reports/:id/accept', (req, res) => {
             db.close();
             return res.status(404).json({ error: '申报不存在' });
         }
-        if (report.status !== 'pending') {
-            db.close();
-            return res.status(400).json({ error: '该订单已被接受或已完成' });
-        }
-        
-        // SEC-003: 避免动态字段拼接，固定使用参数化 SQL
-        db.run(
-            `UPDATE farmer_reports
-             SET status = 'accepted', recycler_id = ?, updated_at = datetime('now')
-             WHERE id = ?`,
-            [parsedRecyclerId, reportId],
-            function(err2) {
+
+        isTargetUnderActiveArbitration(db, 'farmer_report', reportId, (lockErr, locked) => {
+            if (lockErr) {
                 db.close();
-                if (err2) return res.status(500).json({ error: err2.message });
-                return res.json({ success: true, message: '订单接受成功' });
+                return res.status(500).json({ error: lockErr.message });
             }
-        );
+            if (locked) {
+                db.close();
+                return res.status(409).json({ error: '仲裁处理中，相关订单已冻结，暂不可接单' });
+            }
+
+            if (report.status !== 'pending') {
+                db.close();
+                return res.status(400).json({ error: '该订单已被接受或已完成' });
+            }
+
+            // SEC-003: 避免动态字段拼接，固定使用参数化 SQL
+            db.run(
+                `UPDATE farmer_reports
+                 SET status = 'accepted', recycler_id = ?, updated_at = datetime('now')
+                 WHERE id = ?`,
+                [parsedRecyclerId, reportId],
+                function(err2) {
+                    db.close();
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    return res.json({ success: true, message: '订单接受成功' });
+                }
+            );
+        });
     });
 });
 
@@ -1614,7 +1956,14 @@ app.get('/api/purchase-requests', (req, res) => {
             ORDER BY rr.created_at DESC`, [], (err, rows) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        if (isAdmin(req)) return res.json(rows);
+
+        const sanitizedRows = (rows || []).map((row) => ({
+            ...row,
+            contact_phone: maskPhone(row.contact_phone),
+            recycler_phone: maskPhone(row.recycler_phone)
+        }));
+        res.json(sanitizedRows);
     });
 });
 
@@ -1643,6 +1992,12 @@ app.get('/api/recycler-requests/:id', (req, res) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: '求购信息不存在' });
+
+        const isOwner = toPositiveInt(row.recycler_id) === actorId;
+        if (!isAdmin(req) && !isOwner) {
+            row.contact_phone = maskPhone(row.contact_phone);
+            row.recycler_phone = maskPhone(row.recycler_phone);
+        }
         res.json(row);
     });
 });
@@ -1668,25 +2023,36 @@ app.patch('/api/recycler-requests/:id/status', (req, res) => {
 
     const db = openDb();
 
-    let sql = `UPDATE recycler_requests SET status = ?, updated_at = datetime('now') WHERE id = ?`;
-    const params = [status, req.params.id];
-    if (isAdmin(req)) {
-        if (parsedRecyclerId) {
-            sql += ` AND recycler_id = ?`;
-            params.push(parsedRecyclerId);
-        }
-    } else {
-        sql += ` AND recycler_id = ?`;
-        params.push(actorId);
-    }
-
-    db.run(sql,
-        params, function(err) {
+    isTargetUnderActiveArbitration(db, 'recycler_request', req.params.id, (lockErr, locked) => {
+        if (lockErr) {
             db.close();
-            if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: '求购信息不存在' });
-            res.json({ success: true });
-        });
+            return res.status(500).json({ error: lockErr.message });
+        }
+        if (locked) {
+            db.close();
+            return res.status(409).json({ error: '仲裁处理中，相关订单已冻结，暂不可变更状态' });
+        }
+
+        let sql = `UPDATE recycler_requests SET status = ?, updated_at = datetime('now') WHERE id = ?`;
+        const params = [status, req.params.id];
+        if (isAdmin(req)) {
+            if (parsedRecyclerId) {
+                sql += ` AND recycler_id = ?`;
+                params.push(parsedRecyclerId);
+            }
+        } else {
+            sql += ` AND recycler_id = ?`;
+            params.push(actorId);
+        }
+
+        db.run(sql,
+            params, function(err) {
+                db.close();
+                if (err) return res.status(500).json({ error: err.message });
+                if (this.changes === 0) return res.status(404).json({ error: '求购信息不存在' });
+                res.json({ success: true });
+            });
+    });
 });
 
 // Delete request (only drafts)
@@ -1857,7 +2223,20 @@ app.get('/api/processor-requests', (req, res) => {
             return res.status(500).json({ error: err.message });
         }
         console.log('[API /api/processor-requests] Result rows:', rows.length);
-        res.json(rows);
+
+        const sanitizedRows = (rows || []).map((row) => {
+            const ownProcessor = toPositiveInt(row.processor_id) === actorId;
+            const ownRecycler = toPositiveInt(row.recycler_id) === actorId;
+            const canViewFullPhone = isAdmin(req) || ownProcessor || ownRecycler;
+
+            return {
+                ...row,
+                processor_phone: canViewFullPhone ? (row.processor_phone || '') : maskPhone(row.processor_phone),
+                contact_phone: canViewFullPhone ? (row.contact_phone || '') : maskPhone(row.contact_phone)
+            };
+        });
+
+        res.json(sanitizedRows);
     });
 });
 
@@ -1880,9 +2259,10 @@ app.get('/api/processor-requests/:id', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: '求购信息不存在' });
 
+        const ownProcessor = toPositiveInt(row.processor_id) === actorId;
+        const ownRecycler = toPositiveInt(row.recycler_id) === actorId;
+
         if (!isAdmin(req)) {
-            const ownProcessor = toPositiveInt(row.processor_id) === actorId;
-            const ownRecycler = toPositiveInt(row.recycler_id) === actorId;
             if (isProcessorActor(req)) {
                 if (!ownProcessor) return res.status(403).json({ error: '无权查看该求购信息' });
             } else if (isRecyclerActor(req)) {
@@ -1896,6 +2276,11 @@ app.get('/api/processor-requests/:id', (req, res) => {
             } else {
                 return res.status(403).json({ error: '无权查看该求购信息' });
             }
+        }
+
+        if (!isAdmin(req) && !ownProcessor && !ownRecycler) {
+            row.contact_phone = maskPhone(row.contact_phone);
+            row.processor_phone = maskPhone(row.processor_phone);
         }
 
         res.json(row);
@@ -1923,25 +2308,36 @@ app.patch('/api/processor-requests/:id/status', (req, res) => {
 
     const db = openDb();
 
-    let sql = `UPDATE processor_requests SET status = ?, updated_at = datetime('now') WHERE id = ?`;
-    const params = [status, req.params.id];
-    if (isAdmin(req)) {
-        if (parsedProcessorId) {
-            sql += ` AND processor_id = ?`;
-            params.push(parsedProcessorId);
-        }
-    } else {
-        sql += ` AND processor_id = ?`;
-        params.push(actorId);
-    }
-
-    db.run(sql,
-        params, function(err) {
+    isTargetUnderActiveArbitration(db, 'processor_request', req.params.id, (lockErr, locked) => {
+        if (lockErr) {
             db.close();
-            if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: '求购信息不存在' });
-            res.json({ success: true });
-        });
+            return res.status(500).json({ error: lockErr.message });
+        }
+        if (locked) {
+            db.close();
+            return res.status(409).json({ error: '仲裁处理中，相关订单已冻结，暂不可变更状态' });
+        }
+
+        let sql = `UPDATE processor_requests SET status = ?, updated_at = datetime('now') WHERE id = ?`;
+        const params = [status, req.params.id];
+        if (isAdmin(req)) {
+            if (parsedProcessorId) {
+                sql += ` AND processor_id = ?`;
+                params.push(parsedProcessorId);
+            }
+        } else {
+            sql += ` AND processor_id = ?`;
+            params.push(actorId);
+        }
+
+        db.run(sql,
+            params, function(err) {
+                db.close();
+                if (err) return res.status(500).json({ error: err.message });
+                if (this.changes === 0) return res.status(404).json({ error: '求购信息不存在' });
+                res.json({ success: true });
+            });
+    });
 });
 
 // Recycler accepts processor request
@@ -1962,25 +2358,37 @@ app.post('/api/processor-requests/:id/accept', (req, res) => {
     db.get(`SELECT * FROM processor_requests WHERE id = ?`, [req.params.id], (err, row) => {
         if (err) { db.close(); return res.status(500).json({ error: err.message }); }
         if (!row) { db.close(); return res.status(404).json({ error: '求购信息不存在' }); }
-        if (row.status !== 'active') { db.close(); return res.status(400).json({ error: '仅可接单处于 active 状态的求购信息' }); }
-        if (row.valid_until && new Date(row.valid_until) < new Date()) { db.close(); return res.status(400).json({ error: '该求购信息已过期，无法接单' }); }
-        if (row.recycler_id) { db.close(); return res.status(400).json({ error: '该订单已被其他回收商接单' }); }
 
-        // 使用条件更新降低并发下重复接单风险
-        db.run(
-            `UPDATE processor_requests
-             SET recycler_id = ?, updated_at = datetime('now')
-             WHERE id = ?
-               AND recycler_id IS NULL
-               AND status = 'active'
-               AND (valid_until IS NULL OR valid_until >= date('now'))`,
-            [parsedRecyclerId, req.params.id], function(err) {
+        isTargetUnderActiveArbitration(db, 'processor_request', req.params.id, (lockErr, locked) => {
+            if (lockErr) {
                 db.close();
-                if (err) return res.status(500).json({ error: err.message });
-                if (this.changes === 0) return res.status(409).json({ error: '该订单状态已变化，请刷新后重试' });
-                res.json({ success: true });
+                return res.status(500).json({ error: lockErr.message });
             }
-        );
+            if (locked) {
+                db.close();
+                return res.status(409).json({ error: '仲裁处理中，相关订单已冻结，暂不可接单' });
+            }
+
+            if (row.status !== 'active') { db.close(); return res.status(400).json({ error: '仅可接单处于 active 状态的求购信息' }); }
+            if (row.valid_until && new Date(row.valid_until) < new Date()) { db.close(); return res.status(400).json({ error: '该求购信息已过期，无法接单' }); }
+            if (row.recycler_id) { db.close(); return res.status(400).json({ error: '该订单已被其他回收商接单' }); }
+
+            // 使用条件更新降低并发下重复接单风险
+            db.run(
+                `UPDATE processor_requests
+                 SET recycler_id = ?, updated_at = datetime('now')
+                 WHERE id = ?
+                   AND recycler_id IS NULL
+                   AND status = 'active'
+                   AND (valid_until IS NULL OR valid_until >= date('now'))`,
+                [parsedRecyclerId, req.params.id], function(err) {
+                    db.close();
+                    if (err) return res.status(500).json({ error: err.message });
+                    if (this.changes === 0) return res.status(409).json({ error: '该订单状态已变化，请刷新后重试' });
+                    res.json({ success: true });
+                }
+            );
+        });
     });
 });
 
@@ -2272,6 +2680,34 @@ app.post('/api/cms/upload', adminOnly, cmsUpload.single('file'), validateCmsUplo
 
 // ============ Arbitration APIs ============
 
+function getArbitrationTargetPartyIds(db, orderType, orderId, callback) {
+    const targetConfigMap = {
+        farmer_report: {
+            sql: `SELECT farmer_id, recycler_id FROM farmer_reports WHERE id = ?`,
+            resolvePartyIds: (row) => [toPositiveInt(row.farmer_id), toPositiveInt(row.recycler_id)]
+        },
+        recycler_request: {
+            sql: `SELECT recycler_id FROM recycler_requests WHERE id = ?`,
+            resolvePartyIds: (row) => [toPositiveInt(row.recycler_id)]
+        },
+        processor_request: {
+            sql: `SELECT processor_id, recycler_id FROM processor_requests WHERE id = ?`,
+            resolvePartyIds: (row) => [toPositiveInt(row.processor_id), toPositiveInt(row.recycler_id)]
+        }
+    };
+
+    const config = targetConfigMap[orderType];
+    if (!config) return callback(null, null);
+
+    db.get(config.sql, [orderId], (err, row) => {
+        if (err) return callback(err, null);
+        if (!row) return callback(null, null);
+
+        const partyIds = config.resolvePartyIds(row).filter(Boolean);
+        return callback(null, partyIds);
+    });
+}
+
 // Submit arbitration request
 app.post('/api/arbitration-requests', (req, res) => {
     const { 
@@ -2290,34 +2726,89 @@ app.post('/api/arbitration-requests', (req, res) => {
     if (!isAdmin(req) && applicant_id && !ensureSelfOrAdmin(req, applicant_id)) {
         return res.status(403).json({ error: '禁止代他人提交仲裁' });
     }
+
+    const parsedOrderId = toPositiveInt(order_id);
+    if (!parsedOrderId) {
+        return res.status(400).json({ error: '缺少有效订单ID' });
+    }
+
+    const allowedOrderTypes = ['farmer_report', 'recycler_request', 'processor_request'];
+    if (!allowedOrderTypes.includes(order_type)) {
+        return res.status(400).json({ error: '无效订单类型' });
+    }
     
     if (!order_type || !order_id || !order_no || !reason || !description) {
         return res.status(400).json({ error: '请填写所有必填项' });
     }
+
+    const normalizedEvidenceTrade = Array.isArray(evidence_trade) ? evidence_trade.filter(Boolean) : [];
+    const normalizedEvidenceMaterial = Array.isArray(evidence_material) ? evidence_material.filter(Boolean) : [];
+    const normalizedEvidencePayment = Array.isArray(evidence_payment) ? evidence_payment.filter(Boolean) : [];
+    const normalizedEvidenceCommunication = Array.isArray(evidence_communication) ? evidence_communication.filter(Boolean) : [];
+    const normalizedEvidenceOther = Array.isArray(evidence_other) ? evidence_other.filter(Boolean) : [];
+    const arbitrationFileRefs = collectArbitrationFileRefs({
+        evidence_trade: normalizedEvidenceTrade,
+        evidence_material: normalizedEvidenceMaterial,
+        evidence_payment: normalizedEvidencePayment,
+        evidence_communication: normalizedEvidenceCommunication,
+        evidence_other: normalizedEvidenceOther,
+    });
     
     // 验证必须的证据材料
-    if (!evidence_trade || !evidence_material || !evidence_payment) {
+    if (normalizedEvidenceTrade.length === 0 || normalizedEvidenceMaterial.length === 0 || normalizedEvidencePayment.length === 0) {
         return res.status(400).json({ error: '请上传必需的证据材料：平台交易凭证、废料相关证据、资金往来凭证' });
     }
     
     const db = openDb();
     const arbitrationNo = 'ARB-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-    
-    db.run(`INSERT INTO arbitration_requests (
-        arbitration_no, applicant_id, order_type, order_id, order_no, reason, description,
-        evidence_trade, evidence_material, evidence_payment, evidence_communication, evidence_other
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-        arbitrationNo, finalApplicantId, order_type, order_id, order_no, reason, description,
-        JSON.stringify(evidence_trade || []),
-        JSON.stringify(evidence_material || []),
-        JSON.stringify(evidence_payment || []),
-        JSON.stringify(evidence_communication || []),
-        JSON.stringify(evidence_other || [])
-    ], function(err) {
-        db.close();
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, id: this.lastID, arbitration_no: arbitrationNo });
+
+    getArbitrationTargetPartyIds(db, order_type, parsedOrderId, (targetErr, partyIds) => {
+        if (targetErr) {
+            db.close();
+            return res.status(500).json({ error: targetErr.message });
+        }
+        if (!partyIds) {
+            db.close();
+            return res.status(404).json({ error: '关联订单不存在，无法发起仲裁' });
+        }
+
+        isTargetUnderActiveArbitration(db, order_type, parsedOrderId, (lockErr, locked) => {
+            if (lockErr) {
+                db.close();
+                return res.status(500).json({ error: lockErr.message });
+            }
+            if (locked) {
+                db.close();
+                return res.status(409).json({ error: '该订单已在仲裁处理中，请勿重复提交' });
+            }
+
+            const respondentId = partyIds.find((id) => id !== finalApplicantId) || null;
+
+            db.run(`INSERT INTO arbitration_requests (
+                arbitration_no, applicant_id, respondent_id, order_type, order_id, order_no, reason, description,
+                evidence_trade, evidence_material, evidence_payment, evidence_communication, evidence_other
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                arbitrationNo, finalApplicantId, respondentId, order_type, parsedOrderId, order_no, reason, description,
+                JSON.stringify(normalizedEvidenceTrade),
+                JSON.stringify(normalizedEvidenceMaterial),
+                JSON.stringify(normalizedEvidencePayment),
+                JSON.stringify(normalizedEvidenceCommunication),
+                JSON.stringify(normalizedEvidenceOther)
+            ], function(err) {
+                if (err) {
+                    db.close();
+                    return res.status(500).json({ error: err.message });
+                }
+
+                const arbitrationId = this.lastID;
+                saveArbitrationFileRefs(db, arbitrationId, arbitrationFileRefs, (refErr) => {
+                    db.close();
+                    if (refErr) return res.status(500).json({ error: refErr.message });
+                    return res.json({ success: true, id: arbitrationId, arbitration_no: arbitrationNo });
+                });
+            });
+        });
     });
 });
 
@@ -2646,9 +3137,293 @@ app.post('/api/arbitration-requests/:id/pay-penalty', verifyPenaltyPaymentAccess
         `;
         
         db.run(updateSql, [proofPath, id], function(err) {
+            if (err) {
+                db.close();
+                return res.status(500).json({ error: err.message });
+            }
+
+            const refs = proofPath ? [{ file_group: 'penalty_proof', file_path: proofPath }] : [];
+            saveArbitrationFileRefs(db, id, refs, (refErr) => {
+                db.close();
+                if (refErr) return res.status(500).json({ error: refErr.message });
+                return res.json({ success: true, message: '罚款已提交，等待管理员确认' });
+            });
+        });
+    });
+});
+
+// ─────────────────────────────────────────────
+// 站内沟通留痕 API
+// ─────────────────────────────────────────────
+
+const CHAT_TARGET_CONFIG = {
+    farmer_report: {
+        table: 'chat_messages',
+        targetColumn: 'report_id',
+        ownerSql: `SELECT farmer_id AS owner_primary_id, recycler_id AS owner_secondary_id FROM farmer_reports WHERE id = ?`,
+    },
+    recycler_request: {
+        table: 'request_chat_messages',
+        targetColumn: 'request_id',
+        ownerSql: `SELECT recycler_id AS owner_primary_id, NULL AS owner_secondary_id FROM recycler_requests WHERE id = ?`,
+    },
+    processor_request: {
+        table: 'processor_chat_messages',
+        targetColumn: 'request_id',
+        ownerSql: `SELECT processor_id AS owner_primary_id, recycler_id AS owner_secondary_id FROM processor_requests WHERE id = ?`,
+    },
+};
+
+function resolveChatTargetContext(db, targetType, targetId, callback) {
+    const config = CHAT_TARGET_CONFIG[String(targetType || '').trim()];
+    const parsedTargetId = toPositiveInt(targetId);
+    if (!config || !parsedTargetId) {
+        return callback(null, null);
+    }
+
+    db.get(config.ownerSql, [parsedTargetId], (err, row) => {
+        if (err) return callback(err, null);
+        if (!row) return callback(null, null);
+
+        const ownerIds = [toPositiveInt(row.owner_primary_id), toPositiveInt(row.owner_secondary_id)].filter(Boolean);
+        return callback(null, {
+            config,
+            targetId: parsedTargetId,
+            ownerIds,
+        });
+    });
+}
+
+function isChatOwner(context, userId) {
+    const parsedUserId = toPositiveInt(userId);
+    if (!parsedUserId || !context || !Array.isArray(context.ownerIds)) return false;
+    return context.ownerIds.includes(parsedUserId);
+}
+
+function toChatPageLimit(value, defaultValue = 50) {
+    const parsed = toPositiveInt(value);
+    if (!parsed) return defaultValue;
+    return Math.min(parsed, 200);
+}
+
+// POST /api/chats/messages - 发送消息并落库
+app.post('/api/chats/messages', (req, res) => {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const { target_type, target_id, receiver_id, content } = req.body;
+    if (!CHAT_TARGET_CONFIG[String(target_type || '').trim()]) {
+        return res.status(400).json({ error: '无效的沟通目标类型' });
+    }
+
+    const parsedTargetId = toPositiveInt(target_id);
+    const parsedReceiverId = toPositiveInt(receiver_id);
+    const message = String(content || '').trim();
+    if (!parsedTargetId || !parsedReceiverId || !message) {
+        return res.status(400).json({ error: '缺少有效参数（target_id、receiver_id、content）' });
+    }
+    if (message.length > 2000) {
+        return res.status(400).json({ error: '消息长度不能超过 2000 字符' });
+    }
+    if (parsedReceiverId === actorId) {
+        return res.status(400).json({ error: '不能给自己发送消息' });
+    }
+
+    const db = openDb();
+    resolveChatTargetContext(db, target_type, parsedTargetId, (ctxErr, context) => {
+        if (ctxErr) {
             db.close();
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, message: '罚款已提交，等待管理员确认' });
+            return res.status(500).json({ error: ctxErr.message });
+        }
+        if (!context) {
+            db.close();
+            return res.status(404).json({ error: '沟通目标不存在' });
+        }
+
+        db.get(`SELECT id FROM users WHERE id = ?`, [parsedReceiverId], (userErr, userRow) => {
+            if (userErr) {
+                db.close();
+                return res.status(500).json({ error: userErr.message });
+            }
+            if (!userRow) {
+                db.close();
+                return res.status(404).json({ error: '接收方用户不存在' });
+            }
+
+            if (!isAdmin(req)) {
+                const actorIsOwner = isChatOwner(context, actorId);
+                const receiverIsOwner = isChatOwner(context, parsedReceiverId);
+                if (!actorIsOwner && !receiverIsOwner) {
+                    db.close();
+                    return res.status(403).json({ error: '仅允许与目标所有者沟通' });
+                }
+            }
+
+            const insertSql = `
+                INSERT INTO ${context.config.table} (${context.config.targetColumn}, sender_id, receiver_id, content)
+                VALUES (?, ?, ?, ?)
+            `;
+            db.run(insertSql, [context.targetId, actorId, parsedReceiverId, message], function(insertErr) {
+                if (insertErr) {
+                    db.close();
+                    return res.status(500).json({ error: insertErr.message });
+                }
+
+                const messageId = this.lastID;
+                const detailSql = `
+                    SELECT m.*, su.full_name AS sender_name, ru.full_name AS receiver_name
+                    FROM ${context.config.table} m
+                    LEFT JOIN users su ON su.id = m.sender_id
+                    LEFT JOIN users ru ON ru.id = m.receiver_id
+                    WHERE m.id = ?
+                `;
+                db.get(detailSql, [messageId], (detailErr, detailRow) => {
+                    db.close();
+                    if (detailErr) return res.status(500).json({ error: detailErr.message });
+                    return res.json({ success: true, data: detailRow || { id: messageId } });
+                });
+            });
+        });
+    });
+});
+
+// GET /api/chats/messages - 查询消息历史
+app.get('/api/chats/messages', (req, res) => {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const { target_type, target_id, peer_id, limit, before_id } = req.query;
+    if (!CHAT_TARGET_CONFIG[String(target_type || '').trim()]) {
+        return res.status(400).json({ error: '无效的沟通目标类型' });
+    }
+
+    const parsedTargetId = toPositiveInt(target_id);
+    const parsedPeerId = peer_id !== undefined ? toPositiveInt(peer_id) : null;
+    const parsedBeforeId = before_id !== undefined ? toPositiveInt(before_id) : null;
+    if (!parsedTargetId) {
+        return res.status(400).json({ error: '缺少有效 target_id' });
+    }
+    if (peer_id !== undefined && !parsedPeerId) {
+        return res.status(400).json({ error: 'peer_id 无效' });
+    }
+
+    const pageLimit = toChatPageLimit(limit);
+    const db = openDb();
+    resolveChatTargetContext(db, target_type, parsedTargetId, (ctxErr, context) => {
+        if (ctxErr) {
+            db.close();
+            return res.status(500).json({ error: ctxErr.message });
+        }
+        if (!context) {
+            db.close();
+            return res.status(404).json({ error: '沟通目标不存在' });
+        }
+
+        const actorIsAdmin = isAdmin(req);
+        const actorIsOwner = actorIsAdmin || isChatOwner(context, actorId);
+
+        if (!actorIsOwner && !parsedPeerId) {
+            db.close();
+            return res.status(400).json({ error: '非目标所有者查询时必须提供 peer_id' });
+        }
+
+        if (!actorIsOwner && parsedPeerId && !isChatOwner(context, parsedPeerId)) {
+            db.close();
+            return res.status(403).json({ error: '仅允许查询与目标所有者之间的沟通记录' });
+        }
+
+        const where = [`m.${context.config.targetColumn} = ?`];
+        const params = [context.targetId];
+
+        if (parsedBeforeId) {
+            where.push('m.id < ?');
+            params.push(parsedBeforeId);
+        }
+
+        if (parsedPeerId) {
+            where.push(`((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?))`);
+            params.push(actorId, parsedPeerId, parsedPeerId, actorId);
+        } else if (!actorIsAdmin) {
+            where.push('(m.sender_id = ? OR m.receiver_id = ?)');
+            params.push(actorId, actorId);
+        }
+
+        const sql = `
+            SELECT m.*, su.full_name AS sender_name, ru.full_name AS receiver_name
+            FROM ${context.config.table} m
+            LEFT JOIN users su ON su.id = m.sender_id
+            LEFT JOIN users ru ON ru.id = m.receiver_id
+            WHERE ${where.join(' AND ')}
+            ORDER BY m.id DESC
+            LIMIT ?
+        `;
+        params.push(pageLimit);
+
+        db.all(sql, params, (listErr, rows) => {
+            db.close();
+            if (listErr) return res.status(500).json({ error: listErr.message });
+
+            const items = Array.isArray(rows) ? rows.slice().reverse() : [];
+            return res.json({ success: true, data: items });
+        });
+    });
+});
+
+// POST /api/chats/messages/read - 标记与对端的消息为已读
+app.post('/api/chats/messages/read', (req, res) => {
+    const actorId = getActorId(req);
+    if (!actorId) return res.status(401).json({ error: '未授权，请先登录' });
+
+    const { target_type, target_id, peer_id, before_id } = req.body;
+    if (!CHAT_TARGET_CONFIG[String(target_type || '').trim()]) {
+        return res.status(400).json({ error: '无效的沟通目标类型' });
+    }
+
+    const parsedTargetId = toPositiveInt(target_id);
+    const parsedPeerId = toPositiveInt(peer_id);
+    const parsedBeforeId = before_id !== undefined ? toPositiveInt(before_id) : null;
+    if (!parsedTargetId || !parsedPeerId) {
+        return res.status(400).json({ error: '缺少有效参数（target_id、peer_id）' });
+    }
+    if (parsedPeerId === actorId) {
+        return res.status(400).json({ error: 'peer_id 不能是自己' });
+    }
+
+    const db = openDb();
+    resolveChatTargetContext(db, target_type, parsedTargetId, (ctxErr, context) => {
+        if (ctxErr) {
+            db.close();
+            return res.status(500).json({ error: ctxErr.message });
+        }
+        if (!context) {
+            db.close();
+            return res.status(404).json({ error: '沟通目标不存在' });
+        }
+
+        const actorIsOwner = isAdmin(req) || isChatOwner(context, actorId);
+        if (!actorIsOwner && !isChatOwner(context, parsedPeerId)) {
+            db.close();
+            return res.status(403).json({ error: '仅允许标记与目标所有者的沟通消息' });
+        }
+
+        const params = [context.targetId, parsedPeerId, actorId];
+        let sql = `
+            UPDATE ${context.config.table}
+            SET is_read = 1
+            WHERE ${context.config.targetColumn} = ?
+              AND sender_id = ?
+              AND receiver_id = ?
+        `;
+
+        if (parsedBeforeId) {
+            sql += ' AND id <= ?';
+            params.push(parsedBeforeId);
+        }
+
+        db.run(sql, params, function(updateErr) {
+            db.close();
+            if (updateErr) return res.status(500).json({ error: updateErr.message });
+            return res.json({ success: true, changes: this.changes || 0 });
         });
     });
 });
@@ -2788,116 +3563,152 @@ app.patch('/api/intentions/:id/status', (req, res) => {
         if (err) { db.close(); return res.status(500).json({ code: 500, msg: err.message, data: null }); }
         if (!intention) { db.close(); return res.status(404).json({ code: 404, msg: '意向记录不存在', data: null }); }
 
-        if (status === 'accepted') {
-            if (intention.status === 'accepted') {
-                db.close();
-                return res.status(409).json({ code: 409, msg: '该意向已被接受，请勿重复操作', data: null });
-            }
-            if (intention.status !== 'pending') {
-                db.close();
-                return res.status(400).json({ code: 400, msg: '仅待处理意向可执行接受操作', data: null });
-            }
-        } else if (intention.status === 'accepted') {
-            db.close();
-            return res.status(400).json({ code: 400, msg: '已接受的意向不可再修改状态', data: null });
-        }
-
-        const continueUpdate = () => {
-            // 若不是接受操作，直接更新状态即可
-            if (status !== 'accepted') {
-                if (status === intention.status) {
+        const proceedWithIntention = () => {
+            if (status === 'accepted') {
+                if (intention.status === 'accepted') {
                     db.close();
-                    return res.json({ code: 200, msg: '状态未变化', data: null });
+                    return res.status(409).json({ code: 409, msg: '该意向已被接受，请勿重复操作', data: null });
                 }
-                db.run(`UPDATE intentions SET status = ? WHERE id = ?`, [status, id], function(e2) {
+                if (intention.status !== 'pending') {
                     db.close();
-                    if (e2) return res.status(500).json({ code: 500, msg: e2.message, data: null });
-                    res.json({ code: 200, msg: '状态已更新', data: null });
-                });
-                return;
-            }
-
-            // ── 接受意向：查目标表 → 生成订单 ──────────────────────────────────
-            const { applicant_id, target_type, target_id, estimated_weight } = intention;
-
-            // 根据 target_type 确定目标表和字段
-            let targetTableSql = '';
-            if (target_type === 'farmer_report') {
-                targetTableSql = `SELECT farmer_id, recycler_id, weight_kg FROM farmer_reports WHERE id = ?`;
-            } else if (target_type === 'recycler_request') {
-                targetTableSql = `SELECT recycler_id FROM recycler_requests WHERE id = ?`;
-            } else if (target_type === 'processor_request') {
-                targetTableSql = `SELECT processor_id FROM processor_requests WHERE id = ?`;
-            } else {
+                    return res.status(400).json({ code: 400, msg: '仅待处理意向可执行接受操作', data: null });
+                }
+            } else if (intention.status === 'accepted') {
                 db.close();
-                return res.status(400).json({ code: 400, msg: '不支持的意向目标类型', data: null });
+                return res.status(400).json({ code: 400, msg: '已接受的意向不可再修改状态', data: null });
             }
 
-            db.get(targetTableSql, [target_id], (err2, target) => {
-                if (err2 || !target) {
-                    db.close();
-                    return res.status(500).json({ code: 500, msg: err2 ? err2.message : '目标记录不存在', data: null });
-                }
-
-                // 推导 farmer_id / recycler_id（orders 表复用 recycler_id 存放处理商 ID）
-                let farmer_id, recycler_id;
-                if (target_type === 'farmer_report') {
-                    // 投递人是回收商/处理商，目标是农户的申报
-                    farmer_id  = target.farmer_id;
-                    recycler_id = applicant_id;
-                } else if (target_type === 'recycler_request') {
-                    // 投递人是农户，目标是回收商求购
-                    farmer_id  = applicant_id;
-                    recycler_id = target.recycler_id;
-                } else {
-                    // processor_request: 投递人是农户或回收商
-                    farmer_id  = applicant_id;
-                    recycler_id = target.processor_id;
-                }
-
-                const weight    = estimated_weight || (target.weight_kg) || 0;
-                const order_no  = `ORD-${Date.now()}`;
-                const orderStatus = 'pending_ship';
-
-                const insertSql = `INSERT INTO orders (order_no, farmer_id, recycler_id, weight_kg, status, notes)
-                                VALUES (?, ?, ?, ?, ?, ?)`;
-                const notes = `由意向 #${id} 自动生成（${intention.target_no || target_type}）`;
-
-                db.run(insertSql, [order_no, farmer_id, recycler_id, weight, orderStatus, notes], function(err3) {
-                    if (err3) {
+            const continueUpdate = () => {
+                // 若不是接受操作，直接更新状态即可
+                if (status !== 'accepted') {
+                    if (status === intention.status) {
                         db.close();
-                        return res.status(500).json({ code: 500, msg: '创建订单失败: ' + err3.message, data: null });
+                        return res.json({ code: 200, msg: '状态未变化', data: null });
                     }
-                    const order_id = this.lastID;
-
-                    // 更新意向状态
-                    db.run(`UPDATE intentions SET status = 'accepted' WHERE id = ?`, [id], (err4) => {
+                    db.run(`UPDATE intentions SET status = ? WHERE id = ?`, [status, id], function(e2) {
                         db.close();
-                        if (err4) return res.status(500).json({ code: 500, msg: err4.message, data: null });
-                        res.json({
-                            code: 200,
-                            msg: '意向已接受，订单已自动生成',
-                            data: { order_no, order_id }
-                        });
+                        if (e2) return res.status(500).json({ code: 500, msg: e2.message, data: null });
+                        res.json({ code: 200, msg: '状态已更新', data: null });
                     });
-                });
+                    return;
+                }
+
+                // ── 接受意向：先抢占状态锁，再查目标表并生成订单 ─────────────────────────
+                db.run(
+                    `UPDATE intentions
+                     SET status = 'accepted'
+                     WHERE id = ? AND status = 'pending'`,
+                    [id],
+                    function(lockErr) {
+                        if (lockErr) {
+                            db.close();
+                            return res.status(500).json({ code: 500, msg: lockErr.message, data: null });
+                        }
+                        if (this.changes === 0) {
+                            db.close();
+                            return res.status(409).json({ code: 409, msg: '该意向状态已变化，请刷新后重试', data: null });
+                        }
+
+                        const { applicant_id, target_type, target_id, estimated_weight } = intention;
+
+                        // 根据 target_type 确定目标表和字段
+                        let targetTableSql = '';
+                        if (target_type === 'farmer_report') {
+                            targetTableSql = `SELECT farmer_id, recycler_id, weight_kg FROM farmer_reports WHERE id = ?`;
+                        } else if (target_type === 'recycler_request') {
+                            targetTableSql = `SELECT recycler_id FROM recycler_requests WHERE id = ?`;
+                        } else if (target_type === 'processor_request') {
+                            targetTableSql = `SELECT processor_id FROM processor_requests WHERE id = ?`;
+                        } else {
+                            db.run(`UPDATE intentions SET status = 'pending' WHERE id = ? AND status = 'accepted'`, [id], () => {
+                                db.close();
+                                return res.status(400).json({ code: 400, msg: '不支持的意向目标类型', data: null });
+                            });
+                            return;
+                        }
+
+                        db.get(targetTableSql, [target_id], (err2, target) => {
+                            if (err2 || !target) {
+                                db.run(`UPDATE intentions SET status = 'pending' WHERE id = ? AND status = 'accepted'`, [id], () => {
+                                    db.close();
+                                    return res.status(500).json({ code: 500, msg: err2 ? err2.message : '目标记录不存在', data: null });
+                                });
+                                return;
+                            }
+
+                            // 推导 farmer_id / recycler_id（orders 表复用 recycler_id 存放处理商 ID）
+                            let farmer_id, recycler_id;
+                            if (target_type === 'farmer_report') {
+                                // 投递人是回收商/处理商，目标是农户的申报
+                                farmer_id  = target.farmer_id;
+                                recycler_id = applicant_id;
+                            } else if (target_type === 'recycler_request') {
+                                // 投递人是农户，目标是回收商求购
+                                farmer_id  = applicant_id;
+                                recycler_id = target.recycler_id;
+                            } else {
+                                // processor_request: 投递人是农户或回收商
+                                farmer_id  = applicant_id;
+                                recycler_id = target.processor_id;
+                            }
+
+                            const weight    = estimated_weight || (target.weight_kg) || 0;
+                            const order_no  = `ORD-${Date.now()}`;
+                            const orderStatus = 'pending_ship';
+
+                            const insertSql = `INSERT INTO orders (order_no, farmer_id, recycler_id, weight_kg, status, notes)
+                                            VALUES (?, ?, ?, ?, ?, ?)`;
+                            const notes = `由意向 #${id} 自动生成（${intention.target_no || target_type}）`;
+
+                            db.run(insertSql, [order_no, farmer_id, recycler_id, weight, orderStatus, notes], function(err3) {
+                                if (err3) {
+                                    db.run(`UPDATE intentions SET status = 'pending' WHERE id = ? AND status = 'accepted'`, [id], () => {
+                                        db.close();
+                                        return res.status(500).json({ code: 500, msg: '创建订单失败: ' + err3.message, data: null });
+                                    });
+                                    return;
+                                }
+                                const order_id = this.lastID;
+
+                                db.close();
+                                res.json({
+                                    code: 200,
+                                    msg: '意向已接受，订单已自动生成',
+                                    data: { order_no, order_id }
+                                });
+                            });
+                        });
+                    }
+                );
+            };
+
+            if (isAdmin(req)) {
+                return continueUpdate();
+            }
+
+            return canManageIntentionTarget(db, intention.target_type, intention.target_id, actorId, (authErr, allowed) => {
+                if (authErr) {
+                    db.close();
+                    return res.status(500).json({ code: 500, msg: authErr.message, data: null });
+                }
+                if (!allowed) {
+                    db.close();
+                    return res.status(403).json({ code: 403, msg: '无权处理该意向', data: null });
+                }
+                return continueUpdate();
             });
         };
 
-        if (isAdmin(req)) {
-            return continueUpdate();
-        }
-
-        return canManageIntentionTarget(db, intention.target_type, intention.target_id, actorId, (authErr, allowed) => {
-            if (authErr) {
+        isTargetUnderActiveArbitration(db, intention.target_type, intention.target_id, (lockErr, locked) => {
+            if (lockErr) {
                 db.close();
-                return res.status(500).json({ code: 500, msg: authErr.message, data: null });
+                return res.status(500).json({ code: 500, msg: lockErr.message, data: null });
             }
-            if (!allowed) {
+            if (locked) {
                 db.close();
-                return res.status(403).json({ code: 403, msg: '无权处理该意向', data: null });
+                return res.status(409).json({ code: 409, msg: '仲裁处理中，相关订单已冻结，暂不可处理意向', data: null });
             }
-            return continueUpdate();
+            return proceedWithIntention();
         });
     });
 });
@@ -2935,7 +3746,18 @@ async function runMigrations() {
             notes TEXT,
             status TEXT NOT NULL DEFAULT 'pending',
             created_at DATETIME DEFAULT (datetime('now', 'localtime'))
-        )`
+        )`,
+        `CREATE TABLE IF NOT EXISTS arbitration_file_refs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            arbitration_id INTEGER NOT NULL,
+            file_group TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            created_at DATETIME DEFAULT (datetime('now')),
+            FOREIGN KEY(arbitration_id) REFERENCES arbitration_requests(id) ON DELETE CASCADE,
+            UNIQUE(arbitration_id, file_group, file_path)
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_arb_file_refs_arbitration ON arbitration_file_refs(arbitration_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_arb_file_refs_path ON arbitration_file_refs(file_path)`
     ];
 
     try {
@@ -2963,6 +3785,27 @@ async function runMigrations() {
             }
 
             await run(`CREATE INDEX IF NOT EXISTS idx_processor_requests_recycler ON processor_requests(recycler_id)`);
+        }
+
+        // P1 迁移：将仲裁证据从 JSON 字段回填到结构化引用表。
+        const arbitrationCols = await all(`PRAGMA table_info(arbitration_requests)`);
+        if (arbitrationCols.length > 0) {
+            const arbitrationRows = await all(`
+                SELECT id, evidence_trade, evidence_material, evidence_payment,
+                       evidence_communication, evidence_other, penalty_proof
+                FROM arbitration_requests
+            `);
+
+            for (const row of arbitrationRows) {
+                const refs = collectArbitrationFileRefs(row);
+                for (const ref of refs) {
+                    await run(
+                        `INSERT OR IGNORE INTO arbitration_file_refs (arbitration_id, file_group, file_path)
+                         VALUES (?, ?, ?)`,
+                        [row.id, ref.file_group, ref.file_path]
+                    );
+                }
+            }
         }
 
         console.log('[migrations] Done');

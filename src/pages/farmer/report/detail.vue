@@ -1,6 +1,6 @@
 <template>
   <view class="container">
-    <view class="status-banner" :class="'banner-' + (report.status || 'pending')">
+    <view class="status-banner" :class="'banner-' + getBannerStatus(report.status)">
       <text class="banner-icon">{{ statusIcon[report.status] || '⏳' }}</text>
       <text class="banner-label">{{ statusText[report.status] || '待处理' }}</text>
     </view>
@@ -48,16 +48,16 @@
           <view class="dot" :class="report.status !== 'pending' ? 'done-dot' : 'pending-dot'"></view>
           <view class="timeline-content">
             <text class="tl-title">平台审核</text>
-            <text class="tl-time" v-if="report.status === 'approved'">已通过</text>
+            <text class="tl-time" v-if="report.status === 'accepted' || report.status === 'completed'">已通过</text>
             <text class="tl-time" v-else-if="report.status === 'rejected'">已驳回</text>
             <text class="tl-time" v-else>待审核</text>
           </view>
         </view>
-        <view class="timeline-item" :class="report.status === 'approved' ? 'done' : 'pending'">
-          <view class="dot" :class="report.status === 'approved' ? 'done-dot' : 'pending-dot'"></view>
+        <view class="timeline-item" :class="(report.status === 'accepted' || report.status === 'completed') ? 'done' : 'pending'">
+          <view class="dot" :class="(report.status === 'accepted' || report.status === 'completed') ? 'done-dot' : 'pending-dot'"></view>
           <view class="timeline-content">
             <text class="tl-title">对接处理商</text>
-            <text class="tl-time">{{ report.status === 'approved' ? '已开放对接' : '等待审核通过' }}</text>
+            <text class="tl-time">{{ (report.status === 'accepted' || report.status === 'completed') ? '已开放对接' : '等待审核通过' }}</text>
           </view>
         </view>
       </view>
@@ -72,41 +72,67 @@
 <script setup>
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
 
 const report = ref({});
 
 const statusText = {
   pending: '待审核',
-  approved: '已通过',
+  accepted: '已接单',
+  completed: '已完成',
   rejected: '已驳回',
+  cancelled: '已取消',
   draft: '草稿'
 };
 
 const statusIcon = {
   pending: '⏳',
-  approved: '✅',
+  accepted: '✅',
+  completed: '✅',
   rejected: '❌',
+  cancelled: '⏹️',
   draft: '📝'
+};
+
+const getBannerStatus = (status) => {
+  if (status === 'accepted' || status === 'completed') return 'approved';
+  if (status === 'cancelled') return 'rejected';
+  return status || 'pending';
+};
+
+const normalizeReport = (row = {}) => ({
+  id: row.id,
+  report_no: row.report_no || '',
+  goods_type: row.citrus_variety || '—',
+  weight: row.weight_kg || 0,
+  address: row.location_address || '—',
+  pickup_date: row.pickup_date || '—',
+  status: row.status || 'pending',
+  create_time: row.created_at || '—',
+  notes: row.notes || '',
+});
+
+const loadReportDetail = async (id) => {
+  try {
+    const row = await request.get(`/api/farmer-reports/${id}`);
+    report.value = normalizeReport(row);
+  } catch (err) {
+    report.value = {
+      id,
+      goods_type: '—',
+      weight: 0,
+      address: '—',
+      pickup_date: '—',
+      status: 'pending',
+      create_time: '—',
+      notes: '',
+    };
+  }
 };
 
 onLoad((options) => {
   if (!options || !options.id) return;
-  const id = options.id;
-  const globalList = uni.getStorageSync('global_report_list') || [];
-  const found = globalList.find(item => String(item.id) === String(id));
-  if (found) {
-    report.value = found;
-  } else {
-    report.value = {
-      id: id,
-      goods_type: '未知品种',
-      weight: '—',
-      address: '—',
-      pickup_date: '—',
-      status: 'pending',
-      create_time: '—'
-    };
-  }
+  loadReportDetail(options.id);
 });
 </script>
 

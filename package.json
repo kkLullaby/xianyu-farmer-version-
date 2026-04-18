@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "init": "node server.js --init",
+    "test:p0": "node tests/api_tests/test-p0-guardrails.js",
+    "test:p1": "node tests/api_tests/test-p1-traceability.js",
+    "test:p2": "node tests/api_tests/test-p2-mock-cleanup.js",
     "dev:h5": "uni",
     "dev:mp-weixin": "uni -p mp-weixin",
     "build:h5": "uni build",

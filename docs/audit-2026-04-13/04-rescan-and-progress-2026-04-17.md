@@ -182,3 +182,93 @@
 ### 10.2 当前状态
 - Step 1 文档已创建，状态为 `In Review`。
 - 下一动作为确认门禁阈值与证据格式，确认后进入 Step 2（阻断项清零）。
+
+---
+
+## 11. 增量验证记录（2026-04-18）
+
+### 11.1 本轮完成项
+- P0 自动化负测脚本已落地：`tests/api_tests/test-p0-guardrails.js`
+- 运行入口已加入：`npm run test:p0`
+- 覆盖范围：
+  1. 联系方式脱敏断言（市场列表/详情）
+  2. 仲裁冻结拦截断言（活跃仲裁下状态更新应返回 409）
+  3. 意向并发接受防重断言（并发请求返回 200 + 409）
+
+### 11.2 执行结果
+- 本地执行：`npm run test:p0`
+- 结果：通过（全部断言通过）
+
+### 11.3 结论
+- P0 已从“代码修复完成”升级为“自动化验证完成”。
+- 建议将 `npm run test:p0` 纳入上线门禁证据，作为发布前必过检查项。
+
+## 12. 增量修复记录（2026-04-18，P1 完成）
+
+### 12.1 本轮完成项
+1. 仲裁证据关联结构化落地
+- 新增 `arbitration_file_refs` 表与索引（`db/schema.sql` + `runMigrations`）。
+- 启动迁移自动回填历史 `arbitration_requests` 的证据路径。
+- 仲裁提交与罚款支付凭证链路同步写入结构化引用。
+- 仲裁文件权限校验切换为结构化精确匹配，不再依赖 `JSON LIKE`。
+
+2. 站内沟通留痕后端闭环
+- 新增消息写入接口：`POST /api/chats/messages`
+- 新增消息查询接口：`GET /api/chats/messages`
+- 新增已读接口：`POST /api/chats/messages/read`
+- 完成按目标类型路由（`farmer_report` / `recycler_request` / `processor_request`）及权限边界。
+
+3. P1 自动化回归
+- 新增脚本：`tests/api_tests/test-p1-traceability.js`
+- 新增命令：`npm run test:p1`
+
+### 12.2 执行结果
+- `node --check server.js`：通过
+- `npm run test:p0`（BASE_URL=http://localhost:4100）：通过
+- `npm run test:p1`（BASE_URL=http://localhost:4100）：通过
+
+### 12.3 结论
+- P1 已从“方案识别阶段”进入“实现+验证完成阶段”。
+- 防飞单专项当前状态升级为：`P0/P1 Verified Completed`。
+
+## 13. 增量修复记录（2026-04-18，P2 完成）
+
+### 13.1 本轮完成项
+1. 页面 Mock 回退清理
+- 农户端：`src/pages/farmer/report/list.vue`、`src/pages/farmer/report/detail.vue`、`src/pages/farmer/supply/index.vue`
+- 回收商端：`src/pages/merchant/orders/index.vue`、`src/pages/merchant/orders/detail.vue`
+- 处理商端：`src/pages/processor/orders/index.vue`、`src/pages/processor/orders/detail.vue`
+- 以上页面已切换到真实 API，不再依赖 `originalMockList` / `global_*` / `useMockData` 回退。
+
+2. 订单接口闭环补齐
+- `GET /api/orders`：扩展返回字段并按创建时间倒序。
+- `GET /api/orders/:id`：新增订单详情查询（支持 id/order_no）并补角色权限校验。
+- `PATCH /api/orders/:id/status`：新增状态更新并写入 `order_status_history`。
+
+3. 请求层响应兼容
+- `src/utils/request.js` 已兼容信封模式与普通 JSON，减少接口格式差异导致的误判失败。
+
+4. 自动化脚本
+- 新增：`tests/api_tests/test-p2-mock-cleanup.js`
+- 命令：`npm run test:p2`
+
+### 13.2 执行结果
+- `get_errors`（本轮相关文件）：无错误。
+- `npm run test:p2`（BASE_URL=http://localhost:4100）：通过。
+- `npm run test:p1`（BASE_URL=http://localhost:4100）：通过。
+- `npm run test:p0`：本轮早先已通过。
+
+### 13.3 结论
+- P2 已完成“去 Mock + 真接口 + 自动化验证 + 文档归档”闭环。
+- 防飞单专项当前状态升级为：`P0/P1/P2 Verified Completed`。
+
+## 14. 收官补充记录（2026-04-19）
+
+### 14.1 最终验收
+- `npm run test:p2`（BASE_URL=http://localhost:4100）：通过。
+- `npm run test:p0`（BASE_URL=http://localhost:4100）：通过（重启测试实例后单独执行）。
+- `npm run test:p1`（BASE_URL=http://localhost:4100）：通过（重启测试实例后单独执行）。
+
+### 14.2 收官结论
+- 本轮防飞单专项完成“实现-测试-归档-复验”全链路闭环。
+- 收官报告：`docs/anti-fly-order-hardening-2026-04-18/04-victory-report-2026-04-19.md`。
