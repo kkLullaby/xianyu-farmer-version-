@@ -451,17 +451,140 @@
             }
         }
 
+        function clearChildren(el) {
+            if (!el) return;
+            while (el.firstChild) {
+                el.removeChild(el.firstChild);
+            }
+        }
+
+        function createInfoIcon(path, fillRule = '', clipRule = '') {
+            const svgNs = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNs, 'svg');
+            svg.setAttribute('class', 'info-icon');
+            svg.setAttribute('fill', 'currentColor');
+            svg.setAttribute('viewBox', '0 0 20 20');
+
+            const pathEl = document.createElementNS(svgNs, 'path');
+            pathEl.setAttribute('d', path);
+            if (fillRule) pathEl.setAttribute('fill-rule', fillRule);
+            if (clipRule) pathEl.setAttribute('clip-rule', clipRule);
+            svg.appendChild(pathEl);
+            return svg;
+        }
+
+        function createInfoItem(iconPath, text, options = {}) {
+            const item = document.createElement('div');
+            item.className = 'info-item';
+
+            const icon = createInfoIcon(iconPath, options.fillRule, options.clipRule);
+            item.appendChild(icon);
+
+            const span = document.createElement('span');
+            if (options.className) {
+                span.className = options.className;
+            }
+            span.textContent = text;
+            item.appendChild(span);
+
+            return item;
+        }
+
+        function setStatusLoading(statusDiv, text) {
+            clearChildren(statusDiv);
+
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner';
+
+            const message = document.createElement('p');
+            message.style.marginTop = '10px';
+            message.textContent = text;
+
+            statusDiv.appendChild(spinner);
+            statusDiv.appendChild(message);
+        }
+
+        function setStatusSuccess(statusDiv, messageText, detailText = '') {
+            clearChildren(statusDiv);
+
+            const message = document.createElement('p');
+            message.style.color = '#1abc9c';
+            if (!detailText) {
+                message.style.fontSize = '18px';
+                message.style.fontWeight = 'bold';
+            }
+            message.textContent = messageText;
+
+            statusDiv.appendChild(message);
+
+            if (detailText) {
+                const detail = document.createElement('p');
+                detail.style.color = '#666';
+                detail.style.fontSize = '14px';
+                detail.style.marginTop = '5px';
+                detail.textContent = detailText;
+                statusDiv.appendChild(detail);
+            }
+        }
+
+        function appendStatusHint(statusDiv, text) {
+            const hint = document.createElement('p');
+            hint.style.marginTop = '10px';
+            hint.style.color = '#27ae60';
+            hint.textContent = text;
+            statusDiv.appendChild(hint);
+        }
+
+        function setStatusError(statusDiv, errorText) {
+            clearChildren(statusDiv);
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'error-message';
+
+            const content = document.createElement('div');
+            const title = document.createElement('strong');
+            title.textContent = '⚠️ 加载失败';
+
+            const message = document.createElement('p');
+            message.style.marginTop = '6px';
+            message.textContent = errorText;
+
+            const retryBtn = document.createElement('button');
+            retryBtn.textContent = '重新加载';
+            retryBtn.style.marginTop = '10px';
+            retryBtn.style.padding = '8px 15px';
+            retryBtn.style.background = '#27ae60';
+            retryBtn.style.color = 'white';
+            retryBtn.style.border = 'none';
+            retryBtn.style.borderRadius = '5px';
+            retryBtn.style.cursor = 'pointer';
+            retryBtn.onclick = () => location.reload();
+
+            content.appendChild(title);
+            content.appendChild(message);
+            content.appendChild(retryBtn);
+            wrapper.appendChild(content);
+            statusDiv.appendChild(wrapper);
+        }
+
         // 渲染回收商卡片
         function renderRecyclerCards(recyclers) {
             const container = document.getElementById('recyclers-container');
+            clearChildren(container);
             
             if (recyclers.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <h2>😔 附近暂无处理点</h2>
-                        <p>请稍后再试或联系客服</p>
-                    </div>
-                `;
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+
+                const title = document.createElement('h2');
+                title.textContent = '😔 附近暂无处理点';
+
+                const detail = document.createElement('p');
+                detail.textContent = '请稍后再试或联系客服';
+
+                emptyState.appendChild(title);
+                emptyState.appendChild(detail);
+                container.appendChild(emptyState);
                 return;
             }
 
@@ -469,59 +592,75 @@
                 const distanceNum = Number(recycler.distance);
                 return {
                     ...recycler,
-                    _name: escapeHtml(recycler.name || '未命名处理点'),
+                    _name: String(recycler.name || '未命名处理点'),
                     _distance: Number.isFinite(distanceNum) ? distanceNum.toFixed(2) : '--',
-                    _phoneDisplay: escapeHtml(recycler.phone || '未提供'),
+                    _phoneDisplay: String(recycler.phone || '未提供'),
                     _phoneDial: sanitizePhoneForDial(recycler.phone || ''),
-                    _address: escapeHtml(recycler.address || '未提供地址'),
-                    _businessHours: escapeHtml(recycler.businessHours || '营业时间未提供')
+                    _address: String(recycler.address || '未提供地址'),
+                    _businessHours: String(recycler.businessHours || '营业时间未提供')
                 };
             });
 
-            container.innerHTML = safeRecyclers.map((recycler, index) => `
-                <div class="recycler-card" onclick="showRoute(${index})">
-                    <div class="recycler-header">
-                        <div>
-                            <div class="recycler-name">${recycler._name}</div>
-                        </div>
-                        <div class="distance-badge">
-                            ${recycler._distance} km
-                        </div>
-                    </div>
-                    
-                    <div class="recycler-info">
-                        <div class="info-item">
-                            <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                            </svg>
-                            <span class="phone-number">${recycler._phoneDisplay}</span>
-                        </div>
-                        
-                        <div class="info-item">
-                            <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>${recycler._address}</span>
-                        </div>
-                        
-                        <div class="info-item">
-                            <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>${recycler._businessHours}</span>
-                        </div>
-                    </div>
+            safeRecyclers.forEach((recycler, index) => {
+                const card = document.createElement('div');
+                card.className = 'recycler-card';
+                card.addEventListener('click', () => showRoute(index));
 
-                    <div class="action-buttons">
-                        <button class="btn btn-call" onclick="callPhone('${recycler._phoneDial}', event)">
-                            📞 拨打电话
-                        </button>
-                        <button class="btn btn-route" onclick="showRoute(${index}, event)">
-                            🗺️ 查看路线
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                const header = document.createElement('div');
+                header.className = 'recycler-header';
+
+                const nameWrap = document.createElement('div');
+                const name = document.createElement('div');
+                name.className = 'recycler-name';
+                name.textContent = recycler._name;
+                nameWrap.appendChild(name);
+
+                const distanceBadge = document.createElement('div');
+                distanceBadge.className = 'distance-badge';
+                distanceBadge.textContent = `${recycler._distance} km`;
+
+                header.appendChild(nameWrap);
+                header.appendChild(distanceBadge);
+
+                const info = document.createElement('div');
+                info.className = 'recycler-info';
+                info.appendChild(createInfoItem(
+                    'M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z',
+                    recycler._phoneDisplay,
+                    { className: 'phone-number' }
+                ));
+                info.appendChild(createInfoItem(
+                    'M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z',
+                    recycler._address,
+                    { fillRule: 'evenodd', clipRule: 'evenodd' }
+                ));
+                info.appendChild(createInfoItem(
+                    'M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z',
+                    recycler._businessHours,
+                    { fillRule: 'evenodd', clipRule: 'evenodd' }
+                ));
+
+                const actions = document.createElement('div');
+                actions.className = 'action-buttons';
+
+                const callBtn = document.createElement('button');
+                callBtn.className = 'btn btn-call';
+                callBtn.textContent = '📞 拨打电话';
+                callBtn.addEventListener('click', (event) => callPhone(recycler._phoneDial, event));
+
+                const routeBtn = document.createElement('button');
+                routeBtn.className = 'btn btn-route';
+                routeBtn.textContent = '🗺️ 查看路线';
+                routeBtn.addEventListener('click', (event) => showRoute(index, event));
+
+                actions.appendChild(callBtn);
+                actions.appendChild(routeBtn);
+
+                card.appendChild(header);
+                card.appendChild(info);
+                card.appendChild(actions);
+                container.appendChild(card);
+            });
 
             // 存储回收商数据供后续使用
             window.recyclersData = safeRecyclers;
@@ -613,8 +752,12 @@
                     if (status === 'complete') {
                         console.log('路线规划成功', result);
                     } else {
-                        document.getElementById('route-info').innerHTML = 
-                            '<p style="color: #e74c3c;">路线规划失败，请稍后重试</p>';
+                        const routeInfo = document.getElementById('route-info');
+                        clearChildren(routeInfo);
+                        const msg = document.createElement('p');
+                        msg.style.color = '#e74c3c';
+                        msg.textContent = '路线规划失败，请稍后重试';
+                        routeInfo.appendChild(msg);
                     }
                 }
             );
@@ -627,47 +770,29 @@
 
             try {
                 // 获取用户位置
-                statusDiv.innerHTML = `
-                    <div class="spinner"></div>
-                    <p style="margin-top: 10px;">正在获取您的位置...</p>
-                `;
+                setStatusLoading(statusDiv, '正在获取您的位置...');
                 
                 userLocation = await getUserLocation();
                 
-                statusDiv.innerHTML = `
-                    <p style="color: #1abc9c;">✓ 位置获取成功</p>
-                    <p style="color: #666; font-size: 14px; margin-top: 5px;">
-                        纬度: ${userLocation.lat.toFixed(4)}, 经度: ${userLocation.lng.toFixed(4)}
-                    </p>
-                `;
+                setStatusSuccess(
+                    statusDiv,
+                    '✓ 位置获取成功',
+                    `纬度: ${userLocation.lat.toFixed(4)}, 经度: ${userLocation.lng.toFixed(4)}`
+                );
 
                 // 获取附近的回收商
-                statusDiv.innerHTML += `
-                    <p style="margin-top: 10px; color: #27ae60;">正在查找附近的处理点...</p>
-                `;
+                appendStatusHint(statusDiv, '正在查找附近的处理点...');
 
                 const recyclers = await fetchNearbyRecyclers(userLocation.lat, userLocation.lng);
                 
-                statusDiv.innerHTML = `
-                    <p style="color: #1abc9c; font-size: 18px; font-weight: bold;">
-                        ✓ 找到 ${recyclers.length} 个附近的处理点
-                    </p>
-                `;
+                setStatusSuccess(statusDiv, `✓ 找到 ${recyclers.length} 个附近的处理点`);
 
                 // 渲染回收商卡片
                 renderRecyclerCards(recyclers);
 
             } catch (error) {
                 console.error('初始化失败:', error);
-                statusDiv.innerHTML = `
-                    <div class="error-message">
-                        <strong>⚠️ 加载失败</strong>
-                        <p>${escapeHtml(error.message)}</p>
-                        <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            重新加载
-                        </button>
-                    </div>
-                `;
+                setStatusError(statusDiv, error?.message || '加载失败');
             }
         }
 

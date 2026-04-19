@@ -92,6 +92,9 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const isSubmitting = ref(false);
 
@@ -102,6 +105,8 @@ const formData = ref({
   contact_name: '',
   contact_phone: '',
   location_address: '',
+  location_lat: '',
+  location_lng: '',
   notes: ''
 });
 
@@ -119,6 +124,8 @@ const chooseLocation = () => {
   uni.chooseLocation({
     success: (res) => {
       formData.value.location_address = res.address + ' ' + res.name;
+      formData.value.location_lat = res.latitude || '';
+      formData.value.location_lng = res.longitude || '';
     },
     fail: () => {
       uni.showToast({
@@ -129,7 +136,7 @@ const chooseLocation = () => {
   });
 };
 
-const submitForm = () => {
+const submitForm = async () => {
   // 验证必填项
   if (!formData.value.pickup_date) return showToast('请选择处理日期');
   if (!formData.value.weight_kg) return showToast('请输入预估重量');
@@ -137,58 +144,42 @@ const submitForm = () => {
   if (!formData.value.contact_name) return showToast('请输入联系人');
   if (!formData.value.contact_phone) return showToast('请输入联系电话');
   if (!formData.value.location_address) return showToast('请输入处理地点');
+  if (!/^1\d{10}$/.test(String(formData.value.contact_phone))) return showToast('请输入11位手机号');
+
+  const weight = Number(formData.value.weight_kg);
+  if (!Number.isFinite(weight) || weight <= 0) return showToast('请输入有效重量');
+
+  if (isSubmitting.value) return;
 
   isSubmitting.value = true;
 
-  const newReport = {
-    id: 'RPT-' + Date.now(),
-    submitter: formData.value.contact_name,
-    submitter_role: '农户',
-    goods_type: formData.value.citrus_variety,
-    weight: formData.value.weight_kg,
-    address: formData.value.location_address,
-    status: 'pending',
-    create_time: new Date().toLocaleString(),
-    pickup_date: formData.value.pickup_date,
-    contact_phone: formData.value.contact_phone,
-    notes: formData.value.notes
-  };
+  try {
+    await request.post('/api/farmer-reports', {
+      pickup_date: formData.value.pickup_date,
+      weight_kg: weight,
+      location_address: formData.value.location_address,
+      location_lat: formData.value.location_lat ? Number(formData.value.location_lat) : null,
+      location_lng: formData.value.location_lng ? Number(formData.value.location_lng) : null,
+      citrus_variety: formData.value.citrus_variety,
+      contact_name: formData.value.contact_name,
+      contact_phone: String(formData.value.contact_phone),
+      notes: formData.value.notes || '',
+      status: 'pending'
+    });
 
-  const globalList = uni.getStorageSync('global_report_list') || [];
-  globalList.unshift(newReport);
-  uni.setStorageSync('global_report_list', globalList);
-
-  const auditEntry = {
-    id: 'AUD-' + newReport.id,
-    submitter: newReport.submitter,
-    role_label: '农户',
-    _role: 'farmer',
-    type_label: '柑肉处理申报',
-    spec: newReport.goods_type,
-    quantity: newReport.weight + ' 斤',
-    unit_price: 0,
-    audit_status: 'pending',
-    commission_type: null,
-    commission_value: null,
-    created_at: newReport.create_time
-  };
-  const auditList = uni.getStorageSync('global_audit_list') || [];
-  auditList.unshift(auditEntry);
-  uni.setStorageSync('global_audit_list', auditList);
-
-  // 模拟提交请求
-  setTimeout(() => {
     isSubmitting.value = false;
     uni.showToast({
       title: '申报提交成功',
       icon: 'success'
     });
-    
-    // 延迟返回上一页
+
     setTimeout(() => {
       uni.navigateBack();
-    }, 1500);
-  }, 1500);
+    }, 800);
+  } catch (err) {
+    isSubmitting.value = false;
+    // request.js 已统一提示
+  }
 };
 
 const showToast = (title) => {
@@ -197,6 +188,25 @@ const showToast = (title) => {
     icon: 'none'
   });
 };
+
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'farmer', false)) {
+      uni.showToast({ title: '仅农户可发起申报', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+
+    if (!formData.value.contact_name) {
+      formData.value.contact_name = me.full_name || me.username || '';
+    }
+    if (!formData.value.contact_phone) {
+      formData.value.contact_phone = me.phone || '';
+    }
+  } catch (err) {
+    // request.js 已统一处理登录失效
+  }
+});
 </script>
 
 <style scoped>

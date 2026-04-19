@@ -8,11 +8,11 @@
     <view class="form-card">
       <form @submit="submitDemand">
         <view class="form-group">
-          <text class="label">求购品种</text>
-          <picker :range="varieties" @change="bindVarietyChange">
+          <text class="label">求购品级</text>
+          <picker :range="gradeLabels" @change="bindGradeChange">
             <view class="picker-view">
-              <text v-if="formData.variety">{{ formData.variety }}</text>
-              <text v-else class="placeholder">请选择品种</text>
+              <text v-if="formData.grade_label">{{ formData.grade_label }}</text>
+              <text v-else class="placeholder">请选择品级</text>
             </view>
           </picker>
         </view>
@@ -92,12 +92,23 @@
 
 <script setup>
 import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const isSubmitting = ref(false);
-const varieties = ['新会柑', '茶枝柑', '其他品种'];
+const gradeOptions = [
+  { label: '一级品', value: 'grade1' },
+  { label: '二级品', value: 'grade2' },
+  { label: '三级品', value: 'grade3' },
+  { label: '等外级', value: 'offgrade' },
+  { label: '不限', value: 'any' }
+];
+const gradeLabels = gradeOptions.map((item) => item.label);
 
 const formData = ref({
-  variety: '',
+  grade: '',
+  grade_label: '',
   weight: '',
   price: '',
   deadline: '',
@@ -107,64 +118,82 @@ const formData = ref({
   description: ''
 });
 
-const bindVarietyChange = (e) => {
-  formData.value.variety = varieties[e.detail.value];
+const bindGradeChange = (e) => {
+  const option = gradeOptions[e.detail.value];
+  formData.value.grade = option.value;
+  formData.value.grade_label = option.label;
 };
 
 const bindDateChange = (e) => {
   formData.value.deadline = e.detail.value;
 };
 
-const submitDemand = () => {
-  if (!formData.value.variety || !formData.value.weight || !formData.value.price || !formData.value.contact_name || !formData.value.contact_phone || !formData.value.address) {
+const submitDemand = async () => {
+  if (!formData.value.grade || !formData.value.weight || !formData.value.price || !formData.value.contact_name || !formData.value.contact_phone || !formData.value.address) {
     return uni.showToast({ title: '请填写完整信息', icon: 'none' });
   }
 
+  if (!/^1\d{10}$/.test(String(formData.value.contact_phone))) {
+    return uni.showToast({ title: '请输入11位手机号', icon: 'none' });
+  }
+
+  const weight = Number(formData.value.weight);
+  const price = Number(formData.value.price);
+  if (!Number.isFinite(weight) || weight <= 0) {
+    return uni.showToast({ title: '请输入有效重量', icon: 'none' });
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    return uni.showToast({ title: '请输入有效单价', icon: 'none' });
+  }
+
+  if (isSubmitting.value) return;
+
   isSubmitting.value = true;
-  
-  setTimeout(() => {
-    const newItem = {
-      id: 'DEM' + Date.now(),
-      source: 'merchant',
-      goods_type: formData.value.variety,
-      weight: Number(formData.value.weight),
-      unit: '斤',
-      price: Number(formData.value.price),
-      deadline: formData.value.deadline || '长期有效',
+
+  try {
+    const notesParts = [
+      formData.value.description ? `需求说明：${formData.value.description}` : '',
+      `需求重量：${weight}斤`,
+      `参考单价：${price.toFixed(2)}元/斤`,
+      `收货地址：${formData.value.address}`
+    ].filter(Boolean);
+
+    await request.post('/api/recycler-requests', {
+      grade: formData.value.grade,
       contact_name: formData.value.contact_name,
-      contact_phone: formData.value.contact_phone,
-      address: formData.value.address,
-      commissionRate: 10,
-      description: formData.value.description || ''
-    };
-
-    const currentList = uni.getStorageSync('global_demand_list') || [];
-    currentList.unshift(newItem);
-    uni.setStorageSync('global_demand_list', currentList);
-
-    const auditEntry = {
-      id: 'AUD-' + newItem.id,
-      submitter: newItem.contact_name,
-      role_label: '回收商',
-      _role: 'merchant',
-      type_label: '回收求购发布',
-      spec: newItem.goods_type,
-      quantity: newItem.weight + ' 斤',
-      unit_price: newItem.price,
-      audit_status: 'pending',
-      commission_type: null,
-      commission_value: null,
-      created_at: new Date().toLocaleString()
-    };
-    const auditList = uni.getStorageSync('global_audit_list') || [];
-    auditList.unshift(auditEntry);
-    uni.setStorageSync('global_audit_list', auditList);
+      contact_phone: String(formData.value.contact_phone),
+      notes: notesParts.join('\n'),
+      valid_until: formData.value.deadline || null,
+      status: 'draft'
+    });
 
     isSubmitting.value = false;
     uni.showToast({ title: '发布成功', icon: 'success' });
-    setTimeout(() => uni.navigateBack(), 1500);
-  }, 1500);
+    setTimeout(() => uni.navigateBack(), 800);
+  } catch (err) {
+    isSubmitting.value = false;
+    // request.js 已统一提示
+  }
 };
+
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'merchant', false)) {
+      uni.showToast({ title: '仅回收商可发布求购', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+
+    if (!formData.value.contact_name) {
+      formData.value.contact_name = me.full_name || me.username || '';
+    }
+    if (!formData.value.contact_phone) {
+      formData.value.contact_phone = me.phone || '';
+    }
+  } catch (err) {
+    // request.js 已统一处理登录失效
+  }
+});
 </script>
 
 <style scoped>

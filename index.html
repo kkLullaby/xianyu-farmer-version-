@@ -756,6 +756,35 @@
         }
         return '';
     }
+
+    function setMultilineText(el, rawValue) {
+        if (!el) return;
+        const normalized = String(rawValue || '').replace(/\\n/g, '\n');
+        el.textContent = '';
+        normalized.split('\n').forEach((line, index) => {
+            if (index > 0) {
+                el.appendChild(document.createElement('br'));
+            }
+            el.appendChild(document.createTextNode(line));
+        });
+    }
+
+    function openPolicyModalWithIframe(modalEl, contentEl, pagePath) {
+        if (!modalEl || !contentEl) return;
+        contentEl.textContent = '';
+
+        const frame = document.createElement('iframe');
+        frame.src = pagePath;
+        frame.style.width = '100%';
+        frame.style.minHeight = '65vh';
+        frame.style.border = 'none';
+        frame.style.borderRadius = '8px';
+        frame.setAttribute('title', pagePath.includes('privacy') ? '隐私政策' : '服务协议');
+        frame.setAttribute('sandbox', '');
+
+        contentEl.appendChild(frame);
+        modalEl.style.display = 'flex';
+    }
     
     function changeAnnouncement(direction) {
         if (announcementsList.length === 0) return;
@@ -936,13 +965,7 @@
             if (info.about) {
                 const aboutEl = document.getElementById('footer-about');
                 if (aboutEl) {
-                    // ✅ 同时处理字面量 \n 字符串（用户手动输入的）和真实换行符
-                    const escaped = info.about
-                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const formatted = escaped
-                        .replace(/\\n/g, '<br>')   // 字面量 \n 字符串 → <br>
-                        .replace(/\n/g, '<br>');    // 真实换行符 → <br>
-                    aboutEl.innerHTML = formatted;
+                    setMultilineText(aboutEl, info.about);
                 }
             }
         }).catch(err => console.log('底部信息加载失败:', err));
@@ -978,14 +1001,14 @@
         if (privacyLink) {
             privacyLink.onclick = function(e) {
                 e.preventDefault();
-                fetch('privacy-policy.html').then(r=>r.text()).then(html=>{content.innerHTML=html;modal.style.display='flex';});
+                openPolicyModalWithIframe(modal, content, 'privacy-policy.html');
             };
         }
         
         if (serviceLink) {
             serviceLink.onclick = function(e) {
                 e.preventDefault();
-                fetch('service-agreement.html').then(r=>r.text()).then(html=>{content.innerHTML=html;modal.style.display='flex';});
+                openPolicyModalWithIframe(modal, content, 'service-agreement.html');
             };
         }
         

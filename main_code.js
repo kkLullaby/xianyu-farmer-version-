@@ -31,15 +31,25 @@ function initNavigation() {
             }
             else {
                 // 如果点击了还没写的菜单，给个提示
-                const content = document.getElementById('content-area');
-                content.innerHTML = '<h1>正在开发中...</h1><p id="menu-click-text"></p>';
-                const clickText = document.getElementById('menu-click-text');
-                if (clickText) {
-                    clickText.textContent = `您点击了：${menuText}`;
-                }
+                renderComingSoon(menuText);
             }
         });
     });
+}
+
+function renderComingSoon(menuText) {
+    const content = document.getElementById('content-area');
+    if (!content) return;
+    content.textContent = '';
+
+    const title = document.createElement('h1');
+    title.textContent = '正在开发中...';
+
+    const detail = document.createElement('p');
+    detail.textContent = `您点击了：${menuText}`;
+
+    content.appendChild(title);
+    content.appendChild(detail);
 }
 
 /**

@@ -43,6 +43,7 @@
 - 复扫进度：`docs/audit-2026-04-13/04-rescan-and-progress-2026-04-17.md`
 - 阶段计划：`docs/audit-2026-04-13/05-release-readiness-phase-plan-2026-04-17.md`
 - 门禁定义：`docs/audit-2026-04-13/06-step1-release-gates-2026-04-17.md`
+- 简短发布说明：`docs/anti-fly-order-hardening-2026-04-18/05-short-release-note-2026-04-19.md`
 
 ## 7. 当前状态
 - 状态：`P0/P1/P2 Verified Completed`
@@ -51,4 +52,5 @@
    2. P1 修复与自动化回归已完成（`npm run test:p1`）。
    3. P2 Mock 回退清理与订单链路真接口改造已完成（`npm run test:p2`）。
    4. 2026-04-19 收官复验（分进程）已通过：P0/P1/P2 全绿。
-   5. 详情见 `02-p1-hardening-log.md`、`03-p2-hardening-log.md`、`04-victory-report-2026-04-19.md`。
+   5. 发布前测试痕迹清理已完成（回滚测试数据库写入、清理测试上传文件）。
+   6. 详情见 `02-p1-hardening-log.md`、`03-p2-hardening-log.md`、`04-victory-report-2026-04-19.md`。

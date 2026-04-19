@@ -829,6 +829,183 @@ app.get('/api/me', (req, res) => {
     );
 });
 
+// Admin user list (支持关键词/角色分页)
+app.get('/api/admin/users', adminOnly, (req, res) => {
+    const keyword = String(req.query.keyword || '').trim();
+    const requestedRole = String(req.query.role || 'all').trim().toLowerCase();
+    const roleFilter = requestedRole === 'merchant' ? 'recycler' : requestedRole;
+    const page = Math.max(1, toPositiveInt(req.query.page) || 1);
+    const pageSize = Math.min(200, Math.max(1, toPositiveInt(req.query.page_size) || 50));
+    const offset = (page - 1) * pageSize;
+
+    const where = [];
+    const whereParams = [];
+
+    if (keyword) {
+        const like = `%${keyword}%`;
+        where.push('(u.username LIKE ? OR u.full_name LIKE ? OR u.phone LIKE ? OR IFNULL(u.email, "") LIKE ?)');
+        whereParams.push(like, like, like, like);
+    }
+
+    if (roleFilter && roleFilter !== 'all') {
+        where.push('r.name = ?');
+        whereParams.push(roleFilter);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const countSql = `
+        SELECT COUNT(1) AS total
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        ${whereSql}
+    `;
+
+    const listSql = `
+        SELECT
+            u.id,
+            u.username,
+            u.full_name,
+            u.phone,
+            u.email,
+            IFNULL(u.meta, '{}') AS meta,
+            u.created_at,
+            u.updated_at,
+            r.name AS role,
+            (SELECT COUNT(1) FROM farmer_reports fr WHERE fr.farmer_id = u.id) AS farmer_report_count,
+            (SELECT COUNT(1) FROM recycler_requests rr WHERE rr.recycler_id = u.id) AS recycler_request_count,
+            (SELECT COUNT(1) FROM processor_requests pr WHERE pr.processor_id = u.id) AS processor_request_count,
+            (SELECT COUNT(1) FROM orders o WHERE o.farmer_id = u.id OR o.recycler_id = u.id) AS order_count
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        ${whereSql}
+        ORDER BY u.created_at DESC
+        LIMIT ? OFFSET ?
+    `;
+
+    const db = openDb();
+    db.get(countSql, whereParams, (countErr, countRow) => {
+        if (countErr) {
+            db.close();
+            return res.status(500).json({ error: countErr.message });
+        }
+
+        const listParams = [...whereParams, pageSize, offset];
+        db.all(listSql, listParams, (listErr, rows) => {
+            db.close();
+            if (listErr) return res.status(500).json({ error: listErr.message });
+
+            const items = (rows || []).map((row) => ({
+                ...row,
+                role_label: row.role === 'recycler' ? 'merchant' : row.role,
+                farmer_report_count: Number(row.farmer_report_count || 0),
+                recycler_request_count: Number(row.recycler_request_count || 0),
+                processor_request_count: Number(row.processor_request_count || 0),
+                order_count: Number(row.order_count || 0),
+            }));
+
+            return res.json({
+                items,
+                pagination: {
+                    page,
+                    page_size: pageSize,
+                    total: Number((countRow && countRow.total) || 0),
+                },
+            });
+        });
+    });
+});
+
+// Admin statistics overview
+app.get('/api/admin/statistics/overview', adminOnly, (req, res) => {
+    const db = openDb();
+    const sql = `
+        SELECT
+            (SELECT COUNT(1) FROM users) AS users_total,
+            (SELECT COUNT(1) FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'admin') AS users_admin,
+            (SELECT COUNT(1) FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'farmer') AS users_farmer,
+            (SELECT COUNT(1) FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'recycler') AS users_recycler,
+            (SELECT COUNT(1) FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'processor') AS users_processor,
+            (SELECT COUNT(1) FROM users WHERE created_at >= datetime('now', '-7 day')) AS users_new_7d,
+
+            (SELECT COUNT(1) FROM orders) AS orders_total,
+            (SELECT COUNT(1) FROM orders WHERE status = 'pending') AS orders_pending,
+            (SELECT COUNT(1) FROM orders WHERE status = 'accepted') AS orders_accepted,
+            (SELECT COUNT(1) FROM orders WHERE status = 'completed') AS orders_completed,
+            (SELECT COUNT(1) FROM orders WHERE status = 'cancelled') AS orders_cancelled,
+            (SELECT COALESCE(SUM(total_price), 0) FROM orders WHERE status = 'completed') AS orders_turnover,
+
+            (SELECT COUNT(1) FROM farmer_reports) AS reports_total,
+            (SELECT COUNT(1) FROM farmer_reports WHERE status = 'pending') AS reports_pending,
+            (SELECT COUNT(1) FROM farmer_reports WHERE status = 'accepted') AS reports_accepted,
+            (SELECT COUNT(1) FROM farmer_reports WHERE status = 'completed') AS reports_completed,
+            (SELECT COUNT(1) FROM farmer_reports WHERE status = 'rejected') AS reports_rejected,
+            (SELECT COALESCE(SUM(weight_kg), 0) FROM farmer_reports WHERE status IN ('accepted', 'completed')) AS reports_weight_processed,
+
+            (SELECT COUNT(1) FROM intentions) AS intentions_total,
+            (SELECT COUNT(1) FROM intentions WHERE status = 'pending') AS intentions_pending,
+            (SELECT COUNT(1) FROM intentions WHERE status = 'accepted') AS intentions_accepted,
+            (SELECT COUNT(1) FROM intentions WHERE status = 'rejected') AS intentions_rejected,
+
+            (SELECT COUNT(1) FROM arbitration_requests) AS arbitrations_total,
+            (SELECT COUNT(1) FROM arbitration_requests WHERE status = 'pending') AS arbitrations_pending,
+            (SELECT COUNT(1) FROM arbitration_requests WHERE status = 'investigating') AS arbitrations_investigating,
+            (SELECT COUNT(1) FROM arbitration_requests WHERE status = 'resolved') AS arbitrations_resolved,
+            (SELECT COUNT(1) FROM arbitration_requests WHERE status = 'rejected') AS arbitrations_rejected
+    `;
+
+    db.get(sql, [], (err, row) => {
+        db.close();
+        if (err) return res.status(500).json({ error: err.message });
+
+        const data = Object.entries(row || {}).reduce((acc, [key, value]) => {
+            const asNumber = Number(value);
+            acc[key] = Number.isFinite(asNumber) ? asNumber : 0;
+            return acc;
+        }, {});
+
+        return res.json(data);
+    });
+});
+
+// Admin runtime/security settings snapshot
+app.get('/api/admin/settings/runtime', adminOnly, (req, res) => {
+    const allowedOriginsList = (allowedOrigins || []).map((item) => String(item).trim()).filter(Boolean);
+    const smsProvider = String(process.env.SMS_PROVIDER || 'auto').trim().toLowerCase() || 'auto';
+    const aliyunConfigured = Boolean(
+        process.env.ALIYUN_ACCESS_KEY_ID
+        && process.env.ALIYUN_ACCESS_KEY_SECRET
+        && process.env.ALIYUN_SMS_SIGN
+        && process.env.ALIYUN_SMS_TEMPLATE
+    );
+
+    return res.json({
+        runtime: {
+            node_env: process.env.NODE_ENV || 'development',
+            port: Number(process.env.PORT || 4000),
+        },
+        security: {
+            jwt_from_env: Boolean(process.env.JWT_SECRET),
+            bcrypt_rounds: BCRYPT_ROUNDS,
+            cors_allowlist_count: allowedOriginsList.length,
+            cors_allowlist: allowedOriginsList,
+            hsts_enabled: true,
+            x_content_type_options: true,
+            x_frame_options: true,
+            cache_control_no_store: true,
+            csp_configured: false,
+            referrer_policy_configured: false,
+            permissions_policy_configured: false,
+        },
+        integrations: {
+            amap_configured: Boolean(AMAP_WEB_KEY),
+            sms_provider: smsProvider,
+            sms_aliyun_configured: aliyunConfigured,
+            sms_mock_mode: smsProvider === 'mock' || (!aliyunConfigured && smsProvider === 'auto'),
+        },
+    });
+});
+
 app.post('/init', async (req, res) => {
     if (process.env.NODE_ENV === 'production') {
         return res.status(403).json({ error: '生产环境禁用初始化接口' });
@@ -1256,32 +1433,43 @@ app.patch('/api/orders/:id/status', (req, res) => {
                 }
             }
 
-            db.run(
-                `UPDATE orders
-                 SET status = ?, updated_at = datetime('now')
-                 WHERE id = ?`,
-                [nextStatus, row.id],
-                function(updateErr) {
-                    if (updateErr) {
-                        db.close();
-                        return res.status(500).json({ error: updateErr.message });
-                    }
-                    if (this.changes === 0) {
-                        db.close();
-                        return res.status(404).json({ error: '订单不存在或状态未更新' });
-                    }
-
-                    db.run(
-                        `INSERT INTO order_status_history (order_id, status, note)
-                         VALUES (?, ?, ?)`,
-                        [row.id, nextStatus, note || null],
-                        () => {
-                            db.close();
-                            return res.json({ success: true, id: row.id, order_no: row.order_no, status: nextStatus });
-                        }
-                    );
+            isTargetUnderActiveArbitration(db, 'order', row.id, (lockErr, locked) => {
+                if (lockErr) {
+                    db.close();
+                    return res.status(500).json({ error: lockErr.message });
                 }
-            );
+                if (locked) {
+                    db.close();
+                    return res.status(409).json({ error: '仲裁处理中，相关订单已冻结，暂不可变更状态' });
+                }
+
+                db.run(
+                    `UPDATE orders
+                     SET status = ?, updated_at = datetime('now')
+                     WHERE id = ?`,
+                    [nextStatus, row.id],
+                    function(updateErr) {
+                        if (updateErr) {
+                            db.close();
+                            return res.status(500).json({ error: updateErr.message });
+                        }
+                        if (this.changes === 0) {
+                            db.close();
+                            return res.status(404).json({ error: '订单不存在或状态未更新' });
+                        }
+
+                        db.run(
+                            `INSERT INTO order_status_history (order_id, status, note)
+                             VALUES (?, ?, ?)`,
+                            [row.id, nextStatus, note || null],
+                            () => {
+                                db.close();
+                                return res.json({ success: true, id: row.id, order_no: row.order_no, status: nextStatus });
+                            }
+                        );
+                    }
+                );
+            });
         }
     );
 });
@@ -2682,6 +2870,10 @@ app.post('/api/cms/upload', adminOnly, cmsUpload.single('file'), validateCmsUplo
 
 function getArbitrationTargetPartyIds(db, orderType, orderId, callback) {
     const targetConfigMap = {
+        order: {
+            sql: `SELECT farmer_id, recycler_id FROM orders WHERE id = ?`,
+            resolvePartyIds: (row) => [toPositiveInt(row.farmer_id), toPositiveInt(row.recycler_id)]
+        },
         farmer_report: {
             sql: `SELECT farmer_id, recycler_id FROM farmer_reports WHERE id = ?`,
             resolvePartyIds: (row) => [toPositiveInt(row.farmer_id), toPositiveInt(row.recycler_id)]
@@ -2732,7 +2924,7 @@ app.post('/api/arbitration-requests', (req, res) => {
         return res.status(400).json({ error: '缺少有效订单ID' });
     }
 
-    const allowedOrderTypes = ['farmer_report', 'recycler_request', 'processor_request'];
+    const allowedOrderTypes = ['order', 'farmer_report', 'recycler_request', 'processor_request'];
     if (!allowedOrderTypes.includes(order_type)) {
         return res.status(400).json({ error: '无效订单类型' });
     }
@@ -2830,10 +3022,12 @@ app.get('/api/arbitration-requests', (req, res) => {
     let sql = `
         SELECT ar.*, 
                u1.full_name as applicant_name,
+               r1.name as applicant_role,
                u2.full_name as respondent_name,
                u3.full_name as decided_by_name
         FROM arbitration_requests ar
         LEFT JOIN users u1 ON ar.applicant_id = u1.id
+        LEFT JOIN roles r1 ON u1.role_id = r1.id
         LEFT JOIN users u2 ON ar.respondent_id = u2.id
         LEFT JOIN users u3 ON ar.decided_by = u3.id
         WHERE ar.applicant_id = ?
@@ -2875,10 +3069,12 @@ app.get('/api/arbitration-requests/all', (req, res) => {
     let sql = `
         SELECT ar.*, 
                u1.full_name as applicant_name, u1.phone as applicant_phone,
+               r1.name as applicant_role,
                u2.full_name as respondent_name,
                u3.full_name as decided_by_name
         FROM arbitration_requests ar
         LEFT JOIN users u1 ON ar.applicant_id = u1.id
+        LEFT JOIN roles r1 ON u1.role_id = r1.id
         LEFT JOIN users u2 ON ar.respondent_id = u2.id
         LEFT JOIN users u3 ON ar.decided_by = u3.id
     `;

@@ -2,7 +2,7 @@
   <view class="container">
     <view class="header">
       <text class="title">附近的柑橘果肉回收点</text>
-      <text class="desc">展示已公开地址的回收商与处理商</text>
+      <text class="desc">展示已公开地址的回收商，并支持对在架求购单发起意向</text>
     </view>
 
     <map 
@@ -13,32 +13,51 @@
       scale="12"
     ></map>
 
-    <view class="list-container">
+    <view class="list-container" v-if="!loading && !fetchError">
       <view class="recycler-card" v-for="(item, index) in publicAddresses" :key="item.id">
         <view class="info">
           <view class="name-row">
             <text class="name">{{ item.name }}</text>
-            <text class="role-badge" :class="item.role === 'merchant' ? 'badge-merchant' : 'badge-processor'">
-              {{ item.role === 'merchant' ? '回收商' : '处理商' }}
+            <text class="role-badge badge-merchant">
+              回收商
             </text>
           </view>
-          <text class="address">{{ item.region }}</text>
+          <text class="address">{{ item.address }}</text>
+          <text class="address">距你约 {{ item.distance_text }}</text>
           <text class="phone-text">📞 {{ item.phone }}</text>
+          <text class="demand-hint" :class="item.targetRequest ? 'demand-open' : 'demand-closed'">
+            {{ item.targetRequest ? '该回收点有在架求购单，可直接发起意向' : '该回收点暂无在架求购单' }}
+          </text>
         </view>
-        <button class="intention-btn" size="mini" @click="openIntentionPopup(item)">发起意向</button>
+        <button
+          class="intention-btn"
+          size="mini"
+          :disabled="!item.targetRequest"
+          @click="openIntentionPopup(item)"
+        >
+          {{ item.targetRequest ? '发起意向' : '暂无可投递单' }}
+        </button>
       </view>
 
       <view class="empty-state" v-if="publicAddresses.length === 0">
         <text class="empty-icon">📍</text>
-        <text class="empty-text">暂无公开的回收/处理点</text>
+        <text class="empty-text">暂无公开的回收点</text>
       </view>
+    </view>
+
+    <view class="empty-state" v-if="loading">
+      <text class="empty-text">附近回收点加载中…</text>
+    </view>
+
+    <view class="empty-state" v-if="!loading && fetchError">
+      <text class="empty-text">{{ fetchError }}</text>
     </view>
 
     <view class="popup-mask" v-if="showPopup" @click="closePopup"></view>
     <view class="intention-popup" v-if="showPopup">
       <view class="popup-header">
         <text class="popup-title">发起交易意向</text>
-        <text class="popup-sub">向 {{ currentTarget.name }} 报价</text>
+        <text class="popup-sub">向 {{ currentTarget.name }} 报价（{{ currentTarget.targetRequest?.request_no || '求购单' }}）</text>
       </view>
       <view class="popup-form">
         <view class="form-item">
@@ -70,6 +89,8 @@
 <script setup>
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const latitude = ref(22.5431);
 const longitude = ref(113.0350);
@@ -78,90 +99,119 @@ const publicAddresses = ref([]);
 const showPopup = ref(false);
 const currentTarget = ref({});
 const intentionForm = ref({ price: '', weight: '', date: '' });
+const loading = ref(false);
+const fetchError = ref('');
+
+const DEFAULT_LOCATION = { latitude: 22.5431, longitude: 113.0350 };
 
 const fuzzPhone = (phone) => String(phone).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
 const fuzzName = (name, role) => {
   const surname = name ? name.charAt(0) : '某';
   return role === 'merchant' ? surname + '氏回收站' : surname + '氏处理厂';
 };
-const fuzzDetail = () => '（详细地址经平台保护，签约后可见）';
 
-const initSeedData = () => {
-  const existing = uni.getStorageSync('global_addresses');
-  if (!existing || existing.length === 0) {
-    const seedData = [
-      {
-        id: 'ADDR-SEED-001',
+const resolveLocation = () => new Promise((resolve) => {
+  uni.getLocation({
+    type: 'gcj02',
+    success: (res) => {
+      resolve({ latitude: res.latitude, longitude: res.longitude });
+    },
+    fail: () => {
+      resolve(DEFAULT_LOCATION);
+    }
+  });
+});
+
+const buildMarker = (item, index) => ({
+  id: index + 1,
+  latitude: item.latitude,
+  longitude: item.longitude,
+  title: item.name,
+  callout: {
+    content: `${item.name}（回收商）`,
+    display: 'ALWAYS',
+    fontSize: 12,
+    color: '#333333',
+    bgColor: '#FFFFFF',
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#2E7D32'
+  },
+  iconPath: '',
+  width: 30,
+  height: 30
+});
+
+const loadNearbyRecyclers = async () => {
+  loading.value = true;
+  fetchError.value = '';
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'farmer', false)) {
+      uni.showToast({ title: '仅农户可访问', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+
+    const location = await resolveLocation();
+    latitude.value = location.latitude;
+    longitude.value = location.longitude;
+
+    const [nearbyRows, purchaseRows] = await Promise.all([
+      request.get(`/api/recyclers/nearby?lat=${location.latitude}&lng=${location.longitude}&limit=20`),
+      request.get('/api/purchase-requests')
+    ]);
+
+    const requests = Array.isArray(purchaseRows) ? purchaseRows : [];
+    const targetByRecyclerId = new Map();
+    requests.forEach((row) => {
+      const key = Number(row.recycler_id);
+      if (!Number.isFinite(key) || targetByRecyclerId.has(key)) return;
+      targetByRecyclerId.set(key, row);
+    });
+
+    const recyclerList = Array.isArray(nearbyRows) ? nearbyRows : [];
+    publicAddresses.value = recyclerList.map((item) => {
+      const recyclerId = Number(item.id);
+      const targetRequest = targetByRecyclerId.get(recyclerId) || null;
+      const distanceNumber = Number(item.distance);
+      return {
+        id: recyclerId,
         role: 'merchant',
-        name: '李记回收站',
-        phone: '13800001111',
-        region: '广东省 江门市 新会区',
-        detail: '三江镇银洲湖大道88号',
-        is_default: true,
-        is_public: true,
-        latitude: 22.5580,
-        longitude: 113.0340
-      },
-      {
-        id: 'ADDR-SEED-002',
-        role: 'processor',
-        name: '新会绿源处理厂',
-        phone: '13900002222',
-        region: '广东省 江门市 新会区',
-        detail: '双水镇工业园区A栋2层',
-        is_default: true,
-        is_public: true,
-        latitude: 22.4920,
-        longitude: 113.0580
-      }
-    ];
-    uni.setStorageSync('global_addresses', seedData);
+        rawName: item.name || '回收商',
+        name: fuzzName(item.name, 'merchant'),
+        phone: fuzzPhone(item.phone),
+        address: item.address || '地址待完善',
+        latitude: Number(item.latitude),
+        longitude: Number(item.longitude),
+        distance_text: Number.isFinite(distanceNumber) ? `${distanceNumber.toFixed(2)} km` : '--',
+        targetRequest
+      };
+    }).filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude));
+
+    markers.value = publicAddresses.value.map((item, idx) => buildMarker(item, idx));
+
+    if (publicAddresses.value.length > 0) {
+      latitude.value = publicAddresses.value[0].latitude;
+      longitude.value = publicAddresses.value[0].longitude;
+    }
+  } catch (err) {
+    publicAddresses.value = [];
+    markers.value = [];
+    fetchError.value = err?.message || '附近回收点加载失败';
+  } finally {
+    loading.value = false;
   }
 };
 
 onShow(() => {
-  initSeedData();
-  const allAddresses = uni.getStorageSync('global_addresses') || [];
-  const filtered = allAddresses.filter(
-    a => a.is_public === true && (a.role === 'merchant' || a.role === 'processor')
-  );
-  publicAddresses.value = filtered.map(item => ({
-    ...item,
-    phone: fuzzPhone(item.phone),
-    name: fuzzName(item.name, item.role),
-    detail: fuzzDetail()
-  }));
-
-  const mapMarkers = filtered.map((item, index) => ({
-    id: index + 1,
-    latitude: item.latitude,
-    longitude: item.longitude,
-    title: fuzzName(item.name, item.role),
-    callout: {
-        content: fuzzName(item.name, item.role) + (item.role === 'merchant' ? '（回收商）' : '（处理商）'),
-      display: 'ALWAYS',
-      fontSize: 12,
-      color: '#333333',
-      bgColor: '#FFFFFF',
-      padding: 8,
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: '#2E7D32'
-    },
-    iconPath: '',
-    width: 30,
-    height: 30
-  }));
-
-  markers.value = mapMarkers;
-
-  if (filtered.length > 0) {
-    latitude.value = filtered[0].latitude;
-    longitude.value = filtered[0].longitude;
-  }
+  loadNearbyRecyclers();
 });
 
 const openIntentionPopup = (item) => {
+  if (!item?.targetRequest) {
+    return uni.showToast({ title: '该回收点暂无可投递求购单', icon: 'none' });
+  }
   currentTarget.value = item;
   intentionForm.value = { price: '', weight: '', date: '' };
   showPopup.value = true;
@@ -171,27 +221,32 @@ const closePopup = () => { showPopup.value = false; };
 
 const onDateChange = (e) => { intentionForm.value.date = e.detail.value; };
 
-const submitIntention = () => {
-  if (!intentionForm.value.price || !intentionForm.value.weight) {
+const submitIntention = async () => {
+  const price = Number(intentionForm.value.price);
+  const weight = Number(intentionForm.value.weight);
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(weight) || weight <= 0) {
     return uni.showToast({ title: '请填写单价和重量', icon: 'none' });
   }
-  const entry = {
-    id: 'INT-' + Date.now(),
-    target_merchant_id: currentTarget.value.id,
-    target_name: currentTarget.value.name,
-    sender_name: uni.getStorageSync('current_user_name') || '测试用户',
-    sender_phone: uni.getStorageSync('current_user_phone') || '13800000000',
-    price: Number(intentionForm.value.price),
-    weight: Number(intentionForm.value.weight),
-    date: intentionForm.value.date || '待协商',
-    status: 'pending',
-    create_time: new Date().toLocaleString()
-  };
-  const list = uni.getStorageSync('global_intentions') || [];
-  list.unshift(entry);
-  uni.setStorageSync('global_intentions', list);
-  closePopup();
-  uni.showToast({ title: '意向已发送，等待商家确认', icon: 'success' });
+  const target = currentTarget.value?.targetRequest;
+  if (!target?.id) {
+    return uni.showToast({ title: '目标求购单不可用，请刷新后重试', icon: 'none' });
+  }
+
+  try {
+    await request.post('/api/intentions', {
+      target_type: 'recycler_request',
+      target_id: target.id,
+      target_no: target.request_no || '',
+      target_name: target.title || currentTarget.value.rawName || currentTarget.value.name,
+      estimated_weight: weight,
+      expected_date: intentionForm.value.date || null,
+      notes: `农户报价：${price} 元/斤`
+    });
+    closePopup();
+    uni.showToast({ title: '意向已发送，等待商家确认', icon: 'success' });
+  } catch (err) {
+    // request.js 已统一提示
+  }
 };
 </script>
 
@@ -291,11 +346,28 @@ const submitIntention = () => {
   color: #999;
 }
 
+.demand-hint {
+  font-size: 22rpx;
+  margin-top: 8rpx;
+}
+
+.demand-open {
+  color: #2E7D32;
+}
+
+.demand-closed {
+  color: #C62828;
+}
+
 .intention-btn {
   background-color: #1565C0;
   color: white;
   margin: 0;
   flex-shrink: 0;
+}
+
+.intention-btn[disabled] {
+  opacity: 0.55;
 }
 
 .popup-mask {

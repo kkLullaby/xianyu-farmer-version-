@@ -17,9 +17,17 @@
       </view>
     </view>
 
+    <view v-if="loading" class="state-card">
+      <text class="state-text">需求加载中…</text>
+    </view>
+
+    <view v-else-if="fetchError" class="state-card error-card">
+      <text class="state-text">{{ fetchError }}</text>
+    </view>
+
     <!-- 内容区域 A：回收商求购 (Tab 0) -->
-    <view class="content-area" v-if="currentTab === 0">
-      <view class="demands-list">
+    <view class="content-area" v-else-if="currentTab === 0">
+      <view class="demands-list" v-if="merchantList.length > 0">
         <view class="glass-card border-recycler" v-for="item in merchantList" :key="item.id">
           <view class="card-header">
             <view class="header-left">
@@ -29,7 +37,7 @@
                   {{ item.goods_type }}
                 </text>
               </view>
-              <text class="request-no">求购编号：{{ item.id }}</text>
+              <text class="request-no">求购编号：{{ item.request_no }}</text>
             </view>
             <view class="header-right">
               <text class="valid-text" :class="{ 'long-term': item.deadline === '长期有效' }">
@@ -38,7 +46,6 @@
             </view>
           </view>
 
-          <!-- 回收商只有基础信息，没有 info-box -->
           <view class="contact-box">
             <view class="contact-item">
               <text class="label">联系人：</text>
@@ -49,33 +56,33 @@
               <text class="value">{{ fuzzPhone(item.contact_phone) }}</text>
             </view>
             <view class="contact-item">
-              <text class="label">收货地址：</text>
-              <text class="value">{{ fuzzAddress(item.address) }}</text>
+              <text class="label">收货信息：</text>
+              <text class="value">{{ item.address }}</text>
             </view>
             <view class="contact-item">
               <text class="label">需求量：</text>
-              <text class="value">{{ item.weight }} {{ item.unit }}</text>
+              <text class="value">{{ formatWeightText(item.weight, item.unit) }}</text>
             </view>
             <view class="contact-item">
               <text class="label">单价：</text>
-              <text class="value">{{ item.price }} 元/{{ item.unit }}</text>
+              <text class="value">{{ formatPriceText(item.price, item.unit) }}</text>
             </view>
           </view>
 
           <view class="price-box price-box-recycler">
             <view class="price-row">
               <text class="price-label">买方出价：</text>
-              <text class="price-original">{{ item.price }} 元/{{ item.unit }}</text>
+              <text class="price-original">{{ formatPriceText(item.price, item.unit) }}</text>
             </view>
             <view class="price-row">
               <text class="price-label">平台服务费：</text>
-              <text class="price-fee">{{ item.commissionRate ? item.commissionRate + '%' : '¥0/' + item.unit }}</text>
+              <text class="price-fee">{{ item.commissionRate ? item.commissionRate + '%' : '待平台确认' }}</text>
             </view>
             <view class="price-row">
               <text class="price-label">预估到手：</text>
-              <text class="price-final">{{ calcFarmerPrice(item) }} 元/{{ item.unit }}</text>
+              <text class="price-final">{{ calcFarmerPrice(item) }}</text>
             </view>
-            <text class="price-tip">* 扣除平台服务费后预估到手价</text>
+            <text class="price-tip">* 价格字段缺失时以双方沟通确认为准</text>
           </view>
 
           <view class="notes" v-if="item.notes">
@@ -89,11 +96,14 @@
           </view>
         </view>
       </view>
+      <view v-else class="state-card">
+        <text class="state-text">当前暂无回收商求购</text>
+      </view>
     </view>
 
-    <!-- 内容区域 B：处理商求购 (Tab 1) - 使用真实的处理商卡片结构 -->
-    <view class="content-area" v-if="currentTab === 1">
-      <view class="demands-list">
+    <!-- 内容区域 B：处理商求购 -->
+    <view class="content-area" v-else>
+      <view class="demands-list" v-if="processorList.length > 0">
         <view class="glass-card border-processor" v-for="item in processorList" :key="item.id">
           <view class="card-header">
             <view class="header-left">
@@ -103,7 +113,7 @@
                   {{ item.goods_type }}
                 </text>
               </view>
-              <text class="request-no">求购编号：{{ item.id }}</text>
+              <text class="request-no">求购编号：{{ item.request_no }}</text>
             </view>
             <view class="header-right">
               <text class="valid-text" :class="{ 'long-term': item.deadline === '长期有效' }">
@@ -112,16 +122,15 @@
             </view>
           </view>
 
-          <!-- 处理商特有信息 info-box -->
           <view class="info-box">
             <view class="info-grid">
               <view class="info-item">
                 <text class="label">需求量：</text>
-                <text class="highlight-processor">{{ item.weight }} {{ item.unit }}</text>
+                <text class="highlight-processor">{{ formatWeightText(item.weight, item.unit) }}</text>
               </view>
               <view class="info-item">
                 <text class="label">单价：</text>
-                <text class="highlight-processor">{{ item.price }} 元/{{ item.unit }}</text>
+                <text class="highlight-processor">{{ formatPriceText(item.price, item.unit) }}</text>
               </view>
               <view class="info-item full-width">
                 <text class="label">📍 收货地址：</text>
@@ -133,17 +142,17 @@
           <view class="price-box price-box-processor">
             <view class="price-row">
               <text class="price-label">买方出价：</text>
-              <text class="price-original">{{ item.price }} 元/{{ item.unit }}</text>
+              <text class="price-original">{{ formatPriceText(item.price, item.unit) }}</text>
             </view>
             <view class="price-row">
               <text class="price-label">平台服务费：</text>
-              <text class="price-fee">{{ item.commissionRate ? item.commissionRate + '%' : '¥0/' + item.unit }}</text>
+              <text class="price-fee">{{ item.commissionRate ? item.commissionRate + '%' : '待平台确认' }}</text>
             </view>
             <view class="price-row">
               <text class="price-label">预估到手：</text>
-              <text class="price-final-purple">{{ calcFarmerPrice(item) }} 元/{{ item.unit }}</text>
+              <text class="price-final-purple">{{ calcFarmerPrice(item) }}</text>
             </view>
-            <text class="price-tip">* 扣除平台服务费后预估到手价</text>
+            <text class="price-tip">* 价格字段缺失时以双方沟通确认为准</text>
           </view>
 
           <view class="contact-box">
@@ -171,6 +180,9 @@
             </button>
           </view>
         </view>
+      </view>
+      <view v-else class="state-card">
+        <text class="state-text">当前暂无处理商求购</text>
       </view>
     </view>
 
@@ -210,23 +222,29 @@
 <script setup>
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const currentTab = ref(0);
+const loading = ref(false);
+const fetchError = ref('');
+const merchantList = ref([]);
+const processorList = ref([]);
 
-/**
- * 计算农户到手价
- * 比例抽成: farmerPrice = price × (1 - commissionRate / 100)
- * 固定抽成: farmerPrice = price - commissionFee
- */
-const calcFarmerPrice = (item) => {
-  const price = Number(item.price);
-  if (item.commissionRate) {
-    return (price * (1 - item.commissionRate / 100)).toFixed(2);
-  }
-  if (item.commissionFee) {
-    return (price - item.commissionFee).toFixed(2);
-  }
-  return price.toFixed(2);
+const gradeLabelMap = {
+  grade1: '一级品',
+  grade2: '二级品',
+  grade3: '三级品',
+  offgrade: '等外级',
+  any: '不限品级'
+};
+
+const citrusLabelMap = {
+  mandarin: '柑橘',
+  orange: '橙子',
+  pomelo: '柚子',
+  tangerine: '橘子',
+  any: '不限种类'
 };
 
 const fuzzPhone = (phone) => String(phone || '').replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
@@ -236,114 +254,145 @@ const fuzzAddress = (addr) => {
   return parts.length > 1 ? addr.substring(0, addr.search(/[县区市]/u) + 2) + '（详细地址经平台保护）' : addr.substring(0, 6) + '…（保护）';
 };
 
+const formatWeightText = (weight, unit = '斤') => {
+  const amount = Number(weight || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return '待沟通';
+  return `${amount} ${unit}`;
+};
+
+const formatPriceText = (price, unit = '斤') => {
+  const amount = Number(price || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return '待沟通';
+  return `${amount.toFixed(2)} 元/${unit}`;
+};
+
+const calcFarmerPrice = (item) => {
+  const price = Number(item.price || 0);
+  if (!Number.isFinite(price) || price <= 0) return '待沟通';
+  if (item.commissionRate) {
+    return `${(price * (1 - item.commissionRate / 100)).toFixed(2)} 元/${item.unit || '斤'}`;
+  }
+  if (item.commissionFee) {
+    return `${(price - item.commissionFee).toFixed(2)} 元/${item.unit || '斤'}`;
+  }
+  return `${price.toFixed(2)} 元/${item.unit || '斤'}`;
+};
+
+const normalizeRecyclerRequest = (row = {}) => ({
+  id: `recycler-${row.id}`,
+  raw_id: row.id,
+  target_type: 'recycler_request',
+  request_no: row.request_no || `RR-${row.id}`,
+  goods_type: gradeLabelMap[row.grade] || row.grade || '回收求购',
+  deadline: row.valid_until || '长期有效',
+  contact_name: row.contact_name || row.recycler_name || '回收商',
+  contact_phone: row.contact_phone || row.recycler_phone || '',
+  address: row.notes ? '详见需求说明' : '以需求方沟通为准',
+  weight: null,
+  unit: '斤',
+  price: null,
+  commissionRate: 0,
+  notes: row.notes || ''
+});
+
+const normalizeProcessorRequest = (row = {}) => ({
+  id: `processor-${row.id}`,
+  raw_id: row.id,
+  target_type: 'processor_request',
+  request_no: row.request_no || `PR-${row.id}`,
+  goods_type: citrusLabelMap[row.citrus_type] || row.citrus_type || '处理商求购',
+  deadline: row.valid_until || '长期有效',
+  contact_name: row.contact_name || row.processor_name || '处理商',
+  contact_phone: row.contact_phone || row.processor_phone || '',
+  address: row.location_address || '以需求方沟通为准',
+  weight: Number(row.weight_kg || 0),
+  unit: '斤',
+  price: null,
+  commissionRate: 0,
+  notes: row.notes || ''
+});
+
+const loadDemands = async () => {
+  loading.value = true;
+  fetchError.value = '';
+  try {
+    const [recyclerResult, processorResult] = await Promise.allSettled([
+      request.get('/api/purchase-requests'),
+      request.get('/api/processor-requests?for_farmers=true')
+    ]);
+
+    merchantList.value = recyclerResult.status === 'fulfilled' && Array.isArray(recyclerResult.value)
+      ? recyclerResult.value.map(normalizeRecyclerRequest)
+      : [];
+
+    processorList.value = processorResult.status === 'fulfilled' && Array.isArray(processorResult.value)
+      ? processorResult.value.map(normalizeProcessorRequest)
+      : [];
+
+    if (recyclerResult.status === 'rejected' && processorResult.status === 'rejected') {
+      throw new Error('需求列表加载失败');
+    }
+  } catch (err) {
+    merchantList.value = [];
+    processorList.value = [];
+    fetchError.value = err?.message || '需求列表加载失败';
+  } finally {
+    loading.value = false;
+  }
+};
+
 const showPopup = ref(false);
 const currentTarget = ref({});
 const intentionForm = ref({ price: '', weight: '', date: '' });
 
 const openIntentionPopup = (item) => {
-  currentTarget.value = { ...item, name: item.contact_name || item.id };
+  currentTarget.value = { ...item, name: item.contact_name || item.request_no || item.id };
   intentionForm.value = { price: '', weight: '', date: '' };
   showPopup.value = true;
 };
+
 const closePopup = () => { showPopup.value = false; };
 const onDateChange = (e) => { intentionForm.value.date = e.detail.value; };
-const submitIntention = () => {
+
+const submitIntention = async () => {
   if (!intentionForm.value.price || !intentionForm.value.weight) {
     return uni.showToast({ title: '请填写单价和重量', icon: 'none' });
   }
-  const entry = {
-    id: 'INT-' + Date.now(),
-    target_merchant_id: currentTarget.value.id,
-    target_name: currentTarget.value.name,
-    sender_name: uni.getStorageSync('current_user_name') || '测试用户',
-    sender_phone: uni.getStorageSync('current_user_phone') || '13800000000',
-    price: Number(intentionForm.value.price),
-    weight: Number(intentionForm.value.weight),
-    date: intentionForm.value.date || '待协商',
-    status: 'pending',
-    create_time: new Date().toLocaleString()
-  };
-  const list = uni.getStorageSync('global_intentions') || [];
-  list.unshift(entry);
-  uni.setStorageSync('global_intentions', list);
-  closePopup();
-  uni.showToast({ title: '意向已发送，等待商家确认', icon: 'success' });
+
+  const price = Number(intentionForm.value.price);
+  const weight = Number(intentionForm.value.weight);
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(weight) || weight <= 0) {
+    return uni.showToast({ title: '请输入有效单价与重量', icon: 'none' });
+  }
+
+  try {
+    await request.post('/api/intentions', {
+      target_type: currentTarget.value.target_type,
+      target_id: currentTarget.value.raw_id,
+      target_no: currentTarget.value.request_no,
+      target_name: `${currentTarget.value.name}求购`,
+      estimated_weight: weight,
+      expected_date: intentionForm.value.date || null,
+      notes: `农户报价：${price.toFixed(2)} 元/${currentTarget.value.unit || '斤'}`
+    });
+    closePopup();
+    uni.showToast({ title: '意向已发送，等待对方确认', icon: 'success' });
+  } catch (err) {
+    // request.js 已统一提示
+  }
 };
 
-// --- 公共方法 ---
-const contactBuyer = () => {};
-
-// --- Tab 0: 回收商数据 ---
-const merchantList = ref([
-  {
-    id: 'DEM20260227002',
-    source: 'merchant',
-    goods_type: '茶枝柑',
-    weight: 2000,
-    unit: '斤',
-    price: 0.5,
-    deadline: '2026-03-01',
-    contact_name: '李老板',
-    contact_phone: '13900139000',
-    address: '四川省眉山市丹棱县',
-    commissionRate: 10,
-    notes: '量大从优，上门收货。'
-  },
-  {
-    id: 'DEM20260227003',
-    source: 'merchant',
-    goods_type: '柚子皮',
-    weight: 10000,
-    unit: '斤',
-    price: 0.3,
-    deadline: '长期有效',
-    contact_name: '王师傅',
-    contact_phone: '13700137000',
-    address: '重庆市奉节县',
-    commissionRate: 10,
-    notes: '只要柚子皮，果肉不要。'
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'farmer', false)) {
+      uni.showToast({ title: '仅农户可访问', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+    await loadDemands();
+  } catch (err) {
+    fetchError.value = err?.message || '身份校验失败';
   }
-]);
-
-// --- Tab 1: 处理商数据 ---
-const processorList = ref([
-  {
-    id: 'DEM20260227001',
-    source: 'processor',
-    goods_type: '柑肉原料',
-    weight: 8,
-    unit: '吨',
-    price: 800,
-    deadline: '2026-03-15',
-    contact_name: '张经理',
-    contact_phone: '13800138000',
-    address: '四川省成都市蒲江县柑橘处理中心',
-    commissionRate: 8,
-    notes: '需要新鲜采摘，无腐烂，可上门收货。'
-  }
-]);
-
-const loadGlobalDemandList = () => {
-  const globalList = uni.getStorageSync('global_demand_list') || [];
-  if (!Array.isArray(globalList) || globalList.length === 0) return;
-
-  merchantList.value = globalList
-    .filter(item => item.source === 'merchant')
-    .map(item => ({
-      ...item,
-      commissionRate: item.commissionRate || 10
-    }));
-
-  processorList.value = globalList
-    .filter(item => item.source === 'processor')
-    .map(item => ({
-      ...item,
-      commissionRate: item.commissionRate || 8
-    }));
-};
-
-onShow(() => {
-  loadGlobalDemandList();
 });
 </script>
 
@@ -416,6 +465,23 @@ onShow(() => {
   display: flex;
   flex-direction: column;
   gap: 30rpx;
+}
+
+.state-card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  text-align: center;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
+}
+
+.state-text {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.error-card {
+  border-left: 8rpx solid #e53935;
 }
 
 .glass-card {

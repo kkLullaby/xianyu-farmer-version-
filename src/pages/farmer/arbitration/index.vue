@@ -22,9 +22,9 @@
       <view class="form-item">
         <text class="label">纠纷类型</text>
         <view class="picker-box">
-          <picker mode="selector" :range="disputeTypes" @change="onTypeChange">
+          <picker mode="selector" :range="disputeLabels" @change="onTypeChange">
             <view class="picker-view">
-              <text>{{ form.dispute_type || '请选择纠纷类型' }}</text>
+              <text>{{ form.reason_label || '请选择纠纷类型' }}</text>
               <text class="arrow">▼</text>
             </view>
           </picker>
@@ -58,7 +58,7 @@
           </view>
           <view class="info-row">
             <text class="info-label">纠纷类型：</text>
-            <text class="info-value highlight-green">{{ item.dispute_type }}</text>
+            <text class="info-value highlight-green">{{ item.reason_label }}</text>
           </view>
           <view class="info-row">
             <text class="info-label">描述：</text>
@@ -84,102 +84,122 @@
 <script setup>
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const showForm = ref(false);
-const disputeTypes = ['重量争议', '质量不符', '货款纠纷', '合同违约', '其他'];
+const disputeOptions = [
+  { label: '重量争议', value: 'quantity' },
+  { label: '质量不符', value: 'quality' },
+  { label: '货款纠纷', value: 'payment' },
+  { label: '交付延迟', value: 'delivery' },
+  { label: '合同违约', value: 'breach' },
+  { label: '其他', value: 'other' }
+];
+const disputeLabels = disputeOptions.map((item) => item.label);
+
+const reasonLabelMap = disputeOptions.reduce((acc, item) => {
+  acc[item.value] = item.label;
+  return acc;
+}, {});
 
 const form = ref({
   order_no: '',
-  dispute_type: '',
+  reason: '',
+  reason_label: '',
   description: ''
 });
 
 const statusLabel = {
   pending: '待处理',
-  processing: '处理中',
-  resolved: '已解决',
-  closed: '已关闭'
+  investigating: '调查中',
+  resolved: '已裁决',
+  rejected: '已驳回'
 };
 
-const arbitrationList = ref([
-  {
-    id: 'ARB20260220001',
-    order_no: 'ORD20260218003',
-    dispute_type: '重量争议',
-    description: '实际称重与回收商登记数据相差约80斤，要求重新核实。',
-    status: 'processing',
-    result: null,
-    created_at: '2026-02-20 09:30'
-  },
-  {
-    id: 'ARB20260215002',
-    order_no: 'ORD20260210005',
-    dispute_type: '质量不符',
-    description: '回收商拒收一级品柑橘，称等级不符合标准，产生争议。',
-    status: 'resolved',
-    result: '经仲裁委员会核查，认定货品符合一级标准，回收商需履行收购协议。',
-    created_at: '2026-02-15 14:00'
-  },
-  {
-    id: 'ARB20260201003',
-    order_no: 'ORD20260128001',
-    dispute_type: '货款纠纷',
-    description: '货物交付已超15日，货款尚未到账，请求平台介入处理。',
-    status: 'resolved',
-    result: '货款确认到账，纠纷已关闭。',
-    created_at: '2026-02-01 11:00'
+const arbitrationList = ref([]);
+
+const formatDate = (value) => {
+  if (!value) return '--';
+  return String(value).replace('T', ' ').replace(/\.\d+Z$/, '');
+};
+
+const normalizeArbitration = (row = {}) => ({
+  id: row.arbitration_no || `ARB-${row.id}`,
+  order_no: row.order_no || '--',
+  reason_label: reasonLabelMap[row.reason] || row.reason || '其他',
+  description: row.description || '',
+  status: row.status || 'pending',
+  result: row.decision || '',
+  created_at: formatDate(row.created_at)
+});
+
+const loadArbitrationList = async () => {
+  try {
+    const rows = await request.get('/api/arbitration-requests?status=all');
+    arbitrationList.value = Array.isArray(rows) ? rows.map(normalizeArbitration) : [];
+  } catch (err) {
+    arbitrationList.value = [];
   }
-]);
-
-const loadArbitrationList = () => {
-  const globalList = uni.getStorageSync('global_arbitration_list') || [];
-  if (!Array.isArray(globalList) || globalList.length === 0) return;
-  arbitrationList.value = globalList.filter(item => item.role === '农户');
 };
 
-onShow(() => {
-  loadArbitrationList();
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'farmer', false)) {
+      uni.showToast({ title: '仅农户可访问', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+    await loadArbitrationList();
+  } catch (err) {
+    arbitrationList.value = [];
+  }
 });
 
 const toggleForm = () => {
   showForm.value = !showForm.value;
   if (!showForm.value) {
-    form.value = { order_no: '', dispute_type: '', description: '' };
+    form.value = { order_no: '', reason: '', reason_label: '', description: '' };
   }
 };
 
 const onTypeChange = (e) => {
-  form.value.dispute_type = disputeTypes[e.detail.value];
+  const option = disputeOptions[e.detail.value];
+  form.value.reason = option.value;
+  form.value.reason_label = option.label;
 };
 
-const submitForm = () => {
-  if (!form.value.order_no || !form.value.dispute_type || !form.value.description) {
+const submitForm = async () => {
+  if (!form.value.order_no || !form.value.reason || !form.value.description) {
     uni.showToast({ title: '请填写所有必填项', icon: 'none' });
     return;
   }
-  const newItem = {
-    id: 'ARB' + Date.now(),
-    order_no: form.value.order_no,
-    applicant: '农户用户',
-    role: '农户',
-    reason: form.value.dispute_type,
-    dispute_type: form.value.dispute_type,
-    description: form.value.description,
-    status: 'pending',
-    result: null,
-    verdict_party: null,
-    verdict_opinion: null,
-    verdict_time: null,
-    created_at: new Date().toLocaleString('zh-CN').replace(/\//g, '-')
-  };
 
-  const globalList = uni.getStorageSync('global_arbitration_list') || [];
-  globalList.unshift(newItem);
-  uni.setStorageSync('global_arbitration_list', globalList);
+  try {
+    const order = await request.get(`/api/orders/${encodeURIComponent(form.value.order_no.trim())}`);
+    if (!order?.id) {
+      throw new Error('关联订单不存在');
+    }
 
-  arbitrationList.value.unshift(newItem);
-  uni.showToast({ title: '仲裁申请已提交', icon: 'success' });
-  toggleForm();
+    await request.post('/api/arbitration-requests', {
+      order_type: 'order',
+      order_id: order.id,
+      order_no: order.order_no || form.value.order_no.trim(),
+      reason: form.value.reason,
+      description: form.value.description.trim(),
+      evidence_trade: ['移动端提交：交易凭证待补充'],
+      evidence_material: ['移动端提交：货物凭证待补充'],
+      evidence_payment: ['移动端提交：付款凭证待补充'],
+      evidence_communication: [],
+      evidence_other: []
+    });
+
+    uni.showToast({ title: '仲裁申请已提交', icon: 'success' });
+    toggleForm();
+    await loadArbitrationList();
+  } catch (err) {
+    // request.js 已统一提示
+  }
 };
 </script>
 
@@ -374,9 +394,9 @@ const submitForm = () => {
 }
 
 .status-pending { background: #fff3e0; color: #EF6C00; }
-.status-processing { background: #e3f2fd; color: #1565C0; }
+.status-investigating { background: #e3f2fd; color: #1565C0; }
 .status-resolved { background: #e8f5e9; color: #2E7D32; }
-.status-closed { background: #f5f5f5; color: #999; }
+.status-rejected { background: #ffebee; color: #c62828; }
 
 .card-body {
   margin-bottom: 20rpx;

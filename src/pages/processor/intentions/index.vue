@@ -15,8 +15,16 @@
       </view>
     </view>
 
-    <view class="list-container">
-      <view class="intention-card" v-for="(item, index) in displayList" :key="item.id || index">
+    <view v-if="loading" class="empty-state">
+      <text class="empty-text">意向加载中…</text>
+    </view>
+
+    <view v-else-if="fetchError" class="empty-state">
+      <text class="empty-text">{{ fetchError }}</text>
+    </view>
+
+    <view v-else class="list-container">
+      <view class="intention-card" v-for="item in displayList" :key="item.id">
         <view class="card-top">
           <view class="sender-info">
             <text class="sender-name">{{ item.sender_name || '供应商' }}</text>
@@ -28,19 +36,23 @@
         <view class="card-body">
           <view class="info-row">
             <text class="label">报价金额：</text>
-            <text class="value price-text">¥ {{ item.price }} 元/斤</text>
+            <text class="value price-text">{{ item.price_text }}</text>
           </view>
           <view class="info-row">
             <text class="label">供应重量：</text>
-            <text class="value">{{ item.weight }} 斤</text>
+            <text class="value">{{ item.weight_text }}</text>
           </view>
           <view class="info-row">
             <text class="label">期望交货：</text>
-            <text class="value">{{ item.date || '待协商' }}</text>
+            <text class="value">{{ item.date_text }}</text>
+          </view>
+          <view class="info-row" v-if="item.notes">
+            <text class="label">意向备注：</text>
+            <text class="value">{{ item.notes }}</text>
           </view>
           <view class="info-row">
             <text class="label">发起时间：</text>
-            <text class="value time-text">{{ item.create_time }}</text>
+            <text class="value time-text">{{ item.created_text }}</text>
           </view>
         </view>
 
@@ -65,9 +77,13 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const currentTab = ref(0);
 const allIntentions = ref([]);
+const loading = ref(false);
+const fetchError = ref('');
 
 const statusLabel = {
   pending: '待确认',
@@ -75,9 +91,73 @@ const statusLabel = {
   rejected: '已拒绝'
 };
 
+const formatDate = (value) => {
+  if (!value) return '--';
+  return String(value).replace('T', ' ').replace(/\.\d+Z$/, '');
+};
+
+const parsePriceFromNotes = (notes = '') => {
+  const matched = String(notes || '').match(/([0-9]+(?:\.[0-9]+)?)\s*元\s*\/\s*斤/);
+  if (!matched) return null;
+  const amount = Number(matched[1]);
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const normalizeIntention = (row = {}, target = {}) => {
+  const price = parsePriceFromNotes(row.notes);
+  const weight = Number(row.estimated_weight || 0);
+  const createdTs = Date.parse(row.created_at || '') || 0;
+  return {
+    id: row.id,
+    sender_name: row.applicant_name || '供应商',
+    status: row.status || 'pending',
+    target_name: row.target_name || target.request_no || '处理商求购',
+    price_text: price !== null ? `¥ ${price.toFixed(2)} 元/斤` : '待协商',
+    weight_text: Number.isFinite(weight) && weight > 0 ? `${weight} 斤` : '待协商',
+    date_text: row.expected_date || '待协商',
+    notes: row.notes || '',
+    created_ts: createdTs,
+    created_text: formatDate(row.created_at)
+  };
+};
+
+const loadIntentions = async () => {
+  loading.value = true;
+  fetchError.value = '';
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'processor', false)) {
+      uni.showToast({ title: '仅处理商可访问', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+
+    const targets = await request.get('/api/processor-requests?status=all');
+    const targetRows = Array.isArray(targets) ? targets : [];
+
+    const results = await Promise.allSettled(
+      targetRows.map((target) => request.get(`/api/intentions?target_type=processor_request&target_id=${target.id}`))
+    );
+
+    const merged = [];
+    results.forEach((result, idx) => {
+      if (result.status !== 'fulfilled' || !Array.isArray(result.value)) return;
+      const target = targetRows[idx] || {};
+      result.value.forEach((row) => {
+        merged.push(normalizeIntention(row, target));
+      });
+    });
+
+    allIntentions.value = merged.sort((a, b) => (b.created_ts || 0) - (a.created_ts || 0));
+  } catch (err) {
+    allIntentions.value = [];
+    fetchError.value = err?.message || '意向加载失败';
+  } finally {
+    loading.value = false;
+  }
+};
+
 onShow(() => {
-  const list = uni.getStorageSync('global_intentions') || [];
-  allIntentions.value = list.slice().reverse();
+  loadIntentions();
 });
 
 const pendingList = computed(() => allIntentions.value.filter(i => i.status === 'pending'));
@@ -87,39 +167,17 @@ const displayList = computed(() => currentTab.value === 0 ? pendingList.value : 
 const handleAccept = (item) => {
   uni.showModal({
     title: '确认接受意向',
-    content: `接受该供应意向并生成采购订单？\n报价：¥${item.price}元/斤，重量：${item.weight}斤`,
-    success: (res) => {
+    content: '接受该供应意向并自动生成采购订单？',
+    success: async (res) => {
       if (!res.confirm) return;
-
-      const orderList = uni.getStorageSync('global_order_list') || [];
-      const newOrder = {
-        id: 'ORD' + Date.now(),
-        order_no: 'PUR-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + String(orderList.length + 1).padStart(3, '0'),
-        intention_id: item.id,
-        supplier: item.sender_name || '供应商',
-        material: item.variety || '柑橘果肉',
-        weight: item.weight,
-        unit_price: item.price,
-        total_price: (Number(item.price) * Number(item.weight)).toFixed(2),
-        ship_from: item.address || '待确认',
-        expected_delivery: item.date || '待协商',
-        flow_status: 'pending_ship',
-        status: '待发货',
-        created_at: new Date().toLocaleString('zh-CN').replace(/\//g, '-'),
-        timeline: [
-          { time: new Date().toLocaleString('zh-CN').replace(/\//g, '-'), desc: '意向被接受，采购订单已创建' }
-        ]
-      };
-      orderList.unshift(newOrder);
-      uni.setStorageSync('global_order_list', orderList);
-
-      const intentions = uni.getStorageSync('global_intentions') || [];
-      const idx = intentions.findIndex(i => i.id === item.id);
-      if (idx !== -1) intentions[idx].status = 'accepted';
-      uni.setStorageSync('global_intentions', intentions);
-
-      allIntentions.value = intentions.slice().reverse();
-      uni.showToast({ title: '订单已生成，请前往订单管理查看', icon: 'success' });
+      try {
+        const result = await request.patch(`/api/intentions/${item.id}/status`, { status: 'accepted' });
+        const orderNo = result?.order_no;
+        uni.showToast({ title: orderNo ? `订单已生成：${orderNo}` : '订单已生成', icon: 'success' });
+        await loadIntentions();
+      } catch (err) {
+        // request.js 已统一提示
+      }
     }
   });
 };
@@ -128,14 +186,15 @@ const handleReject = (item) => {
   uni.showModal({
     title: '确认拒绝',
     content: '确定拒绝该供应意向？',
-    success: (res) => {
+    success: async (res) => {
       if (!res.confirm) return;
-      const intentions = uni.getStorageSync('global_intentions') || [];
-      const idx = intentions.findIndex(i => i.id === item.id);
-      if (idx !== -1) intentions[idx].status = 'rejected';
-      uni.setStorageSync('global_intentions', intentions);
-      allIntentions.value = intentions.slice().reverse();
-      uni.showToast({ title: '已拒绝该意向', icon: 'none' });
+      try {
+        await request.patch(`/api/intentions/${item.id}/status`, { status: 'rejected' });
+        uni.showToast({ title: '已拒绝该意向', icon: 'none' });
+        await loadIntentions();
+      } catch (err) {
+        // request.js 已统一提示
+      }
     }
   });
 };

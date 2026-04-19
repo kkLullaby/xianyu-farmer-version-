@@ -9,16 +9,16 @@
     <view class="asset-card">
       <view class="asset-item">
         <text class="asset-label">总收益 (元)</text>
-        <text class="asset-num">¥ 12,580.00</text>
+        <text class="asset-num">{{ formatMoney(totalIncome) }}</text>
       </view>
       <view class="asset-row">
         <view class="sub-item">
           <text class="sub-label">本月收益</text>
-          <text class="sub-num">¥ 3,200.00</text>
+          <text class="sub-num">{{ formatMoney(monthIncome) }}</text>
         </view>
         <view class="sub-item">
           <text class="sub-label">待结算</text>
-          <text class="sub-num">¥ 850.00</text>
+          <text class="sub-num">{{ formatMoney(pendingIncome) }}</text>
         </view>
       </view>
       <button class="withdraw-btn" @click="handleWithdraw">提现</button>
@@ -27,17 +27,29 @@
     <!-- 交易明细 -->
     <view class="transaction-list">
       <text class="section-title">交易明细</text>
+
+      <view v-if="loading" class="empty-state">
+        <text class="empty-text">流水加载中…</text>
+      </view>
+
+      <view v-else-if="fetchError" class="empty-state">
+        <text class="empty-text">{{ fetchError }}</text>
+      </view>
       
-      <view class="transaction-item" v-for="(item, index) in transactions" :key="item.id">
-        <view class="trans-icon" :class="item.type === 'income' ? 'icon-income' : 'icon-expense'">
-          {{ item.type === 'income' ? '收' : '支' }}
+      <view v-else-if="transactions.length === 0" class="empty-state">
+        <text class="empty-text">暂无可展示的交易流水</text>
+      </view>
+      
+      <view class="transaction-item" v-for="item in transactions" :key="item.id">
+        <view class="trans-icon" :class="item.typeClass">
+          {{ item.typeLabel }}
         </view>
         <view class="trans-info">
           <text class="trans-title">{{ item.title }}</text>
           <text class="trans-date">{{ item.date }}</text>
         </view>
-        <text class="trans-amount" :class="item.type === 'income' ? 'text-green' : 'text-red'">
-          {{ item.type === 'income' ? '+' : '-' }}{{ item.amount }}
+        <text class="trans-amount" :class="item.amountClass">
+          {{ item.amountText }}
         </text>
       </view>
     </view>
@@ -45,19 +57,129 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
-// Mock Data
-const transactions = ref([
-  { id: 1, type: 'income', title: '订单结算 - ORD20240320001', date: '2024-03-20 16:30', amount: '500.00' },
-  { id: 2, type: 'expense', title: '提现至微信零钱', date: '2024-03-19 10:00', amount: '2000.00' },
-  { id: 3, type: 'income', title: '订单结算 - ORD20240318002', date: '2024-03-18 11:20', amount: '800.00' },
-  { id: 4, type: 'income', title: '订单结算 - ORD20240315005', date: '2024-03-15 09:45', amount: '1200.00' }
-]);
+const loading = ref(false);
+const fetchError = ref('');
+const orders = ref([]);
+
+const toAmount = (row = {}) => {
+  const total = Number(row.total_price || 0);
+  if (Number.isFinite(total) && total > 0) return total;
+  const weight = Number(row.weight_kg || 0);
+  const unit = Number(row.price_per_kg || 0);
+  return Number.isFinite(weight * unit) ? weight * unit : 0;
+};
+
+const formatDate = (value) => {
+  if (!value) return '-';
+  return String(value).replace('T', ' ').replace(/\.\d+Z$/, '');
+};
+
+const formatMoney = (value) => `¥ ${Number(value || 0).toFixed(2)}`;
+
+const totalIncome = computed(() => {
+  return orders.value
+    .filter((item) => item.status === 'completed')
+    .reduce((sum, item) => sum + toAmount(item), 0);
+});
+
+const monthIncome = computed(() => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  return orders.value
+    .filter((item) => item.status === 'completed')
+    .filter((item) => {
+      const d = new Date(item.updated_at || item.created_at || 0);
+      return d.getFullYear() === y && d.getMonth() === m;
+    })
+    .reduce((sum, item) => sum + toAmount(item), 0);
+});
+
+const pendingIncome = computed(() => {
+  return orders.value
+    .filter((item) => item.status === 'pending' || item.status === 'accepted')
+    .reduce((sum, item) => sum + toAmount(item), 0);
+});
+
+const transactions = computed(() => {
+  return [...orders.value]
+    .sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))
+    .slice(0, 100)
+    .map((item) => {
+      const amount = toAmount(item);
+      const status = item.status;
+
+      if (status === 'completed') {
+        return {
+          id: `income-${item.id}`,
+          title: `订单结算 - ${item.order_no || item.id}`,
+          date: formatDate(item.updated_at || item.created_at),
+          typeLabel: '收',
+          typeClass: 'icon-income',
+          amountClass: 'text-green',
+          amountText: `+${amount.toFixed(2)}`
+        };
+      }
+
+      if (status === 'cancelled') {
+        return {
+          id: `cancel-${item.id}`,
+          title: `订单取消 - ${item.order_no || item.id}`,
+          date: formatDate(item.updated_at || item.created_at),
+          typeLabel: '退',
+          typeClass: 'icon-expense',
+          amountClass: 'text-red',
+          amountText: `-${amount.toFixed(2)}`
+        };
+      }
+
+      return {
+        id: `pending-${item.id}`,
+        title: `待结算订单 - ${item.order_no || item.id}`,
+        date: formatDate(item.updated_at || item.created_at),
+        typeLabel: '待',
+        typeClass: 'icon-pending',
+        amountClass: 'text-blue',
+        amountText: `${amount.toFixed(2)}`
+      };
+    });
+});
+
+const loadOrders = async () => {
+  loading.value = true;
+  fetchError.value = '';
+  try {
+    const rows = await request.get('/api/orders');
+    orders.value = Array.isArray(rows) ? rows : [];
+  } catch (err) {
+    orders.value = [];
+    fetchError.value = err?.message || '交易数据加载失败';
+  } finally {
+    loading.value = false;
+  }
+};
+
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'merchant')) {
+      uni.showToast({ title: '仅回收商可访问财务页', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+    await loadOrders();
+  } catch (err) {
+    fetchError.value = err?.message || '身份校验失败';
+  }
+});
 
 const handleWithdraw = () => {
   uni.showToast({
-    title: '该功能将在正式版开放',
+    title: '当前版本仅提供账单展示，提现流程待接支付网关',
     icon: 'none'
   });
 };
@@ -189,6 +311,11 @@ const handleWithdraw = () => {
   color: #EF6C00;
 }
 
+.icon-pending {
+  background: #E3F2FD;
+  color: #1565C0;
+}
+
 .trans-info {
   flex: 1;
 }
@@ -212,4 +339,15 @@ const handleWithdraw = () => {
 
 .text-green { color: #2E7D32; }
 .text-red { color: #EF6C00; }
+.text-blue { color: #1565C0; }
+
+.empty-state {
+  padding: 36rpx 0;
+  text-align: center;
+}
+
+.empty-text {
+  font-size: 24rpx;
+  color: #999;
+}
 </style>

@@ -104,6 +104,44 @@ const authSystem = {
         previewEl.style.display = 'block';
     },
 
+    renderPlaceholderPage(title, description) {
+        const container = document.getElementById('content-area');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const heading = document.createElement('h2');
+        heading.textContent = title;
+
+        const desc = document.createElement('p');
+        desc.textContent = description;
+
+        container.appendChild(heading);
+        container.appendChild(desc);
+    },
+
+    renderMyAccountPage() {
+        const container = document.getElementById('content-area');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const heading = document.createElement('h2');
+        heading.textContent = '👤 我的账户';
+
+        const username = document.createElement('p');
+        username.textContent = `用户名：${this.currentUser?.username || '--'}`;
+
+        const fullName = document.createElement('p');
+        fullName.textContent = `姓名：${this.currentUser?.name || '--'}`;
+
+        const role = document.createElement('p');
+        role.textContent = `身份：${this.getRoleLabel(this.currentUser?.role || '')}`;
+
+        container.appendChild(heading);
+        container.appendChild(username);
+        container.appendChild(fullName);
+        container.appendChild(role);
+    },
+
     // ====== 个人中心（电商风格聚合入口）======
     showPersonalCenter() {
         // [Refactor] 逻辑已全面迁移至 userProfile.js
@@ -157,13 +195,13 @@ const authSystem = {
                             <textarea id="cms-ann-summary" placeholder="简要说明" style="grid-column: 1/-1; min-height: 70px;"></textarea>
                             <div style="grid-column: 1/-1; display: flex; gap: 12px; align-items: center;">
                                 <input type="file" id="cms-ann-image" accept="image/*">
-                                <button type="button" onclick="authSystem.cmsUploadImage('cms-ann-image','cms-ann-image-url','cms-ann-preview')" style="padding: 8px 14px; background: #1565C0; color: white; border: none; border-radius: 8px;">上传图片</button>
+                                <button type="button" data-cms-form-action="upload-image" data-file-input-id="cms-ann-image" data-target-input-id="cms-ann-image-url" data-preview-id="cms-ann-preview" style="padding: 8px 14px; background: #1565C0; color: white; border: none; border-radius: 8px;">上传图片</button>
                                 <input type="hidden" id="cms-ann-image-url">
                             </div>
                             <div id="cms-ann-preview" style="grid-column: 1/-1; display: none;"></div>
                             <div style="grid-column: 1/-1; display: flex; gap: 10px;">
                                 <button type="submit" style="padding: 10px 16px; background: #2E7D32; color: white; border: none; border-radius: 8px;">保存公告</button>
-                                <button type="button" onclick="authSystem.cmsResetForm('ann')" style="padding: 10px 16px; background: #95a5a6; color: white; border: none; border-radius: 8px;">清空</button>
+                                <button type="button" data-cms-form-action="reset-form" data-cms-form-type="ann" style="padding: 10px 16px; background: #95a5a6; color: white; border: none; border-radius: 8px;">清空</button>
                             </div>
                         </form>
                     </div>
@@ -186,19 +224,19 @@ const authSystem = {
                             <textarea id="cms-case-desc" placeholder="案例说明" style="grid-column: 1/-1; min-height: 70px;"></textarea>
                             <div style="grid-column: 1/-1; display: flex; gap: 12px; align-items: center;">
                                 <input type="file" id="cms-case-thumb" accept="image/*">
-                                <button type="button" onclick="authSystem.cmsUploadImage('cms-case-thumb','cms-case-thumb-url','cms-case-thumb-preview')" style="padding: 8px 14px; background: #1565C0; color: white; border: none; border-radius: 8px;">上传缩略图</button>
+                                <button type="button" data-cms-form-action="upload-image" data-file-input-id="cms-case-thumb" data-target-input-id="cms-case-thumb-url" data-preview-id="cms-case-thumb-preview" style="padding: 8px 14px; background: #1565C0; color: white; border: none; border-radius: 8px;">上传缩略图</button>
                                 <input type="hidden" id="cms-case-thumb-url">
                             </div>
                             <div id="cms-case-thumb-preview" style="grid-column: 1/-1; display: none;"></div>
                             <div style="grid-column: 1/-1; display: flex; gap: 12px; align-items: center;">
                                 <input type="file" id="cms-case-logo" accept="image/*">
-                                <button type="button" onclick="authSystem.cmsUploadImage('cms-case-logo','cms-case-logo-url','cms-case-logo-preview')" style="padding: 8px 14px; background: #2E7D32; color: white; border: none; border-radius: 8px;">上传Logo</button>
+                                <button type="button" data-cms-form-action="upload-image" data-file-input-id="cms-case-logo" data-target-input-id="cms-case-logo-url" data-preview-id="cms-case-logo-preview" style="padding: 8px 14px; background: #2E7D32; color: white; border: none; border-radius: 8px;">上传Logo</button>
                                 <input type="hidden" id="cms-case-logo-url">
                             </div>
                             <div id="cms-case-logo-preview" style="grid-column: 1/-1; display: none;"></div>
                             <div style="grid-column: 1/-1; display: flex; gap: 10px;">
                                 <button type="submit" style="padding: 10px 16px; background: #2E7D32; color: white; border: none; border-radius: 8px;">保存案例</button>
-                                <button type="button" onclick="authSystem.cmsResetForm('case')" style="padding: 10px 16px; background: #95a5a6; color: white; border: none; border-radius: 8px;">清空</button>
+                                <button type="button" data-cms-form-action="reset-form" data-cms-form-type="case" style="padding: 10px 16px; background: #95a5a6; color: white; border: none; border-radius: 8px;">清空</button>
                             </div>
                         </form>
                     </div>
@@ -221,13 +259,13 @@ const authSystem = {
                             <textarea id="cms-ad-desc" placeholder="广告描述" style="grid-column: 1/-1; min-height: 70px;"></textarea>
                             <div style="grid-column: 1/-1; display: flex; gap: 12px; align-items: center;">
                                 <input type="file" id="cms-ad-image" accept="image/*">
-                                <button type="button" onclick="authSystem.cmsUploadImage('cms-ad-image','cms-ad-image-url','cms-ad-preview')" style="padding: 8px 14px; background: #1565C0; color: white; border: none; border-radius: 8px;">上传图片</button>
+                                <button type="button" data-cms-form-action="upload-image" data-file-input-id="cms-ad-image" data-target-input-id="cms-ad-image-url" data-preview-id="cms-ad-preview" style="padding: 8px 14px; background: #1565C0; color: white; border: none; border-radius: 8px;">上传图片</button>
                                 <input type="hidden" id="cms-ad-image-url">
                             </div>
                             <div id="cms-ad-preview" style="grid-column: 1/-1; display: none;"></div>
                             <div style="grid-column: 1/-1; display: flex; gap: 10px;">
                                 <button type="submit" style="padding: 10px 16px; background: #2E7D32; color: white; border: none; border-radius: 8px;">保存广告</button>
-                                <button type="button" onclick="authSystem.cmsResetForm('ad')" style="padding: 10px 16px; background: #95a5a6; color: white; border: none; border-radius: 8px;">清空</button>
+                                <button type="button" data-cms-form-action="reset-form" data-cms-form-type="ad" style="padding: 10px 16px; background: #95a5a6; color: white; border: none; border-radius: 8px;">清空</button>
                             </div>
                         </form>
                     </div>
@@ -250,22 +288,8 @@ const authSystem = {
             </div>
         `;
 
-        document.querySelectorAll('.cms-tab').forEach(btn => {
-            btn.onclick = () => {
-                document.querySelectorAll('.cms-tab').forEach(b => {
-                    b.classList.remove('active');
-                    b.style.borderBottom = '3px solid transparent';
-                    b.style.color = '#888';
-                });
-                btn.classList.add('active');
-                btn.style.borderBottom = '3px solid #1565C0';
-                btn.style.color = '#1565C0';
-                const tab = btn.dataset.tab;
-                ['ann','case','ad','info'].forEach(t => {
-                    document.getElementById(`cms-panel-${t}`).style.display = (t === tab) ? 'block' : 'none';
-                });
-            };
-        });
+        this.bindCmsTabActions(container);
+        this.bindCmsFormActions(container);
 
         this.cmsState = { annId: null, caseId: null, adId: null };
         this.loadCmsAnnouncements();
@@ -273,22 +297,121 @@ const authSystem = {
         this.loadCmsAds();
         this.loadCmsSiteInfo();
 
-        document.getElementById('cms-ann-form').onsubmit = (e) => {
+        const annForm = container.querySelector('#cms-ann-form');
+        if (annForm) annForm.onsubmit = (e) => {
             e.preventDefault();
             this.saveCmsAnnouncement();
         };
-        document.getElementById('cms-case-form').onsubmit = (e) => {
+        const caseForm = container.querySelector('#cms-case-form');
+        if (caseForm) caseForm.onsubmit = (e) => {
             e.preventDefault();
             this.saveCmsCase();
         };
-        document.getElementById('cms-ad-form').onsubmit = (e) => {
+        const adForm = container.querySelector('#cms-ad-form');
+        if (adForm) adForm.onsubmit = (e) => {
             e.preventDefault();
             this.saveCmsAd();
         };
-        document.getElementById('cms-info-form').onsubmit = (e) => {
+        const infoForm = container.querySelector('#cms-info-form');
+        if (infoForm) infoForm.onsubmit = (e) => {
             e.preventDefault();
             this.saveCmsSiteInfo();
         };
+    },
+
+    bindCmsTabActions(container) {
+        if (!container) return;
+
+        container.querySelectorAll('.cms-tab').forEach(btn => {
+            btn.onclick = () => {
+                container.querySelectorAll('.cms-tab').forEach(tabButton => {
+                    tabButton.classList.remove('active');
+                    tabButton.style.borderBottom = '3px solid transparent';
+                    tabButton.style.color = '#888';
+                });
+
+                btn.classList.add('active');
+                btn.style.borderBottom = '3px solid #1565C0';
+                btn.style.color = '#1565C0';
+
+                const tab = btn.dataset.tab;
+                ['ann', 'case', 'ad', 'info'].forEach(panelType => {
+                    const panel = container.querySelector(`#cms-panel-${panelType}`);
+                    if (panel) panel.style.display = panelType === tab ? 'block' : 'none';
+                });
+            };
+        });
+    },
+
+    bindCmsFormActions(container) {
+        if (!container) return;
+
+        container.querySelectorAll('[data-cms-form-action]').forEach(node => {
+            const action = node.getAttribute('data-cms-form-action') || '';
+            node.onclick = () => {
+                if (action === 'upload-image') {
+                    const fileInputId = node.getAttribute('data-file-input-id') || '';
+                    const targetInputId = node.getAttribute('data-target-input-id') || '';
+                    const previewId = node.getAttribute('data-preview-id') || '';
+
+                    if (!fileInputId || !targetInputId || !previewId) {
+                        this.showAlert('图片上传按钮配置缺失', 'warning');
+                        return;
+                    }
+
+                    this.cmsUploadImage(fileInputId, targetInputId, previewId);
+                    return;
+                }
+
+                if (action === 'reset-form') {
+                    const formType = node.getAttribute('data-cms-form-type') || '';
+                    if (!formType) {
+                        this.showAlert('表单类型无效', 'warning');
+                        return;
+                    }
+                    this.cmsResetForm(formType);
+                }
+            };
+        });
+    },
+
+    bindCmsListActions(listContainer) {
+        if (!listContainer) return;
+
+        listContainer.querySelectorAll('[data-cms-list-action]').forEach(node => {
+            const action = node.getAttribute('data-cms-list-action') || '';
+            node.onclick = () => {
+                const actionId = Number(node.getAttribute('data-cms-id') || '0');
+                if (!Number.isInteger(actionId) || actionId <= 0) {
+                    this.showAlert('CMS 记录 ID 无效', 'warning');
+                    return;
+                }
+
+                if (action === 'edit-ann') {
+                    this.fillCmsAnnouncement(actionId);
+                    return;
+                }
+                if (action === 'delete-ann') {
+                    this.deleteCmsAnnouncement(actionId);
+                    return;
+                }
+                if (action === 'edit-case') {
+                    this.fillCmsCase(actionId);
+                    return;
+                }
+                if (action === 'delete-case') {
+                    this.deleteCmsCase(actionId);
+                    return;
+                }
+                if (action === 'edit-ad') {
+                    this.fillCmsAd(actionId);
+                    return;
+                }
+                if (action === 'delete-ad') {
+                    this.deleteCmsAd(actionId);
+                }
+            };
+        });
     },
 
     cmsResetForm(type) {
@@ -373,11 +496,13 @@ const authSystem = {
                         <div style="font-weight:bold;">${safeTitle}</div>
                         <div style="font-size:12px;color:#666;">${safeType} | ${safeDocNo} | ${item.is_active ? '启用' : '停用'}</div>
                     </div>
-                    <button onclick="authSystem.fillCmsAnnouncement(${safeId})" style="padding:6px 10px;">编辑</button>
-                    <button onclick="authSystem.deleteCmsAnnouncement(${safeId})" style="padding:6px 10px; color:#e74c3c;">删除</button>
+                    <button data-cms-list-action="edit-ann" data-cms-id="${safeId}" style="padding:6px 10px;">编辑</button>
+                    <button data-cms-list-action="delete-ann" data-cms-id="${safeId}" style="padding:6px 10px; color:#e74c3c;">删除</button>
                 </div>
             `;
         }).join('');
+
+        this.bindCmsListActions(list);
     },
 
     fillCmsAnnouncement(id) {
@@ -463,11 +588,13 @@ const authSystem = {
                         <div style="font-weight:bold;">${safeTitle}</div>
                         <div style="font-size:12px;color:#666;">${safeTradeData} | ${item.is_active ? '启用' : '停用'}</div>
                     </div>
-                    <button onclick="authSystem.fillCmsCase(${safeId})" style="padding:6px 10px;">编辑</button>
-                    <button onclick="authSystem.deleteCmsCase(${safeId})" style="padding:6px 10px; color:#e74c3c;">删除</button>
+                    <button data-cms-list-action="edit-case" data-cms-id="${safeId}" style="padding:6px 10px;">编辑</button>
+                    <button data-cms-list-action="delete-case" data-cms-id="${safeId}" style="padding:6px 10px; color:#e74c3c;">删除</button>
                 </div>
             `;
         }).join('');
+
+        this.bindCmsListActions(list);
     },
 
     fillCmsCase(id) {
@@ -558,11 +685,13 @@ const authSystem = {
                         <div style="font-weight:bold;">${safeTitle}</div>
                         <div style="font-size:12px;color:#666;">${safeCompany} | ${item.is_active ? '启用' : '停用'}</div>
                     </div>
-                    <button onclick="authSystem.fillCmsAd(${safeId})" style="padding:6px 10px;">编辑</button>
-                    <button onclick="authSystem.deleteCmsAd(${safeId})" style="padding:6px 10px; color:#e74c3c;">删除</button>
+                    <button data-cms-list-action="edit-ad" data-cms-id="${safeId}" style="padding:6px 10px;">编辑</button>
+                    <button data-cms-list-action="delete-ad" data-cms-id="${safeId}" style="padding:6px 10px; color:#e74c3c;">删除</button>
                 </div>
             `;
         }).join('');
+
+        this.bindCmsListActions(list);
     },
 
     fillCmsAd(id) {
@@ -1244,42 +1373,42 @@ const authSystem = {
                     </div>
                     
                     <!-- 用户管理卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('user-management')" style="padding: 24px; border-left: 6px solid var(--primary-green); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="user-management" style="padding: 24px; border-left: 6px solid var(--primary-green); cursor: pointer;">
                         <h3 style="color: var(--primary-green); margin: 0 0 10px 0;">👥 用户管理</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">管理所有用户账户，审核、禁用、删除等操作</p>
                         <button style="background: var(--primary-green); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入管理</button>
                     </div>
                     
                     <!-- 申报审核卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('audit-reports')" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="audit-reports" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
                         <h3 style="color: var(--citrus-gold); margin: 0 0 10px 0;">📝 申报审核</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">审核农户的处理申报，核实处理数据和文件</p>
                         <button style="background: var(--citrus-gold); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">审核申报</button>
                     </div>
                     
                     <!-- 数据统计卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('data-stats')" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="data-stats" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
                         <h3 style="color: var(--primary-light); margin: 0 0 10px 0;">📈 数据统计</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查看平台各类数据，处理量、用户活跃度等</p>
                         <button style="background: var(--primary-light); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">查看统计</button>
                     </div>
 
                     <!-- 公告编辑中心卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('cms-center')" style="padding: 24px; border-left: 6px solid #1565C0; cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="cms-center" style="padding: 24px; border-left: 6px solid #1565C0; cursor: pointer;">
                         <h3 style="color: #1565C0; margin: 0 0 10px 0;">📰 公告编辑中心</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">编辑首页政策公告、案例展示与合作商推荐</p>
                         <button style="background: #1565C0; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入编辑</button>
                     </div>
                     
                     <!-- 系统设置卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('system-settings')" style="padding: 24px; border-left: 6px solid var(--text-medium); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="system-settings" style="padding: 24px; border-left: 6px solid var(--text-medium); cursor: pointer;">
                         <h3 style="color: var(--text-medium); margin: 0 0 10px 0;">⚙️ 系统设置</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">配置平台参数，管理处理点、费用等</p>
                         <button style="background: var(--text-medium); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入设置</button>
                     </div>
                     
                     <!-- 仲裁管理卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-management')" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="arbitration-management" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
                         <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚖️ 仲裁管理</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">处理订单纠纷，查看仲裁请求并做出裁决</p>
                         <button style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入管理</button>
@@ -1289,17 +1418,20 @@ const authSystem = {
         `;
         // 更新侧边栏
         this.updateSidebar('admin');
+        this.bindDashboardActions(container);
     },
     
     // 农户仪表板
     showFarmerDashboard() {
         const container = document.getElementById('content-area');
+        const safeDisplayName = this.escapeHtml(this.currentUser?.name || '用户');
+        const safeLoginTime = this.escapeHtml(this.currentUser?.loginTime || '--');
         container.innerHTML = `
             <div style="animation: fadeIn 0.5s;">
                 <h1 class="page-title">
-                    🌾 农户工作台 - ${this.currentUser.name}
+                    🌾 农户工作台 - ${safeDisplayName}
                 </h1>
-                <p style="color: var(--text-medium); font-size: 14px; margin-top: -20px;">登录时间：${this.currentUser.loginTime}</p>
+                <p style="color: var(--text-medium); font-size: 14px; margin-top: -20px;">登录时间：${safeLoginTime}</p>
                 
                 <div class="dashboard-grid">
                     <!-- 我的统计卡片 -->
@@ -1314,42 +1446,42 @@ const authSystem = {
                     </div>
                     
                     <!-- 回收商求购卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('recycler-demands')" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="recycler-demands" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
                         <h3 style="color: var(--citrus-gold); margin: 0 0 10px 0;">📢 回收商求购</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查看回收商发布的收购需求，寻找最佳买家</p>
                         <button style="background: var(--citrus-gold); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">查看求购</button>
                     </div>
 
                     <!-- 发起新申报卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('new-report')" style="padding: 24px; border-left: 6px solid var(--citrus-orange); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="new-report" style="padding: 24px; border-left: 6px solid var(--citrus-orange); cursor: pointer;">
                         <h3 style="color: var(--citrus-orange); margin: 0 0 10px 0;">📝 发起申报</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">申报新的柑肉处理，获取处理凭证和记录</p>
                         <button style="background: var(--citrus-orange); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">新建申报</button>
                     </div>
                     
                     <!-- 申报历史卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('my-reports')" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="my-reports" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
                         <h3 style="color: var(--citrus-gold); margin: 0 0 10px 0;">📋 申报记录</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查看所有申报历史，跟踪申报状态</p>
                         <button style="background: var(--citrus-gold); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">查看记录</button>
                     </div>
                     
                     <!-- 附近处理点查询卡片 -->
-                    <div class="glass-card" onclick="window.location.href='farmer-nearby-recyclers.html'" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="open-nearby" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
                         <h3 style="color: var(--primary-light); margin: 0 0 10px 0;">🌍 附近处理点</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查找距离最近的处理点，实时显示最近的回收商</p>
                         <button style="background: var(--primary-light); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">查找处理点</button>
                     </div>
                     
                     <!-- 我的账户卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('my-account')" style="padding: 24px; border-left: 6px solid var(--text-medium); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="my-account" style="padding: 24px; border-left: 6px solid var(--text-medium); cursor: pointer;">
                         <h3 style="color: var(--text-medium); margin: 0 0 10px 0;">👤 我的账户</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">管理账户信息，修改密码和隐私设置</p>
                         <button style="background: var(--text-medium); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">管理账户</button>
                     </div>
                     
                     <!-- 仲裁中心卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-center')" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="arbitration-center" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
                         <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚖️ 仲裁中心</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">提出订单仲裁申请，查看仲裁进度和结果</p>
                         <button style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入中心</button>
@@ -1359,6 +1491,7 @@ const authSystem = {
         `;
         // 更新侧边栏
         this.updateSidebar('farmer');
+        this.bindDashboardActions(container);
         // 检查并显示未读消息红点
         setTimeout(() => this.updateRequestUnreadBadge(), 100);
     },
@@ -1366,12 +1499,14 @@ const authSystem = {
     // 回收商仪表板
     showRecyclerDashboard() {
         const container = document.getElementById('content-area');
+        const safeDisplayName = this.escapeHtml(this.currentUser?.name || '用户');
+        const safeLoginTime = this.escapeHtml(this.currentUser?.loginTime || '--');
         container.innerHTML = `
             <div style="animation: fadeIn 0.5s;">
                 <h1 class="page-title">
-                    ♻️ 回收商工作台 - ${this.currentUser.name}
+                    ♻️ 回收商工作台 - ${safeDisplayName}
                 </h1>
-                <p style="color: var(--text-medium); font-size: 14px; margin-top: -20px;">登录时间：${this.currentUser.loginTime}</p>
+                <p style="color: var(--text-medium); font-size: 14px; margin-top: -20px;">登录时间：${safeLoginTime}</p>
                 
                 <div class="dashboard-grid">
                     <!-- 我的统计卡片 -->
@@ -1386,49 +1521,49 @@ const authSystem = {
                     </div>
                     
                     <!-- 农户供应卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('farmer-supplies')" style="padding: 24px; border-left: 6px solid var(--primary-green); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="farmer-supplies" style="padding: 24px; border-left: 6px solid var(--primary-green); cursor: pointer;">
                         <h3 style="color: var(--primary-green); margin: 0 0 10px 0;">🌾 农户供应</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查看农户发布的供应信息，寻找优质货源</p>
                         <button style="background: var(--primary-green); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">查看供应</button>
                     </div>
 
                     <!-- 发布求购卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('publish-demand')" style="padding: 24px; border-left: 6px solid var(--citrus-orange); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="publish-demand" style="padding: 24px; border-left: 6px solid var(--citrus-orange); cursor: pointer;">
                         <h3 style="color: var(--citrus-orange); margin: 0 0 10px 0;">📢 发布求购</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">发布收购需求，吸引农户投资</p>
                         <button style="background: var(--citrus-orange); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">新建求购</button>
                     </div>
                     
                     <!-- 订单管理卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('my-orders')" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="my-orders" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
                         <h3 style="color: var(--citrus-gold); margin: 0 0 10px 0;">📦 订单管理</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查看和管理订单，跟踪交易进度</p>
                         <button style="background: var(--citrus-gold); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">管理订单</button>
                     </div>
                     
                     <!-- 处理商需求卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('processor-demands')" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="processor-demands" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
                         <h3 style="color: var(--primary-light); margin: 0 0 10px 0;">🏭 处理商需求</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查看处理商发布的求购需求，对接处理商</p>
                         <button style="background: var(--primary-light); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">查看需求</button>
                     </div>
                     
                     <!-- 财务中心卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('finance')" style="padding: 24px; border-left: 6px solid var(--text-dark); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="finance" style="padding: 24px; border-left: 6px solid var(--text-dark); cursor: pointer;">
                         <h3 style="color: var(--text-dark); margin: 0 0 10px 0;">💰 财务中心</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查看账单和收款，管理账户余额</p>
                         <button style="background: var(--text-dark); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">财务管理</button>
                     </div>
                     
                     <!-- 我的账户卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('my-account')" style="padding: 24px; border-left: 6px solid var(--text-medium); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="my-account" style="padding: 24px; border-left: 6px solid var(--text-medium); cursor: pointer;">
                         <h3 style="color: var(--text-medium); margin: 0 0 10px 0;">👤 我的账户</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">管理账户信息，修改密码和企业信息</p>
                         <button style="background: var(--text-medium); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">管理账户</button>
                     </div>
                     
                     <!-- 仲裁中心卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-center')" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="arbitration-center" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
                         <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚖️ 仲裁中心</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">提出订单仲裁申请，查看仲裁进度和结果</p>
                         <button style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入中心</button>
@@ -1438,6 +1573,7 @@ const authSystem = {
         `;
         // 更新侧边栏
         this.updateSidebar('recycler');
+        this.bindDashboardActions(container);
         // 检查并显示未读消息红点
         setTimeout(() => this.updateRequestUnreadBadge(), 100);
     },
@@ -1445,12 +1581,14 @@ const authSystem = {
     // 果肉处理商仪表板
     showProcessorDashboard() {
         const container = document.getElementById('content-area');
+        const safeDisplayName = this.escapeHtml(this.currentUser?.name || '用户');
+        const safeLoginTime = this.escapeHtml(this.currentUser?.loginTime || '--');
         container.innerHTML = `
             <div style="animation: fadeIn 0.5s;">
                 <h1 class="page-title">
-                    🏭 处理商工作台 - ${this.currentUser.name}
+                    🏭 处理商工作台 - ${safeDisplayName}
                 </h1>
-                <p style="color: var(--text-medium); font-size: 14px; margin-top: -20px;">登录时间：${this.currentUser.loginTime}</p>
+                <p style="color: var(--text-medium); font-size: 14px; margin-top: -20px;">登录时间：${safeLoginTime}</p>
                 
                 <div class="dashboard-grid">
                     <!-- 我的统计卡片 -->
@@ -1465,35 +1603,35 @@ const authSystem = {
                     </div>
 
                     <!-- 货源供应卡片 (农户+回收商) -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('supply-sources')" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="supply-sources" style="padding: 24px; border-left: 6px solid var(--primary-light); cursor: pointer;">
                         <h3 style="color: var(--primary-light); margin: 0 0 10px 0;">🌾 货源供应</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">查看农户和回收商发布的货源信息，批量采购原料</p>
                         <button style="background: var(--primary-light); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">寻找货源</button>
                     </div>
 
                     <!-- 发布求购卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('publish-demand')" style="padding: 24px; border-left: 6px solid var(--citrus-orange); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="publish-demand" style="padding: 24px; border-left: 6px solid var(--citrus-orange); cursor: pointer;">
                         <h3 style="color: var(--citrus-orange); margin: 0 0 10px 0;">📢 发布求购</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">发布原料收购需求，对接回收商</p>
                         <button style="background: var(--citrus-orange); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">新建求购</button>
                     </div>
                     
                     <!-- 订单管理卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('my-orders')" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="my-orders" style="padding: 24px; border-left: 6px solid var(--citrus-gold); cursor: pointer;">
                         <h3 style="color: var(--citrus-gold); margin: 0 0 10px 0;">📦 订单管理</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">管理采购订单，跟踪物流与入库</p>
                         <button style="background: var(--citrus-gold); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">管理订单</button>
                     </div>
                     
                     <!-- 我的账户卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('my-account')" style="padding: 24px; border-left: 6px solid var(--text-medium); cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="my-account" style="padding: 24px; border-left: 6px solid var(--text-medium); cursor: pointer;">
                         <h3 style="color: var(--text-medium); margin: 0 0 10px 0;">👤 我的账户</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">管理企业资质，修改密码和联系人信息</p>
                         <button style="background: var(--text-medium); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">管理账户</button>
                     </div>
                     
                     <!-- 仲裁中心卡片 -->
-                    <div class="glass-card" onclick="authSystem.navigateTo('arbitration-center')" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
+                    <div class="glass-card" data-dashboard-action="navigate" data-dashboard-page="arbitration-center" style="padding: 24px; border-left: 6px solid #e74c3c; cursor: pointer;">
                         <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚖️ 仲裁中心</h3>
                         <p style="color: var(--text-medium); font-size: 14px;">提出订单仲裁申请，查看仲裁进度和结果</p>
                         <button style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 15px; font-weight: bold;">进入中心</button>
@@ -1503,6 +1641,7 @@ const authSystem = {
         `;
         // 更新侧边栏
         this.updateSidebar('processor');
+        this.bindDashboardActions(container);
     },
     
     // ====== 辅助函数 ======
@@ -1540,6 +1679,48 @@ const authSystem = {
             if (signupBtn) signupBtn.style.display = 'block';
         }
     },
+
+    bindDashboardActions(container) {
+        if (!container) return;
+
+        container.querySelectorAll('[data-dashboard-action]').forEach(node => {
+            const action = node.getAttribute('data-dashboard-action') || '';
+            node.onclick = (event) => {
+                event.preventDefault();
+
+                if (action === 'navigate') {
+                    const page = node.getAttribute('data-dashboard-page') || '';
+                    if (page) this.navigateTo(page);
+                    return;
+                }
+
+                if (action === 'open-nearby') {
+                    window.location.href = 'farmer-nearby-recyclers.html';
+                }
+            };
+        });
+    },
+
+    bindSidebarActions(navList) {
+        if (!navList) return;
+
+        navList.querySelectorAll('[data-nav-action]').forEach(node => {
+            const action = node.getAttribute('data-nav-action') || '';
+            node.onclick = (event) => {
+                event.preventDefault();
+
+                if (action === 'navigate') {
+                    const page = node.getAttribute('data-nav-page') || '';
+                    if (page) this.navigateTo(page);
+                    return;
+                }
+
+                if (action === 'logout') {
+                    this.logout();
+                }
+            };
+        });
+    },
     
     // 更新侧边栏（根据身份显示不同菜单）
     updateSidebar(role) {
@@ -1547,34 +1728,35 @@ const authSystem = {
         
         if (role === 'admin') {
             menuHTML = `
-                <li><a href="#" onclick="authSystem.navigateTo('homepage')">🏠 我的首页</a></li>
-                <li><a href="#" onclick="authSystem.navigateTo('dashboard')">📊 管理工作台</a></li>
-                <li><a href="#" onclick="authSystem.navigateTo('personal-center')">🧭 个人中心</a></li>
-                <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="homepage">🏠 我的首页</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="dashboard">📊 管理工作台</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="personal-center">🧭 个人中心</a></li>
+                <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" data-nav-action="logout">🚪 退出登录</a></li>
             `;
         } else if (role === 'farmer') {
             menuHTML = `
-                <li><a href="#" onclick="authSystem.navigateTo('homepage')">🏠 我的首页</a></li>
-                <li><a href="#" onclick="authSystem.navigateTo('personal-center')">🧭 个人中心</a></li>
-                <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="homepage">🏠 我的首页</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="personal-center">🧭 个人中心</a></li>
+                <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" data-nav-action="logout">🚪 退出登录</a></li>
             `;
         } else if (role === 'recycler') {
             menuHTML = `
-                <li><a href="#" onclick="authSystem.navigateTo('homepage')">🏠 我的首页</a></li>
-                <li><a href="#" onclick="authSystem.navigateTo('personal-center')">🧭 个人中心</a></li>
-                <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="homepage">🏠 我的首页</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="personal-center">🧭 个人中心</a></li>
+                <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" data-nav-action="logout">🚪 退出登录</a></li>
             `;
         } else if (role === 'processor') {
             menuHTML = `
-                <li><a href="#" onclick="authSystem.navigateTo('homepage')">🏠 我的首页</a></li>
-                <li><a href="#" onclick="authSystem.navigateTo('personal-center')">🧭 个人中心</a></li>
-                <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" onclick="authSystem.logout()">🚪 退出登录</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="homepage">🏠 我的首页</a></li>
+                <li><a href="#" data-nav-action="navigate" data-nav-page="personal-center">🧭 个人中心</a></li>
+                <li style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 20px; padding-top: 20px;"><a href="#" data-nav-action="logout">🚪 退出登录</a></li>
             `;
         }
         
         const navList = document.querySelector('.nav-list');
         if (navList) {
             navList.innerHTML = menuHTML;
+            this.bindSidebarActions(navList);
         }
     },
     
@@ -1628,10 +1810,10 @@ const authSystem = {
         const pages = {
             'dashboard': () => this.redirectToDashboard(),
             'user-management': () => {
-                container.innerHTML = '<h2>👥 用户管理</h2><p>用户列表将显示在这里...（正在开发中）</p>';
+                this.renderPlaceholderPage('👥 用户管理', '用户列表将显示在这里...（正在开发中）');
             },
             'audit-reports': () => {
-                container.innerHTML = '<h2>📝 申报审核</h2><p>申报审核列表将显示在这里...（正在开发中）</p>';
+                this.renderPlaceholderPage('📝 申报审核', '申报审核列表将显示在这里...（正在开发中）');
             },
             'new-report': () => {
                 this.showNewReportForm();
@@ -1640,10 +1822,10 @@ const authSystem = {
                 this.showMyReports();
             },
             'processing-points': () => {
-                container.innerHTML = '<h2>🗺️ 处理点查询</h2><p>处理点列表将显示在这里...（正在开发中）</p>';
+                this.renderPlaceholderPage('🗺️ 处理点查询', '处理点列表将显示在这里...（正在开发中）');
             },
             'my-account': () => {
-                container.innerHTML = `<h2>👤 我的账户</h2><p>用户名：${this.currentUser.username}</p><p>姓名：${this.currentUser.name}</p><p>身份：${this.getRoleLabel(this.currentUser.role)}</p>`;
+                this.renderMyAccountPage();
             },
             'publish-demand': () => {
                 this.showPublishDemandForm();
@@ -1654,32 +1836,32 @@ const authSystem = {
                 } else if (this.currentUser.role === 'processor') {
                     this.showProcessorOrders();
                 } else {
-                    container.innerHTML = '<h2>📦 订单管理</h2><p>您的订单列表将显示在这里...（正在开发中）</p>';
+                    this.renderPlaceholderPage('📦 订单管理', '您的订单列表将显示在这里...（正在开发中）');
                 }
             },
             'partner-farmers': () => {
-                container.innerHTML = '<h2>🤝 合作农户</h2><p>合作农户列表将显示在这里...（正在开发中）</p>';
+                this.renderPlaceholderPage('🤝 合作农户', '合作农户列表将显示在这里...（正在开发中）');
             },
             'processor-demands': () => {
                 this.showProcessorDemands();
             },
             'finance': () => {
-                container.innerHTML = '<h2>💰 财务中心</h2><p>财务信息将显示在这里...（正在开发中）</p>';
+                this.renderPlaceholderPage('💰 财务中心', '财务信息将显示在这里...（正在开发中）');
             },
             'data-stats': () => {
-                container.innerHTML = '<h2>📈 数据统计</h2><p>统计数据将显示在这里...（正在开发中）</p>';
+                this.renderPlaceholderPage('📈 数据统计', '统计数据将显示在这里...（正在开发中）');
             },
             'cms-center': () => {
                 this.showCmsCenter();
             },
             'system-settings': () => {
-                container.innerHTML = '<h2>⚙️ 系统设置</h2><p>系统设置界面将显示在这里...（正在开发中）</p>';
+                this.renderPlaceholderPage('⚙️ 系统设置', '系统设置界面将显示在这里...（正在开发中）');
             },
             'recycler-demands': () => {
                 this.showRecyclerDemands();
             },
             'recycler-supplies': () => {
-                container.innerHTML = '<h2>♻️ 回收商供应</h2><p>回收商供应列表将显示在这里...（正在开发中）</p>';
+                this.renderPlaceholderPage('♻️ 回收商供应', '回收商供应列表将显示在这里...（正在开发中）');
             },
             'supply-sources': () => {
                 this.showSupplySources();
@@ -1706,46 +1888,56 @@ const authSystem = {
         const isEdit = !!report;
         const title = isEdit ? '✏️ 编辑申报' : '📝 新建柑肉处理申报';
         const defaultPhotos = (report && report.photo_urls) ? report.photo_urls : [];
+        const safeReportId = report && Number.isFinite(Number(report.id)) ? String(Number(report.id)) : '';
+        const safePickupDate = this.escapeHtml(report ? (report.pickup_date || '') : '');
+        const safeWeight = this.escapeHtml(report ? (report.weight_kg ?? '') : '');
+        const safeLocation = this.escapeHtml(report ? (report.location_address || '') : '');
+        const safeLat = this.escapeHtml(report && report.location_lat ? report.location_lat : '');
+        const safeLng = this.escapeHtml(report && report.location_lng ? report.location_lng : '');
+        const safeVariety = this.escapeHtml(report ? (report.citrus_variety || '') : '');
+        const safeContactName = this.escapeHtml(report ? (report.contact_name || '') : (this.currentUser?.name || ''));
+        const safeContactPhone = this.escapeHtml(report ? (report.contact_phone || '') : '');
+        const safeNotes = this.escapeHtml(report ? (report.notes || '') : '');
 
         container.innerHTML = `
             <div style="max-width:700px;margin:0 auto;animation:fadeIn 0.5s;">
                 <h1 class="page-title">${title}</h1>
                 <form id="farmer-report-form" style="margin-top:30px;">
-                    ${isEdit ? `<input type="hidden" name="report_id" value="${report.id}">` : ''}
+                    ${isEdit && safeReportId ? `<input type="hidden" name="report_id" value="${safeReportId}">` : ''}
                     <div style="margin-bottom:18px;">
                         <label>回收日期 <span style='color:#e67e22;'>*</span></label>
-                        <input type="date" name="pickup_date" required value="${report ? report.pickup_date : ''}" style="width:100%;">
+                        <input type="date" name="pickup_date" required value="${safePickupDate}" style="width:100%;">
                     </div>
                     <div style="margin-bottom:18px;">
                         <label>回收重量（斤） <span style='color:#e67e22;'>*</span></label>
-                        <input type="number" name="weight_kg" min="1" required placeholder="请输入重量" value="${report ? report.weight_kg : ''}" style="width:100%;">
+                        <input type="number" name="weight_kg" min="1" required placeholder="请输入重量" value="${safeWeight}" style="width:100%;">
                     </div>
                     <div style="margin-bottom:18px;">
                         <label>收获地点 <span style='color:#e67e22;'>*</span></label>
-                        <input type="text" name="location_address" required placeholder="如：陈皮镇××村" value="${report ? report.location_address : ''}" style="width:100%;">
+                        <input type="text" name="location_address" required placeholder="如：陈皮镇××村" value="${safeLocation}" style="width:100%;">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
                         <div>
                             <label>纬度（可选）</label>
-                            <input type="number" step="0.000001" name="location_lat" value="${report && report.location_lat ? report.location_lat : ''}" style="width:100%;">
+                            <input type="number" step="0.000001" name="location_lat" value="${safeLat}" style="width:100%;">
                         </div>
                         <div>
                             <label>经度（可选）</label>
-                            <input type="number" step="0.000001" name="location_lng" value="${report && report.location_lng ? report.location_lng : ''}" style="width:100%;">
+                            <input type="number" step="0.000001" name="location_lng" value="${safeLng}" style="width:100%;">
                         </div>
                     </div>
                     <div style="margin-bottom:18px;">
                         <label>柑橘品种 <span style='color:#e67e22;'>*</span></label>
-                        <input type="text" name="citrus_variety" required placeholder="如：新会大红柑" value="${report ? report.citrus_variety : ''}" style="width:100%;">
+                        <input type="text" name="citrus_variety" required placeholder="如：新会大红柑" value="${safeVariety}" style="width:100%;">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
                         <div>
                             <label>联系人 <span style='color:#e67e22;'>*</span></label>
-                            <input type="text" name="contact_name" required value="${report ? report.contact_name : this.currentUser.name}" style="width:100%;">
+                            <input type="text" name="contact_name" required value="${safeContactName}" style="width:100%;">
                         </div>
                         <div>
                             <label>联系电话 <span style='color:#e67e22;'>*</span></label>
-                            <input type="text" name="contact_phone" required placeholder="手机号" value="${report ? report.contact_phone : ''}" style="width:100%;">
+                            <input type="text" name="contact_phone" required placeholder="手机号" value="${safeContactPhone}" style="width:100%;">
                         </div>
                     </div>
                     <div style="margin-bottom:18px;">
@@ -1782,7 +1974,7 @@ const authSystem = {
                     </div>
                     <div style="margin-bottom:18px;">
                         <label>备注说明</label>
-                        <textarea name="notes" rows="3" placeholder="可填写处理过程、注意事项等" style="width:100%;">${report ? (report.notes || '') : ''}</textarea>
+                        <textarea name="notes" rows="3" placeholder="可填写处理过程、注意事项等" style="width:100%;">${safeNotes}</textarea>
                     </div>
                     <div style="margin-bottom:18px;">
                         <label>现场照片（可选，最多3张）</label>
@@ -1911,30 +2103,44 @@ const authSystem = {
                     listDiv.innerHTML = '<p style="color:#888;">暂无申报记录</p>';
                     return;
                 }
-                listDiv.innerHTML = data.map(r => `
+                listDiv.innerHTML = data.map(r => {
+                    const safeId = Number(r.id);
+                    const idAttr = Number.isFinite(safeId) && safeId > 0 ? String(safeId) : '';
+                    const recyclerId = Number(r.recycler_id);
+                    const uidAttr = Number.isFinite(recyclerId) && recyclerId > 0 ? String(recyclerId) : '';
+                    const safeReportNo = this.escapeHtml(r.report_no || '');
+                    const safeStatus = this.escapeHtml(this.getReportStatusLabel(r.status));
+                    const safeCreatedAt = this.escapeHtml(r.created_at || '--');
+                    const safePickupDate = this.escapeHtml(r.pickup_date || '--');
+                    const safeWeight = this.escapeHtml(r.weight_kg ?? '--');
+                    const safeVariety = this.escapeHtml(r.citrus_variety || '--');
+                    const safeAddress = this.escapeHtml(r.location_address || '--');
+
+                    return `
                     <div class="glass-card" style="padding:18px;margin-bottom:16px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                             <div>
-                                <strong>${r.report_no || ''}</strong>
-                                <span style="margin-left:10px;padding:3px 10px;border-radius:12px;font-size:12px;background:#f1f2f6;color:#2d3436;">${this.getReportStatusLabel(r.status)}</span>
+                                <strong>${safeReportNo}</strong>
+                                <span style="margin-left:10px;padding:3px 10px;border-radius:12px;font-size:12px;background:#f1f2f6;color:#2d3436;">${safeStatus}</span>
                             </div>
-                            <div style="font-size:13px;color:#888;">${r.created_at}</div>
+                            <div style="font-size:13px;color:#888;">${safeCreatedAt}</div>
                         </div>
                         <div style="margin-top:10px;font-size:14px;color:#555;line-height:1.7;">
-                            回收日期：${r.pickup_date} ｜ 重量：${r.weight_kg} 斤 ｜ 品种：${r.citrus_variety}<br>
-                            地址：${r.location_address}
+                            回收日期：${safePickupDate} ｜ 重量：${safeWeight} 斤 ｜ 品种：${safeVariety}<br>
+                            地址：${safeAddress}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                            ${r.status === 'accepted' ? `<button data-action="intention" data-id="${r.id}" data-uid="${r.recycler_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>` : ''}
-                            ${r.status === 'draft' ? `<button data-action="publish" data-id="${r.id}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">发布</button>` : ''}
-                            ${(r.status === 'draft' || r.status === 'pending') ? `<button data-action="edit" data-id="${r.id}" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">编辑</button>` : ''}
-                            ${r.status === 'draft' ? `<button data-action="delete" data-id="${r.id}" style="background:#fab1a0;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">删除</button>` : ''}
+                            ${r.status === 'accepted' && idAttr && uidAttr ? `<button data-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>` : ''}
+                            ${r.status === 'draft' && idAttr ? `<button data-action="publish" data-id="${idAttr}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">发布</button>` : ''}
+                            ${(r.status === 'draft' || r.status === 'pending') && idAttr ? `<button data-action="edit" data-id="${idAttr}" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">编辑</button>` : ''}
+                            ${r.status === 'draft' && idAttr ? `<button data-action="delete" data-id="${idAttr}" style="background:#fab1a0;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">删除</button>` : ''}
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
                 this.bindReportActions(data);
             } catch (err) {
-                listDiv.innerHTML = `<p style="color:#e74c3c;">${err.message}</p>`;
+                listDiv.innerHTML = `<p style="color:#e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p>`;
             }
         };
 
@@ -2004,35 +2210,49 @@ const authSystem = {
                     const borderColor = isFarmer ? 'var(--citrus-orange)' : 'var(--primary-light)';
                     const sourceLabel = isFarmer ? '🌾 农户' : '♻️ 回收商';
                     const sourceBg = isFarmer ? '#fff3e0' : '#e8f5e9';
+                    const safeName = this.escapeHtml(isFarmer ? (r.farmer_name || '农户') : (r.recycler_name || '回收商'));
+                    const safeNo = this.escapeHtml(r.report_no || r.supply_no || '');
+                    const safeCreatedAt = this.escapeHtml(r.created_at || '--');
+                    const safePickupDate = this.escapeHtml(r.pickup_date || '--');
+                    const safeWeight = this.escapeHtml(r.weight_kg ?? '--');
+                    const safeVariety = this.escapeHtml(r.citrus_variety || '--');
+                    const safeGrade = this.escapeHtml(this.getGradeLabel(r.grade));
+                    const safeStockWeight = this.escapeHtml(r.stock_weight ?? '--');
+                    const safeAddress = this.escapeHtml(r.location_address || r.address || '未填写');
+                    const safeNotes = this.escapeHtml(r.notes || '');
+                    const recordId = Number(r.id);
+                    const safeRecordId = Number.isFinite(recordId) && recordId > 0 ? String(recordId) : '';
+                    const userId = Number(isFarmer ? r.farmer_id : r.recycler_id);
+                    const safeUserId = Number.isFinite(userId) && userId > 0 ? String(userId) : '';
                     
                     return `
                         <div class="glass-card" style="padding:18px;margin-bottom:16px;border-left:4px solid ${borderColor};">
                             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                                 <div>
                                     <span style="background:${sourceBg};color:${borderColor};padding:4px 10px;border-radius:12px;font-size:12px;font-weight:bold;">${sourceLabel}</span>
-                                    <strong style="margin-left:8px;">${isFarmer ? (r.farmer_name || '农户') : (r.recycler_name || '回收商')}</strong>
-                                    <span style="margin-left:8px;font-size:12px;color:#888;">${r.report_no || r.supply_no || ''}</span>
+                                    <strong style="margin-left:8px;">${safeName}</strong>
+                                    <span style="margin-left:8px;font-size:12px;color:#888;">${safeNo}</span>
                                 </div>
-                                <div style="font-size:12px;color:#888;">${r.created_at}</div>
+                                <div style="font-size:12px;color:#888;">${safeCreatedAt}</div>
                             </div>
                             <div style="margin-top:12px;background:#f9f9f9;padding:12px;border-radius:8px;">
                                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;font-size:14px;color:#555;">
                                     ${isFarmer ? `
-                                        <div>📅 回收日期：${r.pickup_date}</div>
-                                        <div>⚖️ 重量：<strong style="color:var(--citrus-orange);">${r.weight_kg} 斤</strong></div>
-                                        <div>🍊 品种：${r.citrus_variety}</div>
+                                        <div>📅 回收日期：${safePickupDate}</div>
+                                        <div>⚖️ 重量：<strong style="color:var(--citrus-orange);">${safeWeight} 斤</strong></div>
+                                        <div>🍊 品种：${safeVariety}</div>
                                     ` : `
-                                        <div>🏷️ 品级：${this.getGradeLabel(r.grade)}</div>
-                                        <div>⚖️ 库存：<strong style="color:var(--primary-light);">${r.stock_weight} 斤</strong></div>
+                                        <div>🏷️ 品级：${safeGrade}</div>
+                                        <div>⚖️ 库存：<strong style="color:var(--primary-light);">${safeStockWeight} 斤</strong></div>
                                     `}
-                                    <div>📍 地址：${r.location_address || r.address || '未填写'}</div>
+                                    <div>📍 地址：${safeAddress}</div>
                                 </div>
-                                ${r.notes ? `<div style="margin-top:8px;font-size:13px;color:#888;">备注：${r.notes}</div>` : ''}
+                                ${safeNotes ? `<div style="margin-top:8px;font-size:13px;color:#888;">备注：${safeNotes}</div>` : ''}
                             </div>
                             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                                <button data-source-action="intention" data-id="${r.id}" data-uid="${isFarmer ? r.farmer_id : r.recycler_id}" data-type="${r.source_type}" style="background:${borderColor};color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">💬 联系${isFarmer ? '农户' : '回收商'}</button>
+                                ${safeRecordId ? `<button data-source-action="intention" data-id="${safeRecordId}" data-uid="${safeUserId}" data-type="${r.source_type}" style="background:${borderColor};color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">💬 联系${isFarmer ? '农户' : '回收商'}</button>` : ''}
                                 <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;text-decoration:none;">📞 电话</a>
-                                ${isFarmer && r.status === 'pending' ? `<button data-source-action="accept" data-id="${r.id}" data-type="farmer" style="background:#2ecc71;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">✅ 接单</button>` : ''}
+                                ${isFarmer && r.status === 'pending' && safeRecordId ? `<button data-source-action="accept" data-id="${safeRecordId}" data-type="farmer" style="background:#2ecc71;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">✅ 接单</button>` : ''}
                             </div>
                         </div>
                     `;
@@ -2066,7 +2286,7 @@ const authSystem = {
                 });
                 
             } catch (err) {
-                listDiv.innerHTML = `<p style="color:#e74c3c;">${err.message}</p>`;
+                listDiv.innerHTML = `<p style="color:#e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p>`;
             }
         };
         
@@ -2126,30 +2346,46 @@ const authSystem = {
                     listDiv.innerHTML = '<p style="color:#888;">暂无供应信息</p>';
                     return;
                 }
-                listDiv.innerHTML = data.map(r => `
+                listDiv.innerHTML = data.map(r => {
+                    const safeFarmer = this.escapeHtml(r.farmer_name || '农户');
+                    const safeReportNo = this.escapeHtml(r.report_no || '');
+                    const safeCreatedAt = this.escapeHtml(r.created_at || '--');
+                    const safePickupDate = this.escapeHtml(r.pickup_date || '--');
+                    const safeWeight = this.escapeHtml(r.weight_kg ?? '--');
+                    const safeVariety = this.escapeHtml(r.citrus_variety || '--');
+                    const safeAddress = this.escapeHtml(r.location_address || '--');
+                    const distanceText = (r.distance !== null && r.distance !== undefined)
+                        ? this.escapeHtml(this.formatDistance(r.distance))
+                        : '';
+                    const safeId = Number(r.id);
+                    const idAttr = Number.isFinite(safeId) && safeId > 0 ? String(safeId) : '';
+                    const safeFarmerId = Number(r.farmer_id);
+                    const uidAttr = Number.isFinite(safeFarmerId) && safeFarmerId > 0 ? String(safeFarmerId) : '';
+                    return `
                     <div class="glass-card" style="padding:18px;margin-bottom:16px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                             <div>
-                                <strong>${r.farmer_name || '农户'}</strong>
-                                <span style="margin-left:8px;font-size:12px;color:#888;">${r.report_no || ''}</span>
+                                <strong>${safeFarmer}</strong>
+                                <span style="margin-left:8px;font-size:12px;color:#888;">${safeReportNo}</span>
                             </div>
-                            <div style="font-size:13px;color:#888;">${r.created_at}</div>
+                            <div style="font-size:13px;color:#888;">${safeCreatedAt}</div>
                         </div>
                         <div style="margin-top:10px;font-size:14px;color:#555;line-height:1.7;">
-                            回收日期：${r.pickup_date} ｜ 重量：${r.weight_kg} 斤 ｜ 品种：${r.citrus_variety}<br>
-                            地址：${r.location_address}
-                            ${r.distance !== null && r.distance !== undefined ? `<br>距离：${this.formatDistance(r.distance)}` : ''}
+                            回收日期：${safePickupDate} ｜ 重量：${safeWeight} 斤 ｜ 品种：${safeVariety}<br>
+                            地址：${safeAddress}
+                            ${distanceText ? `<br>距离：${distanceText}` : ''}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                            ${r.status === 'accepted' ? `<button data-supply-action="intention" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>`:''}
-                            ${r.status === 'pending' ? `<button data-supply-action="accept" data-id="${r.id}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">接单</button>` : `<span style='color:#2ecc71;font-weight:bold;'>✔ 已接单</span>`}
+                            ${r.status === 'accepted' && idAttr && uidAttr ? `<button data-supply-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>`:''}
+                            ${r.status === 'pending' && idAttr ? `<button data-supply-action="accept" data-id="${idAttr}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">接单</button>` : `<span style='color:#2ecc71;font-weight:bold;'>✔ 已接单</span>`}
                             <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
                 this.bindSupplyActions(data);
             } catch (err) {
-                listDiv.innerHTML = `<p style="color:#e74c3c;">${err.message}</p>`;
+                listDiv.innerHTML = `<p style="color:#e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p>`;
             }
         };
 
@@ -2218,12 +2454,14 @@ const authSystem = {
                 <!-- 我的求购面板 -->
                 <div id="demands-panel" class="tab-panel" style="display:none;">
                     <div style="margin:20px 0;">
-                        <button onclick="authSystem.navigateTo('publish-demand')" style="padding:10px 20px;background:var(--citrus-orange);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">+ 发布新求购</button>
+                        <button data-demand-entry-action="navigate" data-demand-entry-page="publish-demand" style="padding:10px 20px;background:var(--citrus-orange);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">+ 发布新求购</button>
                     </div>
                     <div id="my-demands-list"></div>
                 </div>
             </div>
         `;
+
+        this.bindDemandEntryActions(container);
 
         // 标签页切换
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -2270,37 +2508,53 @@ const authSystem = {
                     listDiv.innerHTML = '<p style="color:#888;">暂无订单记录</p>';
                     return;
                 }
-                listDiv.innerHTML = data.map(r => `
+                listDiv.innerHTML = data.map(r => {
+                    const safeReportNo = this.escapeHtml(r.report_no || '');
+                    const safeStatus = this.escapeHtml(this.getReportStatusLabel(r.status));
+                    const safeCreatedAt = this.escapeHtml(r.created_at || '--');
+                    const safeFarmerName = this.escapeHtml(r.farmer_name || '未知');
+                    const safeFarmerPhone = this.escapeHtml(fuzzPhone(r.farmer_phone || ''));
+                    const safePickupDate = this.escapeHtml(r.pickup_date || '--');
+                    const safeWeight = this.escapeHtml(r.weight_kg ?? '--');
+                    const safeVariety = this.escapeHtml(r.citrus_variety || '--');
+                    const safeAddress = this.escapeHtml(r.location_address || '--');
+                    const safeId = Number(r.id);
+                    const idAttr = Number.isFinite(safeId) && safeId > 0 ? String(safeId) : '';
+                    const safeFarmerId = Number(r.farmer_id);
+                    const uidAttr = Number.isFinite(safeFarmerId) && safeFarmerId > 0 ? String(safeFarmerId) : '';
+
+                    return `
                     <div class="glass-card" style="padding:18px;margin-bottom:16px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                             <div>
-                                <strong>单号: ${r.report_no || ''}</strong>
-                                <span style="margin-left:10px;padding:3px 10px;border-radius:12px;font-size:12px;background:#f1f2f6;color:#2d3436;">${this.getReportStatusLabel(r.status)}</span>
+                                <strong>单号: ${safeReportNo}</strong>
+                                <span style="margin-left:10px;padding:3px 10px;border-radius:12px;font-size:12px;background:#f1f2f6;color:#2d3436;">${safeStatus}</span>
                             </div>
-                            <div style="font-size:13px;color:#888;">${r.created_at}</div>
+                            <div style="font-size:13px;color:#888;">${safeCreatedAt}</div>
                         </div>
                         <div style="margin-top:10px;font-size:14px;color:#555;line-height:1.7;">
-                            <strong>农户:</strong> ${r.farmer_name || '未知'} (${fuzzPhone(r.farmer_phone)})<br>
-                            回收日期：${r.pickup_date} ｜ 重量：${r.weight_kg} 斤 ｜ 品种：${r.citrus_variety}<br>
-                            地址：${r.location_address}
+                            <strong>农户:</strong> ${safeFarmerName} (${safeFarmerPhone})<br>
+                            回收日期：${safePickupDate} ｜ 重量：${safeWeight} 斤 ｜ 品种：${safeVariety}<br>
+                            地址：${safeAddress}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                             ${r.status === 'accepted' ? `
-                                 <button data-order-action="complete" data-id="${r.id}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">✅ 完成交易</button>
-                                 <button data-order-action="intention" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>
+                             ${r.status === 'accepted' && idAttr ? `
+                                 <button data-order-action="complete" data-id="${idAttr}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">✅ 完成交易</button>
+                                 ${uidAttr ? `<button data-order-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>` : ''}
                              ` : ''}
-                             ${r.status === 'completed' ? `
-                                 <button data-order-action="intention" data-id="${r.id}" data-uid="${r.farmer_id}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 历史消息</button>
+                             ${r.status === 'completed' && idAttr && uidAttr ? `
+                                 <button data-order-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 历史消息</button>
                              ` : ''}
                              <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
                 
                 this.bindRecyclerOrderActions(data, loadOrders, status);
 
             } catch (err) {
-                listDiv.innerHTML = `<p style="color:#e74c3c;">${err.message}</p>`;
+                listDiv.innerHTML = `<p style="color:#e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p>`;
             }
         };
 
@@ -2314,38 +2568,55 @@ const authSystem = {
                 const data = Array.isArray(rows) ? rows : [];
                 
                 if (!data || data.length === 0) {
-                    listDiv.innerHTML = '<p style="color:#888;">暂无处理商订单，前往<a href="javascript:void(0)" onclick="authSystem.navigateTo(\'processor-demands\')" style="color:var(--primary-green);">处理商需求</a>接单</p>';
+                    listDiv.innerHTML = '<p style="color:#888;">暂无处理商订单，前往<a href="#" data-demand-entry-action="navigate" data-demand-entry-page="processor-demands" style="color:var(--primary-green);">处理商需求</a>接单</p>';
+                    this.bindDemandEntryActions(listDiv);
                     return;
                 }
 
                 const gradeLabels = { 'grade1': '一级品', 'grade2': '二级品', 'grade3': '三级品', 'offgrade': '等外级', 'any': '不限品级' };
                 const citrusLabels = { 'mandarin': '柑橘', 'orange': '橙子', 'pomelo': '柚子', 'tangerine': '橘子', 'any': '不限种类' };
 
-                listDiv.innerHTML = data.map(r => `
+                listDiv.innerHTML = data.map(r => {
+                    const safeProcessorName = this.escapeHtml(r.processor_name || '处理商');
+                    const safeGrade = this.escapeHtml(gradeLabels[r.grade] || '未知品级');
+                    const safeCitrus = this.escapeHtml(citrusLabels[r.citrus_type] || '未知种类');
+                    const safeRequestNo = this.escapeHtml(r.request_no || '--');
+                    const safeWeight = this.escapeHtml(r.weight_kg ?? '--');
+                    const safeTransport = this.escapeHtml(r.has_transport ? '可上门收货' : '需送货到厂');
+                    const safeLocation = this.escapeHtml(r.location_address || '--');
+                    const safeContactName = this.escapeHtml(r.contact_name || '--');
+                    const safeContactPhone = this.escapeHtml(fuzzPhone(r.contact_phone || ''));
+                    const safeId = Number(r.id);
+                    const idAttr = Number.isFinite(safeId) && safeId > 0 ? String(safeId) : '';
+                    const safeProcessorId = Number(r.processor_id);
+                    const uidAttr = Number.isFinite(safeProcessorId) && safeProcessorId > 0 ? String(safeProcessorId) : '';
+
+                    return `
                     <div class="glass-card" style="padding:18px;margin-bottom:16px;border-left:4px solid #9b59b6;">
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                             <div>
-                                <span style="background:#9b59b6;color:white;padding:3px 10px;border-radius:12px;font-size:12px;">🏭 ${r.processor_name || '处理商'}</span>
-                                <span style="margin-left:8px;padding:3px 10px;border-radius:12px;font-size:12px;background:#f0e6ff;color:#9b59b6;">${gradeLabels[r.grade]} ${citrusLabels[r.citrus_type]}</span>
+                                <span style="background:#9b59b6;color:white;padding:3px 10px;border-radius:12px;font-size:12px;">🏭 ${safeProcessorName}</span>
+                                <span style="margin-left:8px;padding:3px 10px;border-radius:12px;font-size:12px;background:#f0e6ff;color:#9b59b6;">${safeGrade} ${safeCitrus}</span>
                             </div>
-                            <div style="font-size:12px;color:#999;">编号: ${r.request_no}</div>
+                            <div style="font-size:12px;color:#999;">编号: ${safeRequestNo}</div>
                         </div>
                         <div style="margin-top:12px;background:#f5f0ff;padding:12px;border-radius:8px;">
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px;">
-                                <p style="margin:0;"><strong>需求量：</strong><span style="color:#9b59b6;font-weight:bold;">${r.weight_kg} 斤</span></p>
-                                <p style="margin:0;"><strong>运输：</strong>${r.has_transport ? '可上门收货' : '需送货到厂'}</p>
-                                <p style="margin:0;grid-column:1/-1;"><strong>收货地址：</strong>${r.location_address}</p>
+                                <p style="margin:0;"><strong>需求量：</strong><span style="color:#9b59b6;font-weight:bold;">${safeWeight} 斤</span></p>
+                                <p style="margin:0;"><strong>运输：</strong>${safeTransport}</p>
+                                <p style="margin:0;grid-column:1/-1;"><strong>收货地址：</strong>${safeLocation}</p>
                             </div>
                         </div>
                         <div style="margin-top:10px;font-size:14px;color:#555;">
-                            <strong>联系人：</strong>${r.contact_name} | ${fuzzPhone(r.contact_phone)}
+                            <strong>联系人：</strong>${safeContactName} | ${safeContactPhone}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-                            <button data-processor-order-action="intention" data-id="${r.id}" data-uid="${r.processor_id}" style="background:#9b59b6;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>
+                            ${idAttr && uidAttr ? `<button data-processor-order-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" style="background:#9b59b6;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>` : ''}
                             <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
                 
                 // 绑定处理商订单操作
                 listDiv.querySelectorAll('[data-processor-order-action]').forEach(btn => {
@@ -2359,7 +2630,7 @@ const authSystem = {
                     };
                 });
             } catch (err) {
-                listDiv.innerHTML = `<p style="color:#e74c3c;">${err.message}</p>`;
+                listDiv.innerHTML = `<p style="color:#e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p>`;
             }
         };
 
@@ -2396,44 +2667,53 @@ const authSystem = {
                 };
 
                 listDiv.innerHTML = data.map(r => {
-                    const validText = r.valid_until ? 
-                        `至 ${r.valid_until}` : 
+                    const safeGrade = this.escapeHtml(gradeLabels[r.grade] || '不限品级');
+                    const safeStatus = this.escapeHtml(statusLabels[r.status] || r.status || '未知状态');
+                    const safeRequestNo = this.escapeHtml(r.request_no || '--');
+                    const safeContactName = this.escapeHtml(r.contact_name || '--');
+                    const safeContactPhone = this.escapeHtml(fuzzPhone(r.contact_phone || ''));
+                    const safeNotes = this.escapeHtml(r.notes || '');
+                    const safeValidUntil = this.escapeHtml(r.valid_until || '');
+                    const validText = safeValidUntil ? 
+                        `至 ${safeValidUntil}` : 
                         '<span style="color:var(--primary-green);">长期有效</span>';
+                    const safeId = Number(r.id);
+                    const idAttr = Number.isFinite(safeId) && safeId > 0 ? String(safeId) : '';
                     
                     return `
                         <div class="glass-card" style="padding:20px;margin-bottom:16px;">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
                                 <div>
                                     <span style="background:var(--citrus-orange);color:white;padding:4px 12px;border-radius:20px;font-size:14px;margin-right:10px;">
-                                        ${gradeLabels[r.grade]}
+                                        ${safeGrade}
                                     </span>
                                     <span style="background:#95a5a6;color:white;padding:4px 12px;border-radius:20px;font-size:13px;">
-                                        ${statusLabels[r.status]}
+                                        ${safeStatus}
                                     </span>
                                 </div>
                                 <div style="text-align:right;font-size:12px;color:#999;">
                                     ${validText}<br>
-                                    编号: ${r.request_no}
+                                    编号: ${safeRequestNo}
                                 </div>
                             </div>
                             
                             <div style="background:#f9f9f9;padding:12px;border-radius:8px;margin-bottom:12px;">
-                                <p style="margin:4px 0;"><strong>联系人：</strong>${r.contact_name}</p>
-                                <p style="margin:4px 0;"><strong>联系电话：</strong>${fuzzPhone(r.contact_phone)}</p>
-                                ${r.notes ? `<p style="margin:4px 0;"><strong>备注：</strong>${r.notes}</p>` : ''}
+                                <p style="margin:4px 0;"><strong>联系人：</strong>${safeContactName}</p>
+                                <p style="margin:4px 0;"><strong>联系电话：</strong>${safeContactPhone}</p>
+                                ${safeNotes ? `<p style="margin:4px 0;"><strong>备注：</strong>${safeNotes}</p>` : ''}
                             </div>
                             
                             <div style="display:flex;gap:10px;flex-wrap:wrap;">
                                 ${r.status === 'draft' ? `
-                                    <button data-demand-action="edit" data-id="${r.id}" style="background:var(--primary-green);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">✏️ 编辑</button>
-                                    <button data-demand-action="delete" data-id="${r.id}" style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">🗑️ 删除</button>
+                                    ${idAttr ? `<button data-demand-action="edit" data-id="${idAttr}" style="background:var(--primary-green);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">✏️ 编辑</button>` : ''}
+                                    ${idAttr ? `<button data-demand-action="delete" data-id="${idAttr}" style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">🗑️ 删除</button>` : ''}
                                 ` : ''}
                                 ${r.status === 'active' ? `
-                                    <button data-demand-action="intention" data-id="${r.id}" style="background:var(--citrus-orange);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">💬 查看咨询</button>
-                                    <button data-demand-action="cancel" data-id="${r.id}" style="background:#f39c12;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">⏸️ 取消发布</button>
+                                    ${idAttr ? `<button data-demand-action="intention" data-id="${idAttr}" style="background:var(--citrus-orange);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">💬 查看咨询</button>` : ''}
+                                    ${idAttr ? `<button data-demand-action="cancel" data-id="${idAttr}" style="background:#f39c12;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">⏸️ 取消发布</button>` : ''}
                                 ` : ''}
                                 ${r.status === 'cancelled' ? `
-                                    <button data-demand-action="reactivate" data-id="${r.id}" style="background:var(--primary-green);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">▶️ 重新发布</button>
+                                    ${idAttr ? `<button data-demand-action="reactivate" data-id="${idAttr}" style="background:var(--primary-green);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">▶️ 重新发布</button>` : ''}
                                 ` : ''}
                             </div>
                         </div>
@@ -2478,7 +2758,7 @@ const authSystem = {
                 });
 
             } catch (err) {
-                listDiv.innerHTML = `<p style="color:#e74c3c;">${err.message}</p>`;
+                listDiv.innerHTML = `<p style="color:#e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p>`;
             }
         };
         
@@ -2527,11 +2807,12 @@ const authSystem = {
             <div style="animation:fadeIn 0.5s;">
                 <h1 class="page-title">📦 我的求购</h1>
                 <div style="margin:20px 0;">
-                    <button onclick="authSystem.navigateTo('publish-demand')" style="padding:10px 20px;background:#9b59b6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">+ 发布新求购</button>
+                    <button data-demand-entry-action="navigate" data-demand-entry-page="publish-demand" style="padding:10px 20px;background:#9b59b6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">+ 发布新求购</button>
                 </div>
                 <div id="processor-orders-list"></div>
             </div>
         `;
+        this.bindDemandEntryActions(container);
         this.loadProcessorOrders();
     },
 
@@ -2556,44 +2837,57 @@ const authSystem = {
             const statusLabels = { 'draft': '草稿', 'active': '生效中', 'cancelled': '已取消', 'expired': '已过期' };
 
             listDiv.innerHTML = data.map(r => {
-                const validText = r.valid_until ? `至 ${r.valid_until}` : '<span style="color:var(--primary-green);">长期有效</span>';
+                const safeGrade = this.escapeHtml(gradeLabels[r.grade] || '不限品级');
+                const safeCitrus = this.escapeHtml(citrusLabels[r.citrus_type] || '不限种类');
+                const safeStatus = this.escapeHtml(statusLabels[r.status] || r.status || '未知状态');
+                const safeValidUntil = this.escapeHtml(r.valid_until || '');
+                const validText = safeValidUntil ? `至 ${safeValidUntil}` : '<span style="color:var(--primary-green);">长期有效</span>';
+                const safeRequestNo = this.escapeHtml(r.request_no || '--');
+                const safeWeight = this.escapeHtml(r.weight_kg ?? '--');
+                const safeLocation = this.escapeHtml(r.location_address || '--');
+                const safeContactName = this.escapeHtml(r.contact_name || '--');
+                const safeContactPhone = this.escapeHtml(fuzzPhone(r.contact_phone || ''));
+                const safeNotes = this.escapeHtml(r.notes || '');
+                const safeId = Number(r.id);
+                const idAttr = Number.isFinite(safeId) && safeId > 0 ? String(safeId) : '';
+
                 return `
                     <div class="glass-card" style="padding:20px;margin-bottom:16px;border-left:4px solid #9b59b6;">
                         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
                             <div>
-                                <span style="background:#9b59b6;color:white;padding:4px 12px;border-radius:20px;font-size:14px;margin-right:8px;">${gradeLabels[r.grade]}</span>
-                                <span style="background:#f0e6ff;color:#9b59b6;padding:4px 10px;border-radius:20px;font-size:13px;margin-right:8px;">${citrusLabels[r.citrus_type]}</span>
-                                <span style="background:#95a5a6;color:white;padding:4px 12px;border-radius:20px;font-size:13px;">${statusLabels[r.status]}</span>
+                                <span style="background:#9b59b6;color:white;padding:4px 12px;border-radius:20px;font-size:14px;margin-right:8px;">${safeGrade}</span>
+                                <span style="background:#f0e6ff;color:#9b59b6;padding:4px 10px;border-radius:20px;font-size:13px;margin-right:8px;">${safeCitrus}</span>
+                                <span style="background:#95a5a6;color:white;padding:4px 12px;border-radius:20px;font-size:13px;">${safeStatus}</span>
                             </div>
-                            <div style="text-align:right;font-size:12px;color:#999;">${validText}<br>编号: ${r.request_no}</div>
+                            <div style="text-align:right;font-size:12px;color:#999;">${validText}<br>编号: ${safeRequestNo}</div>
                         </div>
                         <div style="background:#f5f0ff;padding:14px;border-radius:8px;margin-bottom:12px;">
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <p style="margin:4px 0;"><strong>需求量：</strong><span style="color:#9b59b6;font-weight:bold;">${r.weight_kg} 斤</span></p>
+                                <p style="margin:4px 0;"><strong>需求量：</strong><span style="color:#9b59b6;font-weight:bold;">${safeWeight} 斤</span></p>
                                 <p style="margin:4px 0;"><strong>运输：</strong>${r.has_transport ? '<span style="color:var(--primary-green);">可上门收货</span>' : '需送货到厂'}</p>
                             </div>
-                            <p style="margin:4px 0;"><strong>收货地址：</strong>${r.location_address}</p>
-                            <p style="margin:4px 0;"><strong>联系人：</strong>${r.contact_name} | ${fuzzPhone(r.contact_phone)}</p>
-                            ${r.notes ? `<p style="margin:4px 0;"><strong>备注：</strong>${r.notes}</p>` : ''}
+                            <p style="margin:4px 0;"><strong>收货地址：</strong>${safeLocation}</p>
+                            <p style="margin:4px 0;"><strong>联系人：</strong>${safeContactName} | ${safeContactPhone}</p>
+                            ${safeNotes ? `<p style="margin:4px 0;"><strong>备注：</strong>${safeNotes}</p>` : ''}
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;">
                             ${r.status === 'draft' ? `
-                                <button data-processor-action="edit" data-id="${r.id}" style="background:#9b59b6;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">✏️ 编辑</button>
-                                <button data-processor-action="publish" data-id="${r.id}" style="background:var(--primary-green);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">📢 发布</button>
-                                <button data-processor-action="delete" data-id="${r.id}" style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">🗑️ 删除</button>
+                                ${idAttr ? `<button data-processor-action="edit" data-id="${idAttr}" style="background:#9b59b6;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">✏️ 编辑</button>` : ''}
+                                ${idAttr ? `<button data-processor-action="publish" data-id="${idAttr}" style="background:var(--primary-green);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">📢 发布</button>` : ''}
+                                ${idAttr ? `<button data-processor-action="delete" data-id="${idAttr}" style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">🗑️ 删除</button>` : ''}
                             ` : ''}
                             ${r.status === 'active' ? `
-                                <button data-processor-action="chat" data-id="${r.id}" style="background:#9b59b6;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">💬 查看咨询</button>
-                                <button data-processor-action="cancel" data-id="${r.id}" style="background:#f39c12;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">⏸️ 取消发布</button>
+                                ${idAttr ? `<button data-processor-action="chat" data-id="${idAttr}" style="background:#9b59b6;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">💬 查看咨询</button>` : ''}
+                                ${idAttr ? `<button data-processor-action="cancel" data-id="${idAttr}" style="background:#f39c12;color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">⏸️ 取消发布</button>` : ''}
                             ` : ''}
-                            ${r.status === 'cancelled' ? `<button data-processor-action="reactivate" data-id="${r.id}" style="background:var(--primary-green);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">▶️ 重新发布</button>` : ''}
+                            ${r.status === 'cancelled' && idAttr ? `<button data-processor-action="reactivate" data-id="${idAttr}" style="background:var(--primary-green);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;">▶️ 重新发布</button>` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
             this.bindProcessorOrderActions();
         } catch (err) {
-            listDiv.innerHTML = `<p style="color:#e74c3c;">${err.message}</p>`;
+            listDiv.innerHTML = `<p style="color:#e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p>`;
         }
     },
     
@@ -2748,6 +3042,14 @@ const authSystem = {
         const container = document.getElementById('content-area');
         const isEdit = !!editData;
         const isProcessor = this.currentUser.role === 'processor';
+        const safeEditId = Number(editData?.id);
+        const editIdExpr = Number.isFinite(safeEditId) && safeEditId > 0 ? String(safeEditId) : 'null';
+        const editWeight = this.escapeHtml(editData?.weight_kg ?? '');
+        const editLocationAddress = this.escapeHtml(editData?.location_address || '');
+        const editContactName = this.escapeHtml(editData?.contact_name || '');
+        const editContactPhone = this.escapeHtml(editData?.contact_phone || '');
+        const editValidUntil = this.escapeHtml(editData?.valid_until || '');
+        const editNotes = this.escapeHtml(editData?.notes || '');
         
         if (isProcessor) {
             // 处理商求购表单
@@ -2759,7 +3061,7 @@ const authSystem = {
                         <div class="form-row">
                             <div class="form-group">
                                 <label>需求重量(斤) <span style="color: red;">*</span></label>
-                                <input type="number" id="demand-weight" placeholder="如：5000" value="${editData?.weight_kg || ''}" min="1" required>
+                                <input type="number" id="demand-weight" placeholder="如：5000" value="${editWeight}" min="1" required>
                             </div>
                             
                             <div class="form-group">
@@ -2789,18 +3091,18 @@ const authSystem = {
                         
                         <div class="form-group">
                             <label>收货地址 <span style="color: red;">*</span></label>
-                            <input type="text" id="demand-address" placeholder="如：广东省江门市新会区XX工业园" value="${editData?.location_address || ''}" required>
+                            <input type="text" id="demand-address" placeholder="如：广东省江门市新会区XX工业园" value="${editLocationAddress}" required>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
                                 <label>联系人 <span style="color: red;">*</span></label>
-                                <input type="text" id="demand-contact-name" placeholder="如：张经理" value="${editData?.contact_name || ''}" required>
+                                <input type="text" id="demand-contact-name" placeholder="如：张经理" value="${editContactName}" required>
                             </div>
                             
                             <div class="form-group">
                                 <label>联系电话 <span style="color: red;">*</span></label>
-                                <input type="tel" id="demand-contact-phone" placeholder="如：13800138000" value="${editData?.contact_phone || ''}" required>
+                                <input type="tel" id="demand-contact-phone" placeholder="如：13800138000" value="${editContactPhone}" required>
                             </div>
                         </div>
                         
@@ -2822,7 +3124,7 @@ const authSystem = {
                         <div class="form-group">
                             <label>有效期截止至</label>
                             <div style="display: flex; gap: 10px; align-items: center;">
-                                <input type="date" id="demand-valid-until" value="${editData?.valid_until || ''}" style="flex: 1;">
+                                <input type="date" id="demand-valid-until" value="${editValidUntil}" style="flex: 1;">
                                 <label style="display: flex; align-items: center; gap: 6px; margin: 0;">
                                     <input type="checkbox" id="demand-permanent" ${!editData?.valid_until ? 'checked' : ''}>
                                     <span>长期有效</span>
@@ -2832,11 +3134,11 @@ const authSystem = {
 
                         <div class="form-group">
                             <label>备注说明</label>
-                            <textarea id="demand-notes" rows="3" placeholder="可输入更详细的需求信息，如：价格、品质要求等">${editData?.notes || ''}</textarea>
+                            <textarea id="demand-notes" rows="3" placeholder="可输入更详细的需求信息，如：价格、品质要求等">${editNotes}</textarea>
                         </div>
 
                         <div style="display: flex; gap: 15px; margin-top: 30px;">
-                            <button type="button" onclick="authSystem.saveProcessorDemand('draft', ${editData?.id || 'null'})" style="flex: 1; padding: 14px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                            <button type="button" data-demand-form-action="save-processor-demand" data-demand-status="draft" data-demand-edit-id="${editIdExpr}" style="flex: 1; padding: 14px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
                                 💾 存为草稿
                             </button>
                             <button type="submit" style="flex: 2; padding: 14px; background: var(--citrus-orange); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
@@ -2846,6 +3148,8 @@ const authSystem = {
                     </form>
                 </div>
             `;
+
+            this.bindDemandFormActions(container);
             
             // 绑定表单提交
             document.getElementById('processor-demand-form').onsubmit = async (e) => {
@@ -2907,19 +3211,19 @@ const authSystem = {
                         <div class="form-row">
                             <div class="form-group">
                                 <label>联系人 <span style="color: red;">*</span></label>
-                                <input type="text" id="demand-contact-name" placeholder="如：李农户" value="${editData?.contact_name || ''}" required>
+                                <input type="text" id="demand-contact-name" placeholder="如：李农户" value="${editContactName}" required>
                             </div>
                             
                             <div class="form-group">
                                 <label>联系电话 <span style="color: red;">*</span></label>
-                                <input type="tel" id="demand-contact-phone" placeholder="如：13800138000" value="${editData?.contact_phone || ''}" required>
+                                <input type="tel" id="demand-contact-phone" placeholder="如：13800138000" value="${editContactPhone}" required>
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label>有效期截止至</label>
                             <div style="display: flex; gap: 10px; align-items: center;">
-                                <input type="date" id="demand-valid-until" value="${editData?.valid_until || ''}" style="flex: 1;">
+                                <input type="date" id="demand-valid-until" value="${editValidUntil}" style="flex: 1;">
                                 <label style="display: flex; align-items: center; gap: 6px; margin: 0;">
                                     <input type="checkbox" id="demand-permanent" ${!editData?.valid_until ? 'checked' : ''}>
                                     <span>长期有效</span>
@@ -2930,16 +3234,16 @@ const authSystem = {
 
                         <div class="form-group">
                             <label>备注说明</label>
-                            <textarea id="demand-notes" rows="4" placeholder="可输入更详细的需求信息，如：价格、数量要求等">${editData?.notes || ''}</textarea>
+                            <textarea id="demand-notes" rows="4" placeholder="可输入更详细的需求信息，如：价格、数量要求等">${editNotes}</textarea>
                         </div>
 
                         <div style="display: flex; gap: 15px; margin-top: 30px;">
                             ${isEdit ? `
-                                <button type="button" onclick="authSystem.navigateTo('my-orders')" style="flex: 1; padding: 14px; background: #7f8c8d; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                                <button type="button" data-demand-form-action="navigate" data-demand-page="my-orders" style="flex: 1; padding: 14px; background: #7f8c8d; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
                                     ← 返回
                                 </button>
                             ` : `
-                                <button type="button" onclick="authSystem.saveDemand('draft', ${editData?.id || 'null'})" style="flex: 1; padding: 14px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                                <button type="button" data-demand-form-action="save-recycler-demand" data-demand-status="draft" data-demand-edit-id="${editIdExpr}" style="flex: 1; padding: 14px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
                                     💾 存为草稿
                                 </button>
                             `}
@@ -3011,7 +3315,7 @@ const authSystem = {
                         </div>
 
                         <div style="display: flex; gap: 15px; margin-top: 30px;">
-                            <button type="button" onclick="authSystem.saveRecyclerSupply('draft')" style="flex: 1; padding: 14px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                            <button type="button" data-demand-form-action="save-recycler-supply" data-demand-status="draft" style="flex: 1; padding: 14px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
                                 💾 存为草稿
                             </button>
                             <button type="submit" style="flex: 2; padding: 14px; background: #9b59b6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">
@@ -3021,6 +3325,8 @@ const authSystem = {
                     </form>
                 </div>
             `;
+
+            this.bindDemandFormActions(container);
 
             // 切换表单显示
             const targetRadios = document.querySelectorAll('input[name="target-type"]');
@@ -3077,6 +3383,58 @@ const authSystem = {
                 dateInput.disabled = true;
             }
         }
+    },
+
+    bindDemandEntryActions(scope) {
+        if (!scope) return;
+
+        scope.querySelectorAll('[data-demand-entry-action]').forEach(node => {
+            const action = node.getAttribute('data-demand-entry-action') || '';
+            node.onclick = (event) => {
+                event.preventDefault();
+
+                if (action === 'navigate') {
+                    const page = node.getAttribute('data-demand-entry-page') || '';
+                    if (page) this.navigateTo(page);
+                }
+            };
+        });
+    },
+
+    bindDemandFormActions(scope) {
+        if (!scope) return;
+
+        scope.querySelectorAll('[data-demand-form-action]').forEach(node => {
+            const action = node.getAttribute('data-demand-form-action') || '';
+            node.onclick = async (event) => {
+                event.preventDefault();
+
+                const status = node.getAttribute('data-demand-status') || 'draft';
+                const editIdRaw = node.getAttribute('data-demand-edit-id') || '';
+                const editIdNum = Number(editIdRaw);
+                const editId = Number.isInteger(editIdNum) && editIdNum > 0 ? editIdNum : null;
+
+                if (action === 'navigate') {
+                    const page = node.getAttribute('data-demand-page') || '';
+                    if (page) this.navigateTo(page);
+                    return;
+                }
+
+                if (action === 'save-processor-demand') {
+                    await this.saveProcessorDemand(status, editId);
+                    return;
+                }
+
+                if (action === 'save-recycler-demand') {
+                    await this.saveDemand(status, editId);
+                    return;
+                }
+
+                if (action === 'save-recycler-supply') {
+                    await this.saveRecyclerSupply(status);
+                }
+            };
+        });
     },
     
     // 保存处理商求购信息
@@ -3288,9 +3646,23 @@ const authSystem = {
             };
 
             listDiv.innerHTML = data.map(r => {
-                const validText = r.valid_until ? 
-                    `有效期至 ${r.valid_until}` : 
+                const safeProcessorName = this.escapeHtml(r.processor_name || '处理商');
+                const safeGrade = this.escapeHtml(gradeLabels[r.grade] || '不限品级');
+                const safeRequestNo = this.escapeHtml(r.request_no || '--');
+                const safeValidUntil = this.escapeHtml(r.valid_until || '');
+                const validText = safeValidUntil ? 
+                    `有效期至 ${safeValidUntil}` : 
                     '<span style="color: var(--primary-green);">长期有效</span>';
+                const safeCitrus = this.escapeHtml(citrusLabels[r.citrus_type] || '不限种类');
+                const safeWeight = this.escapeHtml(r.weight_kg ?? '--');
+                const safeLocation = this.escapeHtml(r.location_address || '--');
+                const safeContactName = this.escapeHtml(r.contact_name || '--');
+                const safeContactPhone = this.escapeHtml(fuzzPhone(r.contact_phone || ''));
+                const safeNotes = this.escapeHtml(r.notes || '');
+                const safeId = Number(r.id);
+                const idAttr = Number.isFinite(safeId) && safeId > 0 ? String(safeId) : '';
+                const safeProcessorId = Number(r.processor_id);
+                const uidAttr = Number.isFinite(safeProcessorId) && safeProcessorId > 0 ? String(safeProcessorId) : '';
                 
                 return `
                     <div class="glass-card" style="padding: 24px;">
@@ -3298,14 +3670,14 @@ const authSystem = {
                             <div>
                                 <h3 style="margin: 0 0 8px 0;">
                                     <span style="background: #9b59b6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px;">
-                                        🏭 ${r.processor_name || '处理商'}
+                                        🏭 ${safeProcessorName}
                                     </span>
                                     <span style="background: var(--citrus-orange); color: white; padding: 4px 10px; border-radius: 20px; font-size: 13px; margin-left: 8px;">
-                                        ${gradeLabels[r.grade]}
+                                        ${safeGrade}
                                     </span>
                                 </h3>
                                 <p style="color: #666; margin: 4px 0; font-size: 13px;">
-                                    求购编号：${r.request_no}
+                                    求购编号：${safeRequestNo}
                                 </p>
                             </div>
                             <div style="text-align: right; font-size: 12px; color: #999;">
@@ -3315,29 +3687,29 @@ const authSystem = {
                         
                         <div style="background: #f5f0ff; padding: 16px; border-radius: 10px; margin-bottom: 16px;">
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                                <p style="margin: 0;"><strong>🍊 种类：</strong>${citrusLabels[r.citrus_type]}</p>
-                                <p style="margin: 0;"><strong>⚖️ 需求量：</strong><span style="color: var(--citrus-orange); font-weight: bold;">${r.weight_kg} 斤</span></p>
-                                <p style="margin: 0;"><strong>📍 收货地址：</strong>${r.location_address}</p>
+                                <p style="margin: 0;"><strong>🍊 种类：</strong>${safeCitrus}</p>
+                                <p style="margin: 0;"><strong>⚖️ 需求量：</strong><span style="color: var(--citrus-orange); font-weight: bold;">${safeWeight} 斤</span></p>
+                                <p style="margin: 0;"><strong>📍 收货地址：</strong>${safeLocation}</p>
                                 <p style="margin: 0;"><strong>🚚 运输：</strong>${r.has_transport ? '<span style="color: var(--primary-green);">可上门收货</span>' : '需送货到厂'}</p>
                             </div>
                         </div>
                         
                         <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                            <p style="margin: 0 0 6px 0;"><strong>联系人：</strong>${r.contact_name}</p>
-                            <p style="margin: 0;"><strong>联系电话：</strong>${fuzzPhone(r.contact_phone)}</p>
+                            <p style="margin: 0 0 6px 0;"><strong>联系人：</strong>${safeContactName}</p>
+                            <p style="margin: 0;"><strong>联系电话：</strong>${safeContactPhone}</p>
                         </div>
                         
-                        ${r.notes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${r.notes}</p>` : ''}
+                        ${safeNotes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${safeNotes}</p>` : ''}
                         
                         <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                            <button data-processor-demand-action="accept" data-id="${r.id}" 
+                            ${idAttr ? `<button data-processor-demand-action="accept" data-id="${idAttr}" 
                                     style="background: var(--primary-green); color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold;">
                                 ✅ 接单
-                            </button>
-                            <button data-processor-demand-action="intention" data-id="${r.id}" data-uid="${r.processor_id}" 
+                            </button>` : ''}
+                            ${idAttr && uidAttr ? `<button data-processor-demand-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" 
                                     style="background: #9b59b6; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold;">
                                 📋 发起意向
-                            </button>
+                            </button>` : ''}
                         </div>
                     </div>
                 `;
@@ -3370,7 +3742,7 @@ const authSystem = {
             
         } catch (err) {
             console.error('Load processor demands error:', err);
-            listDiv.innerHTML = `<div class="glass-card" style="padding: 24px;"><p style="color: #e74c3c;">${err.message}</p></div>`;
+            listDiv.innerHTML = `<div class="glass-card" style="padding: 24px;"><p style="color: #e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p></div>`;
         }
     },
 
@@ -3444,9 +3816,26 @@ const authSystem = {
 
             listDiv.innerHTML = allDemands.map(r => {
                 const isProcessor = r.source_type === 'processor';
-                const validText = r.valid_until ? 
-                    `有效期至 ${r.valid_until}` : 
+                const safeValidUntil = this.escapeHtml(r.valid_until || '');
+                const validText = safeValidUntil ? 
+                    `有效期至 ${safeValidUntil}` : 
                     '<span style="color: var(--primary-green);">长期有效</span>';
+                const safeGrade = this.escapeHtml(gradeLabels[r.grade] || '不限品级');
+                const safeCitrus = this.escapeHtml(citrusLabels[r.citrus_type] || '不限种类');
+                const safeRequestNo = this.escapeHtml(r.request_no || '--');
+                const safeWeight = this.escapeHtml(r.weight_kg ?? '--');
+                const safeLocation = this.escapeHtml(r.location_address || '--');
+                const safeContactName = this.escapeHtml(r.contact_name || '--');
+                const safeContactPhone = this.escapeHtml(fuzzPhone(r.contact_phone || ''));
+                const safeProcessorName = this.escapeHtml(r.processor_name || '未知');
+                const safeRecyclerName = this.escapeHtml(r.recycler_name || '未知');
+                const safeNotes = this.escapeHtml(r.notes || '');
+                const safeId = Number(r.id);
+                const idAttr = Number.isFinite(safeId) && safeId > 0 ? String(safeId) : '';
+                const safeProcessorId = Number(r.processor_id);
+                const processorUidAttr = Number.isFinite(safeProcessorId) && safeProcessorId > 0 ? String(safeProcessorId) : '';
+                const safeRecyclerId = Number(r.recycler_id);
+                const recyclerUidAttr = Number.isFinite(safeRecyclerId) && safeRecyclerId > 0 ? String(safeRecyclerId) : '';
                 
                 const sourceLabel = isProcessor ? 
                     '<span style="background: #9b59b6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 8px;">🏭 处理商</span>' :
@@ -3461,11 +3850,11 @@ const authSystem = {
                                     <h3 style="margin: 0 0 8px 0;">
                                         ${sourceLabel}
                                         <span style="background: #f0e6ff; color: #9b59b6; padding: 4px 10px; border-radius: 20px; font-size: 13px;">
-                                            ${gradeLabels[r.grade]} ${citrusLabels[r.citrus_type]}
+                                            ${safeGrade} ${safeCitrus}
                                         </span>
                                     </h3>
                                     <p style="color: #666; margin: 4px 0; font-size: 13px;">
-                                        求购编号：${r.request_no}
+                                        求购编号：${safeRequestNo}
                                     </p>
                                 </div>
                                 <div style="text-align: right; font-size: 12px; color: #999;">
@@ -3475,25 +3864,25 @@ const authSystem = {
                             
                             <div style="background: #f5f0ff; padding: 14px; border-radius: 8px; margin-bottom: 16px;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
-                                    <p style="margin: 0;"><strong>需求量：</strong><span style="color: #9b59b6; font-weight: bold;">${r.weight_kg} 斤</span></p>
+                                    <p style="margin: 0;"><strong>需求量：</strong><span style="color: #9b59b6; font-weight: bold;">${safeWeight} 斤</span></p>
                                     <p style="margin: 0;"><strong>🚚 可上门收货</strong></p>
-                                    <p style="margin: 0; grid-column: 1 / -1;"><strong>📍 收货地址：</strong>${r.location_address}</p>
+                                    <p style="margin: 0; grid-column: 1 / -1;"><strong>📍 收货地址：</strong>${safeLocation}</p>
                                 </div>
                             </div>
                             
                             <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                                <p style="margin: 0 0 6px 0;"><strong>联系人：</strong>${r.contact_name}</p>
-                                <p style="margin: 0 0 6px 0;"><strong>联系电话：</strong>${fuzzPhone(r.contact_phone)}</p>
-                                <p style="margin: 0;"><strong>处理商：</strong>${r.processor_name || '未知'}</p>
+                                <p style="margin: 0 0 6px 0;"><strong>联系人：</strong>${safeContactName}</p>
+                                <p style="margin: 0 0 6px 0;"><strong>联系电话：</strong>${safeContactPhone}</p>
+                                <p style="margin: 0;"><strong>处理商：</strong>${safeProcessorName}</p>
                             </div>
                             
-                            ${r.notes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${r.notes}</p>` : ''}
+                            ${safeNotes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${safeNotes}</p>` : ''}
                             
                             <div style="text-align: right;">
-                                <button data-processor-demand-action="intention" data-id="${r.id}" data-uid="${r.processor_id}" 
+                                ${idAttr && processorUidAttr ? `<button data-processor-demand-action="intention" data-id="${idAttr}" data-uid="${processorUidAttr}" 
                                         style="background: #9b59b6; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold;">
                                     📋 发起意向
-                                </button>
+                                </button>` : ''}
                             </div>
                         </div>
                     `;
@@ -3506,11 +3895,11 @@ const authSystem = {
                                     <h3 style="margin: 0 0 8px 0;">
                                         ${sourceLabel}
                                         <span style="background: #fff3e0; color: var(--citrus-orange); padding: 4px 10px; border-radius: 20px; font-size: 13px;">
-                                            ${gradeLabels[r.grade]}柑
+                                            ${safeGrade}柑
                                         </span>
                                     </h3>
                                     <p style="color: #666; margin: 4px 0; font-size: 13px;">
-                                        求购编号：${r.request_no}
+                                        求购编号：${safeRequestNo}
                                     </p>
                                 </div>
                                 <div style="text-align: right; font-size: 12px; color: #999;">
@@ -3519,18 +3908,18 @@ const authSystem = {
                             </div>
                             
                             <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                                <p style="margin: 0 0 8px 0;"><strong>联系人：</strong>${r.contact_name}</p>
-                                <p style="margin: 0 0 8px 0;"><strong>联系电话：</strong>${fuzzPhone(r.contact_phone)}</p>
-                                <p style="margin: 0;"><strong>回收商：</strong>${r.recycler_name}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>联系人：</strong>${safeContactName}</p>
+                                <p style="margin: 0 0 8px 0;"><strong>联系电话：</strong>${safeContactPhone}</p>
+                                <p style="margin: 0;"><strong>回收商：</strong>${safeRecyclerName}</p>
                             </div>
                             
-                            ${r.notes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${r.notes}</p>` : ''}
+                            ${safeNotes ? `<p style="color: #666; margin: 0 0 16px 0;">💬 ${safeNotes}</p>` : ''}
                             
                             <div style="text-align: right;">
-                                <button data-demand-action="intention" data-id="${r.id}" data-uid="${r.recycler_id}" 
+                                ${idAttr && recyclerUidAttr ? `<button data-demand-action="intention" data-id="${idAttr}" data-uid="${recyclerUidAttr}" 
                                         style="background: var(--citrus-orange); color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: bold;">
                                     📋 发起意向
-                                </button>
+                                </button>` : ''}
                             </div>
                         </div>
                     `;
@@ -3555,7 +3944,7 @@ const authSystem = {
             
         } catch (err) {
             console.error('Load demands error:', err);
-            listDiv.innerHTML = `<div class="glass-card" style="padding: 24px;"><p style="color: #e74c3c;">${err.message}</p></div>`;
+            listDiv.innerHTML = `<div class="glass-card" style="padding: 24px;"><p style="color: #e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p></div>`;
         }
     },
     // 显示提示信息
@@ -3622,6 +4011,7 @@ const authSystem = {
                                 <label style="display: block; margin-bottom: 8px; font-weight: bold;">选择订单类型 <span style="color: red;">*</span></label>
                                 <select id="order-type" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
                                     <option value="">-- 请选择订单类型 --</option>
+                                    <option value="order">平台交易订单（推荐）</option>
                                     <option value="farmer_report">农户申报订单</option>
                                     <option value="recycler_request">回收商求购订单</option>
                                     <option value="processor_request">处理商求购订单</option>
@@ -3723,7 +4113,7 @@ const authSystem = {
                                 <button type="submit" style="flex: 1; padding: 14px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;">
                                     📤 提交仲裁申请
                                 </button>
-                                <button type="button" onclick="authSystem.navigateTo('dashboard')" style="padding: 14px 30px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                                <button type="button" data-arb-submit-action="cancel-submit" style="padding: 14px 30px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
                                     取消
                                 </button>
                             </div>
@@ -3769,6 +4159,15 @@ const authSystem = {
             e.preventDefault();
             this.submitArbitration();
         };
+
+        container.querySelectorAll('[data-arb-submit-action]').forEach(node => {
+            const action = node.getAttribute('data-arb-submit-action') || '';
+            node.onclick = () => {
+                if (action === 'cancel-submit') {
+                    this.navigateTo('dashboard');
+                }
+            };
+        });
         
         // 为文件输入添加预览功能
         this.setupFilePreview('evidence-trade', 'trade-preview');
@@ -3912,7 +4311,7 @@ const authSystem = {
                                         ${item.penalty_status === 'waived' ? '<span style="color: #95a5a6;">🔓 已豁免</span>' : ''}
                                     </p>
                                     ${item.penalty_status === 'pending' ? `
-                                        <button onclick="authSystem.payPenalty(${safeId})" style="margin-top: 12px; padding: 10px 20px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                        <button data-my-arb-action="pay-penalty" data-arb-id="${safeId}" style="margin-top: 12px; padding: 10px 20px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
                                             立即支付罚款
                                         </button>
                                     ` : ''}
@@ -3944,6 +4343,21 @@ const authSystem = {
                         </div>
                     `;
                 }).join('');
+
+                listDiv.querySelectorAll('[data-my-arb-action]').forEach(node => {
+                    const action = node.getAttribute('data-my-arb-action') || '';
+                    node.onclick = () => {
+                        if (action !== 'pay-penalty') return;
+
+                        const actionId = Number(node.getAttribute('data-arb-id') || '0');
+                        if (!Number.isInteger(actionId) || actionId <= 0) {
+                            this.showAlert('仲裁记录 ID 无效', 'warning');
+                            return;
+                        }
+
+                        this.payPenalty(actionId);
+                    };
+                });
             })
             .catch(err => {
                 console.error('加载仲裁记录失败:', err);
@@ -3971,6 +4385,66 @@ const authSystem = {
         }
         
         try {
+            this.showAlert('正在校验订单信息...', 'info');
+
+            const orderLookupMap = {
+                'farmer_report': {
+                    endpoint: '/api/farmer-reports?status=all',
+                    noKeys: ['report_no', 'order_no']
+                },
+                'recycler_request': {
+                    endpoint: '/api/recycler-requests?status=all',
+                    noKeys: ['request_no', 'order_no']
+                },
+                'processor_request': {
+                    endpoint: '/api/processor-requests?status=all',
+                    noKeys: ['request_no', 'order_no']
+                }
+            };
+
+            let resolvedTarget;
+            if (orderType === 'order') {
+                const orderDetail = await this.authFetch(`/api/orders/${encodeURIComponent(orderNo)}`);
+                const orderId = Number(orderDetail?.id);
+                if (!Number.isInteger(orderId) || orderId <= 0) {
+                    throw new Error('未找到对应交易订单，请核对订单编号后重试');
+                }
+                resolvedTarget = {
+                    order_id: orderId,
+                    order_no: String(orderDetail.order_no || orderNo).trim()
+                };
+            } else {
+                const lookupConfig = orderLookupMap[orderType];
+                if (!lookupConfig) {
+                    throw new Error('不支持的订单类型，请重新选择');
+                }
+
+                const rows = await this.authFetch(lookupConfig.endpoint);
+                const normalizedRows = Array.isArray(rows) ? rows : [];
+                const normalizedInput = String(orderNo).trim().toLowerCase();
+                const matchedRow = normalizedRows.find((row) => {
+                    const candidates = [row.id, ...lookupConfig.noKeys.map((key) => row[key])]
+                        .filter((value) => value !== undefined && value !== null)
+                        .map((value) => String(value).trim().toLowerCase());
+                    return candidates.includes(normalizedInput);
+                });
+
+                const matchedId = Number(matchedRow?.id);
+                if (!Number.isInteger(matchedId) || matchedId <= 0) {
+                    throw new Error('未找到对应单据，请核对编号后重试');
+                }
+
+                resolvedTarget = {
+                    order_id: matchedId,
+                    order_no: String(
+                        matchedRow.order_no
+                        || matchedRow.report_no
+                        || matchedRow.request_no
+                        || orderNo
+                    ).trim()
+                };
+            }
+
             this.showAlert('正在上传证据材料...', 'info');
             
             // 上传所有文件
@@ -4001,17 +4475,14 @@ const authSystem = {
             const evidence_payment = uploadedFiles.slice(paymentIndex, communicationIndex).map(f => JSON.stringify(f));
             const evidence_communication = uploadedFiles.slice(communicationIndex, otherIndex).map(f => JSON.stringify(f));
             const evidence_other = uploadedFiles.slice(otherIndex).map(f => JSON.stringify(f));
-            
-            // 从订单编号提取订单ID (简化处理，实际应该从数据库查询)
-            const order_id = Math.floor(Math.random() * 1000); // 临时生成，实际应该从订单表查询
-            
-            const response = await this.authFetch(`/api/arbitration-requests`, {
+
+            await this.authFetch(`/api/arbitration-requests`, {
                 method: 'POST',
                 body: JSON.stringify({
                     applicant_id: this.currentUser.id,
                     order_type: orderType,
-                    order_id: order_id,
-                    order_no: orderNo,
+                    order_id: resolvedTarget.order_id,
+                    order_no: resolvedTarget.order_no,
                     reason: reason,
                     description: description,
                     evidence_trade: evidence_trade,
@@ -4042,6 +4513,7 @@ const authSystem = {
     // ====== 仲裁管理（管理员端）======
     showArbitrationManagement() {
         const container = document.getElementById('content-area');
+        container.dataset.arbitrationView = 'list';
         container.innerHTML = `
             <div style="animation: fadeIn 0.5s;">
                 <h1 class="page-title">⚖️ 仲裁管理</h1>
@@ -4121,6 +4593,7 @@ const authSystem = {
                 };
                 
                 const orderTypeLabels = {
+                    'order': '平台交易订单',
                     'farmer_report': '农户申报订单',
                     'recycler_request': '回收商求购订单',
                     'processor_request': '处理商求购订单'
@@ -4151,7 +4624,7 @@ const authSystem = {
                     const safeDecidedBy = this.escapeHtml(item.decided_by_name || '管理员');
 
                     return `
-                        <div class="glass-card" onclick="authSystem.showArbitrationDetail(${safeId})" style="padding: 24px; margin-bottom: 20px; cursor: pointer; transition: all 0.3s;">
+                        <div class="glass-card" data-arb-list-action="view-detail" data-arb-id="${safeId}" style="padding: 24px; margin-bottom: 20px; cursor: pointer; transition: all 0.3s;">
                             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
                                 <div>
                                     <h3 style="margin: 0; font-size: 18px;">
@@ -4232,17 +4705,17 @@ const authSystem = {
                             ${item.status === 'pending' || item.status === 'investigating' ? `
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                                     ${item.status === 'pending' ? `
-                                        <button onclick="authSystem.updateArbitrationStatus(${safeId}, 'investigating')" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                        <button data-arb-list-action="start-investigation" data-arb-id="${safeId}" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                                             🔍 开始调查
                                         </button>
                                     ` : ''}
-                                    <button onclick="authSystem.resolveArbitration(${safeId})" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                    <button data-arb-list-action="resolve" data-arb-id="${safeId}" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                                         ✅ 做出裁决
                                     </button>
-                                    <button onclick="authSystem.rejectArbitration(${safeId})" style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                    <button data-arb-list-action="reject" data-arb-id="${safeId}" style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                                         ❌ 驳回申请
                                     </button>
-                                    <button onclick="authSystem.addArbitrationNote(${safeId})" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                    <button data-arb-list-action="add-note" data-arb-id="${safeId}" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">
                                         📝 添加备注
                                     </button>
                                 </div>
@@ -4250,6 +4723,41 @@ const authSystem = {
                         </div>
                     `;
                 }).join('');
+
+                listDiv.querySelectorAll('[data-arb-list-action]').forEach(node => {
+                    const action = node.getAttribute('data-arb-list-action') || '';
+                    node.onclick = (event) => {
+                        const actionId = Number(node.getAttribute('data-arb-id') || '0');
+                        if (!Number.isInteger(actionId) || actionId <= 0) {
+                            this.showAlert('仲裁记录 ID 无效', 'warning');
+                            return;
+                        }
+
+                        if (action === 'view-detail') {
+                            this.showArbitrationDetail(actionId);
+                            return;
+                        }
+
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        if (action === 'start-investigation') {
+                            this.updateArbitrationStatus(actionId, 'investigating');
+                            return;
+                        }
+                        if (action === 'resolve') {
+                            this.resolveArbitration(actionId);
+                            return;
+                        }
+                        if (action === 'reject') {
+                            this.rejectArbitration(actionId);
+                            return;
+                        }
+                        if (action === 'add-note') {
+                            this.addArbitrationNote(actionId);
+                        }
+                    };
+                });
             })
             .catch(err => {
                 console.error('加载仲裁请求失败:', err);
@@ -4286,8 +4794,7 @@ const authSystem = {
             });
             this.showAlert('裁决已保存', 'success');
             setTimeout(() => {
-                const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
-                if (isInDetailPage) {
+                if (this.isArbitrationDetailViewActive()) {
                     this.showArbitrationDetail(id);
                 } else {
                     this.loadArbitrationRequests('all');
@@ -4314,8 +4821,7 @@ const authSystem = {
             });
             this.showAlert('申请已驳回', 'success');
             setTimeout(() => {
-                const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
-                if (isInDetailPage) {
+                if (this.isArbitrationDetailViewActive()) {
                     this.showArbitrationDetail(id);
                 } else {
                     this.loadArbitrationRequests('all');
@@ -4339,8 +4845,7 @@ const authSystem = {
             });
             this.showAlert('备注已添加', 'success');
             setTimeout(() => {
-                const isInDetailPage = document.getElementById('content-area').innerHTML.includes('返回仲裁列表');
-                if (isInDetailPage) {
+                if (this.isArbitrationDetailViewActive()) {
                     this.showArbitrationDetail(id);
                 } else {
                     this.loadArbitrationRequests('all');
@@ -4350,11 +4855,26 @@ const authSystem = {
             this.showAlert(err.message, 'error');
         }
     },
+
+    isArbitrationDetailViewActive() {
+        const contentArea = document.getElementById('content-area');
+        return contentArea?.dataset?.arbitrationView === 'detail';
+    },
     
     // 显示仲裁详情页面
     showArbitrationDetail(id) {
         const container = document.getElementById('content-area');
+        container.dataset.arbitrationView = 'detail';
         container.innerHTML = '<p style="text-align: center; padding: 40px; color: #888;">加载中...</p>';
+
+        const targetId = Number(id);
+        if (!Number.isInteger(targetId) || targetId <= 0) {
+            container.innerHTML = '<p style="text-align: center; padding: 40px; color: #e74c3c;">仲裁记录 ID 无效</p>';
+            return;
+        }
+
+        const filePreviewRegistry = new Map();
+        let filePreviewSeq = 0;
         
         // 渲染文件列表的辅助函数
         const renderFileList = (files) => {
@@ -4366,19 +4886,21 @@ const authSystem = {
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                     ${files.map(fileStr => {
                         let fileInfo;
-                        try {
-                            // 尝试解析JSON格式的文件信息
-                            fileInfo = JSON.parse(fileStr);
-                        } catch (e) {
-                            // 如果不是JSON，则是旧格式的文件名
-                            fileInfo = { originalName: fileStr, path: null };
+                        if (fileStr && typeof fileStr === 'object') {
+                            fileInfo = fileStr;
+                        } else {
+                            try {
+                                // 尝试解析JSON格式的文件信息
+                                fileInfo = JSON.parse(fileStr);
+                            } catch (e) {
+                                // 如果不是JSON，则是旧格式的文件名
+                                fileInfo = { originalName: fileStr, path: null };
+                            }
                         }
                         
-                        const fileName = fileInfo.originalName || fileStr;
+                        const fileName = String(fileInfo.originalName || fileInfo.name || fileStr || '未命名文件');
                         const filePath = this.sanitizeRelativeAssetPath(fileInfo.path || '');
                         const safeTitle = this.escapeHtml(fileName);
-                        const jsSafeName = this.escapeJsSingleQuotedString(fileName);
-                        const jsSafePath = this.escapeJsSingleQuotedString(filePath);
                         const isImage = /\.(jpg|jpeg|png|gif|bmp)$/i.test(fileName);
                         const isPdf = /\.pdf$/i.test(fileName);
                         const isVideo = /\.(mp4|avi|mov)$/i.test(fileName);
@@ -4387,16 +4909,19 @@ const authSystem = {
                         if (isImage) icon = '🖼️';
                         else if (isPdf) icon = '📄';
                         else if (isVideo) icon = '📹';
-                        
-                        const clickHandler = filePath 
-                            ? `onclick="authSystem.viewFile('${jsSafePath}', '${jsSafeName}', ${isImage})"` 
-                            : '';
+
+                        let previewKey = '';
+                        if (filePath) {
+                            previewKey = `file-preview-${++filePreviewSeq}`;
+                            filePreviewRegistry.set(previewKey, { filePath, fileName, isImage });
+                        }
+                        const safePreviewKey = this.escapeHtml(previewKey);
                         
                         return `
-                            <div ${clickHandler} style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; ${filePath ? 'cursor: pointer; transition: transform 0.2s;' : ''}" ${filePath ? 'onmouseenter="this.style.transform=\'scale(1.05)\'" onmouseleave="this.style.transform=\'scale(1)\'"' : ''}>
+                            <div class="arbitration-file-item" ${previewKey ? `data-file-preview-key="${safePreviewKey}"` : ''} style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; ${previewKey ? 'cursor: pointer; transition: transform 0.2s;' : ''}">
                                 ${icon}
                                 <span style="font-size: 14px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${safeTitle}">${safeTitle}</span>
-                                ${filePath ? '<span style="color: #3498db; font-size: 12px;">点击查看</span>' : ''}
+                                ${previewKey ? '<span style="color: #3498db; font-size: 12px;">点击查看</span>' : ''}
                             </div>
                         `;
                     }).join('')}
@@ -4406,7 +4931,8 @@ const authSystem = {
         
         this.authFetch(`/api/arbitration-requests/all?status=all`)
             .then(data => {
-                const item = data.find(a => a.id === id);
+                const rows = Array.isArray(data) ? data : [];
+                const item = rows.find(a => Number(a.id) === targetId);
                 if (!item) {
                     container.innerHTML = '<p style="text-align: center; padding: 40px; color: #e74c3c;">未找到该仲裁记录</p>';
                     return;
@@ -4430,6 +4956,7 @@ const authSystem = {
                 };
                 
                 const orderTypeLabels = {
+                    'order': '平台交易订单',
                     'farmer_report': '农户申报订单',
                     'recycler_request': '回收商求购订单',
                     'processor_request': '处理商求购订单'
@@ -4459,7 +4986,7 @@ const authSystem = {
                 const safeDecidedAt = this.escapeHtml(item.decided_at || '');
                 const safeDecidedByName = this.escapeHtml(item.decided_by_name || '管理员');
                 const safePenaltyProof = this.sanitizeRelativeAssetPath(item.penalty_proof || '');
-                const safePenaltyProofJs = this.escapeJsSingleQuotedString(safePenaltyProof);
+                const safePenaltyProofAttr = this.escapeHtml(safePenaltyProof);
                 const safePenaltyAmount = Number.isFinite(Number(item.penalty_amount)) ? Number(item.penalty_amount).toString() : '0';
                 const safeOrderAmount = Number.isFinite(Number(item.order_amount)) ? Number(item.order_amount) : 0;
 
@@ -4472,7 +4999,7 @@ const authSystem = {
                     <div style="animation: fadeIn 0.5s;">
                         <!-- 返回按钮 -->
                         <div style="margin-bottom: 20px;">
-                            <button onclick="authSystem.navigateTo('arbitration-management')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                            <button data-arb-detail-action="back-list" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
                                 ← 返回仲裁列表
                             </button>
                         </div>
@@ -4607,7 +5134,7 @@ const authSystem = {
                                     ${safePenaltyProof ? `
                                         <div style="margin-top: 10px;">
                                             <strong>支付凭证：</strong>
-                                            <button onclick="authSystem.viewFile('${safePenaltyProofJs}', '支付凭证', true)" style="padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                                            <button data-arb-detail-action="view-penalty-proof" data-proof-path="${safePenaltyProofAttr}" data-proof-name="支付凭证" data-proof-image="true" style="padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
                                                 查看凭证
                                             </button>
                                         </div>
@@ -4637,20 +5164,20 @@ const authSystem = {
                                 <h3 style="margin: 0 0 20px 0; color: #2c3e50;">🔧 仲裁操作</h3>
                                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                     ${item.status === 'pending' ? `
-                                        <button onclick="authSystem.updateArbitrationStatus(${safeId}, 'investigating'); setTimeout(() => authSystem.showArbitrationDetail(${safeId}), 1000);" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                        <button data-arb-detail-action="start-investigation" data-arb-id="${safeId}" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                             🔍 开始调查
                                         </button>
                                     ` : ''}
-                                    <button onclick="authSystem.setPenalty(${safeId}, ${safeOrderAmount})" style="padding: 12px 24px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                    <button data-arb-detail-action="set-penalty" data-arb-id="${safeId}" data-order-amount="${safeOrderAmount}" style="padding: 12px 24px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                         💰 设置罚款
                                     </button>
-                                    <button onclick="authSystem.resolveArbitration(${safeId})" style="padding: 12px 24px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                    <button data-arb-detail-action="resolve" data-arb-id="${safeId}" style="padding: 12px 24px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                         ✅ 做出裁决
                                     </button>
-                                    <button onclick="authSystem.rejectArbitration(${safeId})" style="padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                    <button data-arb-detail-action="reject" data-arb-id="${safeId}" style="padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                         ❌ 驳回申请
                                     </button>
-                                    <button onclick="authSystem.addArbitrationNote(${safeId})" style="padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                                    <button data-arb-detail-action="add-note" data-arb-id="${safeId}" style="padding: 12px 24px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px;">
                                         📝 添加备注
                                     </button>
                                 </div>
@@ -4658,17 +5185,91 @@ const authSystem = {
                         ` : ''}
                     </div>
                 `;
+
+                container.querySelectorAll('[data-file-preview-key]').forEach(node => {
+                    const previewKey = node.getAttribute('data-file-preview-key') || '';
+                    const fileMeta = filePreviewRegistry.get(previewKey);
+                    if (!fileMeta) return;
+
+                    node.onmouseenter = () => {
+                        node.style.transform = 'scale(1.05)';
+                    };
+                    node.onmouseleave = () => {
+                        node.style.transform = 'scale(1)';
+                    };
+                    node.onclick = () => {
+                        this.viewFile(fileMeta.filePath, fileMeta.fileName, fileMeta.isImage);
+                    };
+                });
+
+                container.querySelectorAll('[data-arb-detail-action]').forEach(node => {
+                    const action = node.getAttribute('data-arb-detail-action') || '';
+                    node.onclick = () => {
+                        if (action === 'back-list') {
+                            this.navigateTo('arbitration-management');
+                            return;
+                        }
+
+                        if (action === 'view-penalty-proof') {
+                            const proofPath = this.sanitizeRelativeAssetPath(node.getAttribute('data-proof-path') || '');
+                            if (!proofPath) {
+                                this.showAlert('支付凭证路径无效', 'warning');
+                                return;
+                            }
+                            const proofName = node.getAttribute('data-proof-name') || '支付凭证';
+                            const isImageProof = (node.getAttribute('data-proof-image') || '').toLowerCase() === 'true';
+                            this.viewFile(proofPath, proofName, isImageProof);
+                            return;
+                        }
+
+                        const actionId = Number(node.getAttribute('data-arb-id') || '0');
+                        if (!Number.isInteger(actionId) || actionId <= 0) {
+                            this.showAlert('仲裁记录 ID 无效', 'warning');
+                            return;
+                        }
+
+                        if (action === 'start-investigation') {
+                            this.updateArbitrationStatus(actionId, 'investigating');
+                            setTimeout(() => this.showArbitrationDetail(actionId), 1000);
+                            return;
+                        }
+                        if (action === 'set-penalty') {
+                            const orderAmount = Number(node.getAttribute('data-order-amount') || '0');
+                            const safeAmount = Number.isFinite(orderAmount) ? orderAmount : 0;
+                            this.setPenalty(actionId, safeAmount);
+                            return;
+                        }
+                        if (action === 'resolve') {
+                            this.resolveArbitration(actionId);
+                            return;
+                        }
+                        if (action === 'reject') {
+                            this.rejectArbitration(actionId);
+                            return;
+                        }
+                        if (action === 'add-note') {
+                            this.addArbitrationNote(actionId);
+                        }
+                    };
+                });
             })
             .catch(err => {
                 console.error('加载仲裁详情失败:', err);
                 container.innerHTML = `
                     <div style="text-align: center; padding: 40px;">
                         <p style="color: #e74c3c; margin-bottom: 20px;">加载失败，请重试</p>
-                        <button onclick="authSystem.navigateTo('arbitration-management')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        <button data-arb-detail-error-action="back-list" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer;">
                             返回列表
                         </button>
                     </div>
                 `;
+
+                const backButton = container.querySelector('[data-arb-detail-error-action="back-list"]');
+                if (backButton) {
+                    backButton.onclick = () => {
+                        this.navigateTo('arbitration-management');
+                    };
+                }
             });
     },
     
@@ -4750,10 +5351,25 @@ const authSystem = {
         
         document.body.appendChild(modal);
     },
+
+    closeModalByType(modalType) {
+        if (!modalType) return;
+        const modal = document.querySelector(`[data-modal-type="${modalType}"]`);
+        if (modal) {
+            modal.remove();
+        }
+    },
     
     // 设置罚款
     setPenalty(arbitrationId, orderAmount = 0) {
+        const targetId = Number(arbitrationId);
+        if (!Number.isInteger(targetId) || targetId <= 0) {
+            this.showAlert('仲裁记录 ID 无效', 'warning');
+            return;
+        }
+
         const container = document.createElement('div');
+        container.dataset.modalType = 'set-penalty';
         container.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
         
         container.innerHTML = `
@@ -4778,7 +5394,7 @@ const authSystem = {
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: bold;">罚款金额 <span style="color: red;">*</span></label>
                     <input type="number" id="penalty-amount" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" placeholder="输入罚款金额">
-                    <button onclick="document.getElementById('penalty-amount').value = (document.getElementById('order-amount').value * 0.2).toFixed(2)" style="margin-top: 5px; padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                    <button data-set-penalty-action="calc-20pct" style="margin-top: 5px; padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
                         按订单金额20%计算
                     </button>
                 </div>
@@ -4789,10 +5405,10 @@ const authSystem = {
                 </div>
                 
                 <div style="display: flex; gap: 10px;">
-                    <button onclick="authSystem.submitPenalty(${arbitrationId})" style="flex: 1; padding: 12px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                    <button data-set-penalty-action="submit" data-arb-id="${targetId}" style="flex: 1; padding: 12px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
                         确认设置
                     </button>
-                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                    <button data-set-penalty-action="cancel" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
                         取消
                     </button>
                 </div>
@@ -4800,8 +5416,39 @@ const authSystem = {
         `;
         
         container.onclick = (e) => {
-            if (e.target === container) container.remove();
+            if (e.target === container) this.closeModalByType('set-penalty');
         };
+
+        const orderAmountInput = container.querySelector('#order-amount');
+        const penaltyAmountInput = container.querySelector('#penalty-amount');
+
+        container.querySelectorAll('[data-set-penalty-action]').forEach(node => {
+            const action = node.getAttribute('data-set-penalty-action') || '';
+            node.onclick = () => {
+                if (action === 'calc-20pct') {
+                    const amount = Number(orderAmountInput?.value || '0');
+                    const calcAmount = Number.isFinite(amount) && amount > 0 ? amount * 0.2 : 0;
+                    if (penaltyAmountInput) {
+                        penaltyAmountInput.value = calcAmount.toFixed(2);
+                    }
+                    return;
+                }
+
+                if (action === 'cancel') {
+                    this.closeModalByType('set-penalty');
+                    return;
+                }
+
+                if (action === 'submit') {
+                    const actionId = Number(node.getAttribute('data-arb-id') || '0');
+                    if (!Number.isInteger(actionId) || actionId <= 0) {
+                        this.showAlert('仲裁记录 ID 无效', 'warning');
+                        return;
+                    }
+                    this.submitPenalty(actionId);
+                }
+            };
+        });
         
         document.body.appendChild(container);
     },
@@ -4835,9 +5482,7 @@ const authSystem = {
             this.showAlert('罚款设置成功', 'success');
             
             // 关闭弹窗
-            document.querySelectorAll('div[style*="position: fixed"]').forEach(el => {
-                if (el.innerHTML.includes('设置罚款')) el.remove();
-            });
+            this.closeModalByType('set-penalty');
             
             // 刷新详情页
             setTimeout(() => {
@@ -4852,7 +5497,14 @@ const authSystem = {
     
     // 支付罚款（用户端）
     payPenalty(arbitrationId) {
+        const targetId = Number(arbitrationId);
+        if (!Number.isInteger(targetId) || targetId <= 0) {
+            this.showAlert('仲裁记录 ID 无效', 'warning');
+            return;
+        }
+
         const container = document.createElement('div');
+        container.dataset.modalType = 'pay-penalty';
         container.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
         
         container.innerHTML = `
@@ -4869,10 +5521,10 @@ const authSystem = {
                 <div id="proof-preview" style="margin-bottom: 20px;"></div>
                 
                 <div style="display: flex; gap: 10px;">
-                    <button onclick="authSystem.submitPenaltyPayment(${arbitrationId})" style="flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                    <button data-pay-penalty-action="submit" data-arb-id="${targetId}" style="flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
                         提交支付凭证
                     </button>
-                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                    <button data-pay-penalty-action="cancel" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
                         取消
                     </button>
                 </div>
@@ -4880,24 +5532,53 @@ const authSystem = {
         `;
         
         container.onclick = (e) => {
-            if (e.target === container) container.remove();
+            if (e.target === container) this.closeModalByType('pay-penalty');
         };
+
+        container.querySelectorAll('[data-pay-penalty-action]').forEach(node => {
+            const action = node.getAttribute('data-pay-penalty-action') || '';
+            node.onclick = () => {
+                if (action === 'cancel') {
+                    this.closeModalByType('pay-penalty');
+                    return;
+                }
+
+                if (action === 'submit') {
+                    const actionId = Number(node.getAttribute('data-arb-id') || '0');
+                    if (!Number.isInteger(actionId) || actionId <= 0) {
+                        this.showAlert('仲裁记录 ID 无效', 'warning');
+                        return;
+                    }
+                    this.submitPenaltyPayment(actionId);
+                }
+            };
+        });
         
         document.body.appendChild(container);
         
         // 文件预览
-        document.getElementById('penalty-proof').onchange = (e) => {
+        const proofInput = container.querySelector('#penalty-proof');
+        proofInput.onchange = (e) => {
             const file = e.target.files[0];
             if (file) {
-                const preview = document.getElementById('proof-preview');
+                const preview = container.querySelector('#proof-preview');
+                preview.innerHTML = '';
                 if (file.type.startsWith('image/')) {
                     const reader = new FileReader();
-                    reader.onload = (e) => {
-                        preview.innerHTML = `<img src="${e.target.result}" style="max-width: 100%; max-height: 200px; border-radius: 8px;">`;
+                    reader.onload = (evt) => {
+                        const img = document.createElement('img');
+                        img.src = evt.target.result;
+                        img.style.maxWidth = '100%';
+                        img.style.maxHeight = '200px';
+                        img.style.borderRadius = '8px';
+                        preview.appendChild(img);
                     };
                     reader.readAsDataURL(file);
                 } else {
-                    preview.innerHTML = `<p style="color: #666;">📄 ${file.name}</p>`;
+                    const text = document.createElement('p');
+                    text.style.color = '#666';
+                    text.textContent = `📄 ${file.name}`;
+                    preview.appendChild(text);
                 }
             }
         };
@@ -4924,9 +5605,7 @@ const authSystem = {
             this.showAlert('支付凭证已提交，等待管理员确认', 'success');
             
             // 关闭弹窗
-            document.querySelectorAll('div[style*="position: fixed"]').forEach(el => {
-                if (el.innerHTML.includes('上交罚款')) el.remove();
-            });
+            this.closeModalByType('pay-penalty');
             
             // 刷新列表
             setTimeout(() => {
@@ -5017,30 +5696,61 @@ const authSystem = {
                 body.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">暂无意向投递</p>';
                 return;
             }
-            body.innerHTML = rows.map(r => `
+            body.innerHTML = rows.map(r => {
+                const safeId = Number(r.id);
+                const idAttr = Number.isInteger(safeId) && safeId > 0 ? String(safeId) : '';
+                const safeApplicant = this.escapeHtml(r.applicant_name || '匿名用户');
+                const safeStatusLabel = this.escapeHtml(statusLabels[r.status] || r.status || '未知状态');
+                const safeStatusColor = statusColors[r.status] || '#95a5a6';
+                const estimatedWeight = Number(r.estimated_weight);
+                const safeEstimatedWeight = Number.isFinite(estimatedWeight) && estimatedWeight > 0
+                    ? String(estimatedWeight)
+                    : this.escapeHtml(r.estimated_weight || '--');
+                const safeExpectedDate = this.escapeHtml(r.expected_date || '');
+                const safeNotes = this.escapeHtml(r.notes || '');
+                const safeCreatedAt = this.escapeHtml(r.created_at || '--');
+
+                return `
                 <div style="padding:14px;border:1px solid #eee;border-radius:10px;margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <strong style="font-size:15px;">${r.applicant_name || '匿名用户'}</strong>
-                        <span style="background:${statusColors[r.status]};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;">${statusLabels[r.status] || r.status}</span>
+                        <strong style="font-size:15px;">${safeApplicant}</strong>
+                        <span style="background:${safeStatusColor};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;">${safeStatusLabel}</span>
                     </div>
-                    <p style="margin:4px 0;font-size:14px;color:#555;">预估供货：<strong>${r.estimated_weight || '--'} 斤</strong>${r.expected_date ? `　期望日期：${r.expected_date}` : ''}</p>
-                    ${r.notes ? `<p style="margin:4px 0;font-size:13px;color:#777;">💬 ${r.notes}</p>` : ''}
-                    <p style="margin:6px 0 0;font-size:12px;color:#bbb;">${r.created_at}</p>
-                    ${r.status === 'pending' ? `
+                    <p style="margin:4px 0;font-size:14px;color:#555;">预估供货：<strong>${safeEstimatedWeight} 斤</strong>${safeExpectedDate ? `　期望日期：${safeExpectedDate}` : ''}</p>
+                    ${safeNotes ? `<p style="margin:4px 0;font-size:13px;color:#777;">💬 ${safeNotes}</p>` : ''}
+                    <p style="margin:6px 0 0;font-size:12px;color:#bbb;">${safeCreatedAt}</p>
+                    ${r.status === 'pending' && idAttr ? `
                     <div style="display:flex;gap:8px;margin-top:10px;">
-                        <button onclick="authSystem.updateIntentionStatus(${r.id},'accepted',this)" style="flex:1;padding:7px;border:none;border-radius:6px;background:#27ae60;color:#fff;cursor:pointer;font-size:13px;">✅ 接受</button>
-                        <button onclick="authSystem.updateIntentionStatus(${r.id},'rejected',this)" style="flex:1;padding:7px;border:none;border-radius:6px;background:#e74c3c;color:#fff;cursor:pointer;font-size:13px;">❌ 拒绝</button>
+                        <button data-intention-action="accepted" data-intention-id="${idAttr}" style="flex:1;padding:7px;border:none;border-radius:6px;background:#27ae60;color:#fff;cursor:pointer;font-size:13px;">✅ 接受</button>
+                        <button data-intention-action="rejected" data-intention-id="${idAttr}" style="flex:1;padding:7px;border:none;border-radius:6px;background:#e74c3c;color:#fff;cursor:pointer;font-size:13px;">❌ 拒绝</button>
                     </div>` : ''}
                 </div>
-            `).join('');
+            `;
+            }).join('');
+
+            body.querySelectorAll('[data-intention-action]').forEach(node => {
+                const action = node.getAttribute('data-intention-action') || '';
+                node.onclick = () => {
+                    const intentionId = Number(node.getAttribute('data-intention-id') || '0');
+                    if (!Number.isInteger(intentionId) || intentionId <= 0) {
+                        this.showAlert('意向记录 ID 无效', 'warning');
+                        return;
+                    }
+
+                    if (action === 'accepted' || action === 'rejected') {
+                        this.updateIntentionStatus(intentionId, action, node);
+                    }
+                };
+            });
         } catch (err) {
-            body.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">${err.message}</p>`;
+            body.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">${this.escapeHtml(err.message || '加载失败')}</p>`;
         }
     },
 
     async updateIntentionStatus(id, status, btn) {
+        const actionBtn = btn && typeof btn === 'object' ? btn : null;
         try {
-            btn.disabled = true;
+            if (actionBtn) actionBtn.disabled = true;
             const result = await this.authFetch(`/api/intentions/${id}/status`, {
                 method: 'PATCH',
                 body: JSON.stringify({ status })
@@ -5053,7 +5763,7 @@ const authSystem = {
             }
 
             // 更新卡片状态标签并移除操作按钮
-            const card = btn.closest('div[style]');
+            const card = actionBtn?.closest('div[style]');
             if (card) {
                 const statusColors = { accepted: '#27ae60', rejected: '#e74c3c' };
                 const statusLabels = { accepted: '已接受', rejected: '已拒绝' };
@@ -5073,7 +5783,7 @@ const authSystem = {
             }
         } catch (err) {
             this.showAlert(err.message || '操作失败', 'error');
-            btn.disabled = false;
+            if (actionBtn) actionBtn.disabled = false;
         }
     },
 

@@ -20,42 +20,54 @@
 
     <!-- 列表区域 -->
     <view class="list-container">
-      <view class="supply-card" v-for="(item, index) in filteredList" :key="item.id">
-        <view class="card-header">
-          <text class="supply-type" :class="'type-' + item.type">{{ item.type === 'farmer' ? '农户' : '回收商' }}</text>
-          <text class="variety">{{ item.variety }}</text>
-        </view>
-        
-        <view class="card-body">
-          <view class="info-row">
-            <text class="label">供应商：</text>
-            <text class="value">{{ item.provider }}</text>
+      <view v-if="loading" class="empty-state">
+        <text class="empty-text">货源数据加载中…</text>
+      </view>
+
+      <view v-else-if="fetchError" class="empty-state">
+        <text class="empty-text">{{ fetchError }}</text>
+      </view>
+
+      <template v-else>
+        <view class="supply-card" v-for="item in filteredList" :key="item.id">
+          <view class="card-header">
+            <text class="supply-type" :class="'type-' + item.type">{{ item.type === 'farmer' ? '农户' : '回收商' }}</text>
+            <text class="variety">{{ item.variety }}</text>
           </view>
-          <view class="info-row">
-            <text class="label">可供重量：</text>
-            <text class="value highlight">{{ item.weight }} 斤</text>
+          
+          <view class="card-body">
+            <view class="info-row">
+              <text class="label">供应商：</text>
+              <text class="value">{{ item.provider }}</text>
+            </view>
+            <view class="info-row">
+              <text class="label">可供重量：</text>
+              <text class="value highlight">{{ item.weight }} 斤</text>
+            </view>
+            <view class="info-row">
+              <text class="label">期望单价：</text>
+              <text class="value price">{{ item.price > 0 ? `¥ ${item.price}/斤` : '待协商' }}</text>
+            </view>
+            <view class="info-row">
+              <text class="label">所在地：</text>
+              <text class="value address">{{ fuzzLocation(item.location) }}</text>
+            </view>
           </view>
-          <view class="info-row">
-            <text class="label">期望单价：</text>
-            <text class="value price">¥ {{ item.price }}/斤</text>
-          </view>
-          <view class="info-row">
-            <text class="label">所在地：</text>
-            <text class="value address">{{ fuzzLocation(item.location) }}</text>
+
+          <view class="card-footer">
+            <text class="time">发布于 {{ item.date }}</text>
+            <view class="actions">
+              <button class="btn btn-primary" size="mini" @click="handlePrimaryAction(item)">
+                {{ item.type === 'farmer' ? '发起意向' : '电话联系' }}
+              </button>
+            </view>
           </view>
         </view>
 
-        <view class="card-footer">
-          <text class="time">发布于 {{ item.date }}</text>
-          <view class="actions">
-            <button class="btn btn-primary" size="mini" @click="openIntentionPopup(item)">发起意向</button>
-          </view>
+        <view v-if="filteredList.length === 0" class="empty-state">
+          <text class="empty-text">暂无符合条件的货源</text>
         </view>
-      </view>
-
-      <view v-if="filteredList.length === 0" class="empty-state">
-        <text class="empty-text">暂无符合条件的货源</text>
-      </view>
+      </template>
     </view>
 
     <view class="popup-mask" v-if="showPopup" @click="closePopup"></view>
@@ -93,81 +105,156 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const fuzzLocation = (loc) => loc ? loc.replace(/([\u9547\u8857\u9053\u5c71\u4e61].*)/u, '（具体地址经平台保护）') : '地址保护中';
 
 const showPopup = ref(false);
+const loading = ref(false);
+const fetchError = ref('');
 const currentTarget = ref({});
 const intentionForm = ref({ price: '', weight: '', date: '' });
 
 const openIntentionPopup = (item) => {
+  if (item.type !== 'farmer') {
+    return callPhone(item.phone);
+  }
   currentTarget.value = item;
   intentionForm.value = { price: '', weight: '', date: '' };
   showPopup.value = true;
 };
 const closePopup = () => { showPopup.value = false; };
 const onDateChange = (e) => { intentionForm.value.date = e.detail.value; };
-const submitIntention = () => {
+const submitIntention = async () => {
+  if (currentTarget.value.type !== 'farmer') {
+    uni.showToast({ title: '仅支持对农户货源发起线上意向', icon: 'none' });
+    return;
+  }
   if (!intentionForm.value.price || !intentionForm.value.weight) {
     return uni.showToast({ title: '请填写单价和重量', icon: 'none' });
   }
-  const entry = {
-    id: 'INT-' + Date.now(),
-    target_merchant_id: currentTarget.value.id,
-    target_name: currentTarget.value.provider,
-    sender_name: uni.getStorageSync('current_user_name') || '测试用户',
-    sender_phone: uni.getStorageSync('current_user_phone') || '13800000000',
-    price: Number(intentionForm.value.price),
-    weight: Number(intentionForm.value.weight),
-    date: intentionForm.value.date || '待协商',
-    status: 'pending',
-    create_time: new Date().toLocaleString()
-  };
-  const list = uni.getStorageSync('global_intentions') || [];
-  list.unshift(entry);
-  uni.setStorageSync('global_intentions', list);
-  closePopup();
-  uni.showToast({ title: '意向已发送，等待商家确认', icon: 'success' });
+  try {
+    await request.post('/api/intentions', {
+      target_type: 'farmer_report',
+      target_id: currentTarget.value.rawId,
+      target_no: currentTarget.value.targetNo || '',
+      target_name: `${currentTarget.value.provider || '农户'}货源`,
+      estimated_weight: Number(intentionForm.value.weight),
+      expected_date: intentionForm.value.date || null,
+      notes: `处理商报价：${Number(intentionForm.value.price)} 元/斤`
+    });
+    closePopup();
+    uni.showToast({ title: '意向已发送', icon: 'success' });
+  } catch (err) {
+    // request.js 已统一提示
+  }
 };
 
 const currentTab = ref(0);
+const supplyList = ref([]);
 
-// Mock Data
-const supplyList = ref([
-  {
-    id: 1,
-    type: 'farmer',
-    provider: '张大伯',
-    variety: '新会柑 (核心产区)',
-    weight: 2000,
-    price: 3.5,
-    location: '新会区三江镇',
-    phone: '13800138000',
-    date: '2024-03-25'
-  },
-  {
-    id: 2,
-    type: 'merchant',
-    provider: '绿源回收站',
-    variety: '茶枝柑',
-    weight: 5000,
-    price: 2.8,
-    location: '新会区双水镇',
-    phone: '13900139000',
-    date: '2024-03-24'
-  },
-  {
-    id: 3,
-    type: 'farmer',
-    provider: '李阿姨',
-    variety: '新会柑',
-    weight: 800,
-    price: 3.2,
-    location: '新会区会城街道',
-    phone: '13700137000',
-    date: '2024-03-23'
+const gradeLabels = {
+  grade1: '一级品',
+  grade2: '二级品',
+  grade3: '三级品',
+  offgrade: '等外级',
+  mixed: '混合级'
+};
+
+const normalizeFarmerSupply = (item = {}) => ({
+  id: `farmer-${item.id}`,
+  rawId: item.id,
+  targetNo: item.report_no || '',
+  type: 'farmer',
+  provider: item.farmer_name || '农户',
+  variety: item.citrus_variety || '柑橘果肉',
+  weight: Number(item.weight_kg || 0),
+  price: Number(item.price_per_kg || 0),
+  location: item.location_address || '',
+  phone: item.contact_phone || item.farmer_phone || '',
+  date: item.created_at || ''
+});
+
+const normalizeRecyclerSupply = (item = {}) => ({
+  id: `merchant-${item.id}`,
+  rawId: item.id,
+  targetNo: item.supply_no || '',
+  type: 'merchant',
+  provider: item.recycler_name || '回收商',
+  variety: `${gradeLabels[item.grade] || item.grade || '混合级'}供应`,
+  weight: Number(item.stock_weight || 0),
+  price: Number(item.price_per_kg || 0),
+  location: item.address || '',
+  phone: item.contact_phone || item.recycler_phone || '',
+  date: item.created_at || ''
+});
+
+const loadSupplies = async () => {
+  loading.value = true;
+  fetchError.value = '';
+  try {
+    const [farmerResult, recyclerResult] = await Promise.allSettled([
+      request.get('/api/farmer-supplies?sort_by=time'),
+      request.get('/api/recycler-supplies')
+    ]);
+
+    const farmerRows = farmerResult.status === 'fulfilled' && Array.isArray(farmerResult.value)
+      ? farmerResult.value
+      : [];
+    const recyclerRows = recyclerResult.status === 'fulfilled' && Array.isArray(recyclerResult.value)
+      ? recyclerResult.value
+      : [];
+
+    supplyList.value = [
+      ...farmerRows.map(normalizeFarmerSupply),
+      ...recyclerRows.map(normalizeRecyclerSupply)
+    ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+    if (farmerResult.status === 'rejected' && recyclerResult.status === 'rejected') {
+      throw new Error('农户与回收商货源均加载失败');
+    }
+  } catch (err) {
+    supplyList.value = [];
+    fetchError.value = err?.message || '货源列表加载失败';
+  } finally {
+    loading.value = false;
   }
-]);
+};
+
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'processor')) {
+      uni.showToast({ title: '仅处理商可访问该页面', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+    await loadSupplies();
+  } catch (err) {
+    fetchError.value = err?.message || '身份校验失败';
+  }
+});
+
+const callPhone = (phone) => {
+  const normalized = String(phone || '').replace(/[^\d+]/g, '');
+  if (!normalized) {
+    uni.showToast({ title: '暂无联系方式', icon: 'none' });
+    return;
+  }
+  uni.makePhoneCall({
+    phoneNumber: normalized,
+    fail: () => uni.showToast({ title: '拨号失败', icon: 'none' })
+  });
+};
+
+const handlePrimaryAction = (item) => {
+  if (item.type === 'farmer') {
+    openIntentionPopup(item);
+    return;
+  }
+  callPhone(item.phone);
+};
 
 const filteredList = computed(() => {
   if (currentTab.value === 0) return supplyList.value;

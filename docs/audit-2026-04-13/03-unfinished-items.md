@@ -133,3 +133,78 @@
 1. M1（1 周）：完成登录闭环、短信真实化、processor_requests 模型收敛。
 2. M2（1-2 周）：完成管理端关键页面、去除核心业务 Mock。
 3. M3（持续）：安全加固（限流、上传校验、XSS 收敛、审计日志）与文档同步。
+
+## D. 增量状态更新（2026-04-19）
+
+### D.1 本轮已收敛（阶段完成：基础可用版）
+1. TODO-005 管理端设置页占位
+- 证据：
+  - [src/pages/admin/settings/index.vue](../../src/pages/admin/settings/index.vue)
+  - [server.js](../../server.js#L972)
+
+2. TODO-006 管理端统计页占位
+- 证据：
+  - [src/pages/admin/statistics/index.vue](../../src/pages/admin/statistics/index.vue)
+  - [server.js](../../server.js#L920)
+  - [src/pages/admin/dashboard/index.vue](../../src/pages/admin/dashboard/index.vue#L23)
+
+3. TODO-007 用户管理页占位
+- 证据：
+  - [src/pages/admin/users/index.vue](../../src/pages/admin/users/index.vue)
+  - [server.js](../../server.js#L833)
+
+4. TODO-013 财务页模拟数据
+- 证据：
+  - [src/pages/merchant/finance/index.vue](../../src/pages/merchant/finance/index.vue)
+  - [server.js](../../server.js)
+  - 现状：已改为基于真实订单数据聚合统计，阶段完成（基础可用版）。
+
+5. TODO-014 处理商供货页模拟数据
+- 证据：
+  - [src/pages/processor/supply/index.vue](../../src/pages/processor/supply/index.vue)
+  - [server.js](../../server.js)
+  - 现状：已改为真实接口拉取货源，阶段完成（基础可用版）。
+
+6. TODO-008 多关键业务仍依赖本地 mock 列表
+- 本轮进展：
+  - `src/pages/admin/audit/index.vue` 已完成后端化，审核列表与审批动作均改为真实 API。
+  - `src/pages/farmer/report/create.vue` 已改为 `POST /api/farmer-reports`，移除 `global_report_list/global_audit_list` 写入。
+  - `src/pages/merchant/demand/publish.vue` 已改为 `POST /api/recycler-requests`，移除 `global_demand_list/global_audit_list` 写入。
+  - `src/pages/processor/demand/publish.vue` 已改为 `POST /api/processor-requests`，移除 `global_demand_list/global_audit_list` 写入。
+  - `src/pages/farmer/demand-hall/index.vue` 已完成后端化，移除 `global_demand_list/global_intentions` 与静态示例链路。
+  - `src/pages/farmer/nearby/index.vue` 已改为 `GET /api/recyclers/nearby + GET /api/purchase-requests + POST /api/intentions`。
+  - `src/pages/merchant/intentions/index.vue` 已改为 `GET /api/intentions + PATCH /api/intentions/:id/status`。
+  - `src/pages/processor/intentions/index.vue` 已改为 `GET /api/intentions + PATCH /api/intentions/:id/status`。
+  - `src/pages/profile/intentions/index.vue` 已改为 `GET /api/intentions?applicant_id=...`。
+  - `src/pages/farmer/arbitration/index.vue`、`src/pages/merchant/arbitration/index.vue`、`src/pages/processor/arbitration/index.vue`、`src/pages/admin/arbitration/index.vue` 均已切换真实 API。
+  - `server.js` 已支持 `order_type=order` 仲裁目标，并在 `PATCH /api/orders/:id/status` 增加仲裁锁校验。
+  - 关键字复查：`src/pages/**` 范围无 `global_arbitration_list/global_order_list` 命中。
+- 状态判定：
+  - 阶段完成（基础可用版，后续建议补自动化回归）。
+- 证据：
+  - [src/pages/admin/audit/index.vue](../../src/pages/admin/audit/index.vue)
+  - [src/pages/farmer/report/create.vue](../../src/pages/farmer/report/create.vue)
+  - [src/pages/merchant/demand/publish.vue](../../src/pages/merchant/demand/publish.vue)
+  - [src/pages/processor/demand/publish.vue](../../src/pages/processor/demand/publish.vue)
+  - [src/pages/farmer/demand-hall/index.vue](../../src/pages/farmer/demand-hall/index.vue)
+  - [src/pages/farmer/nearby/index.vue](../../src/pages/farmer/nearby/index.vue)
+  - [src/pages/merchant/intentions/index.vue](../../src/pages/merchant/intentions/index.vue)
+  - [src/pages/processor/intentions/index.vue](../../src/pages/processor/intentions/index.vue)
+  - [src/pages/profile/intentions/index.vue](../../src/pages/profile/intentions/index.vue)
+  - [src/pages/farmer/arbitration/index.vue](../../src/pages/farmer/arbitration/index.vue)
+  - [src/pages/merchant/arbitration/index.vue](../../src/pages/merchant/arbitration/index.vue)
+  - [src/pages/processor/arbitration/index.vue](../../src/pages/processor/arbitration/index.vue)
+  - [src/pages/admin/arbitration/index.vue](../../src/pages/admin/arbitration/index.vue)
+  - [server.js](../../server.js)
+
+### D.2 本轮部分收敛
+1. TODO-008 已完成仲裁链路后端化收口，本项由“部分完成”升级为“阶段完成（基础可用版）”。
+
+### D.3 仍待后续批次推进
+1. TODO-015 / TODO-016 / TODO-017（旧 H5 与文档对齐；`auth.js`、`index.html`、`main_code.js`、`farmer-nearby-recyclers.html` 已完成五批并进入第六批收口，第六批首段已修复 `auth.js` 仲裁提交随机 `order_id` 与管理端 `order` 类型映射，第二段已修复仲裁管理按钮冒泡冲突与详情 ID 命中稳健性，第三段已修复仲裁详情刷新与罚款弹窗关闭的文本耦合判定，第四段已修复仲裁详情文件预览的内联事件模板分支并统一罚款弹窗关闭路径，第五段已修复仲裁详情操作按钮的内联事件模板并改为统一事件分发，第六段已修复仲裁管理列表与罚款弹窗剩余内联事件模板并统一为 `data-action` 分发绑定，第七段已修复仲裁提交页取消按钮与意向列表弹窗接受/拒绝按钮的内联事件模板并统一为渲染后绑定，第八段已修复四类工作台卡片与侧边栏导航主路径内联点击模板并统一为渲染后绑定，第九段已修复 CMS 中心上传/清空与列表编辑/删除按钮的内联事件模板并统一为 `data-action` 分发绑定，第十段已修复求购页入口导航与求购/供应表单草稿按钮的内联事件模板并统一为 `data-action` 分发绑定，仍需继续覆盖其余历史模板渲染分支）
+2. TODO-020 / TODO-021 / TODO-022（安全策略文档化与审计日志）
+3. TODO-023 / TODO-024（自动化负测与 README 里程碑固化）
+
+### D.4 当前检查点（进入下一步前）
+1. TODO-008 当前状态为“阶段完成（基础可用版）”，下一步建议转向旧 H5 注入面收口与安全策略文档化。
+2. 建议补充仲裁链路自动化回归后，再评估是否升级为“稳定完成”。

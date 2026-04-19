@@ -11,8 +11,8 @@
         <text class="stat-label">待处理</text>
       </view>
       <view class="stat-item">
-        <text class="stat-num text-red">{{ urgentCount }}</text>
-        <text class="stat-label">紧急</text>
+        <text class="stat-num text-blue">{{ investigatingCount }}</text>
+        <text class="stat-label">调查中</text>
       </view>
       <view class="stat-item">
         <text class="stat-num text-green">{{ resolvedCount }}</text>
@@ -21,7 +21,7 @@
     </view>
 
     <view class="list-container">
-      <view class="order-card" :class="{ 'card-resolved': item.status === 'resolved' }" v-for="item in arbitrationList" :key="item.id">
+      <view class="order-card" :class="{ 'card-resolved': item.status === 'resolved' }" v-for="item in arbitrationList" :key="item.raw_id">
         <view class="card-header">
           <text class="order-no">纠纷单号：{{ item.id }}</text>
           <text class="status-badge" :class="'status-' + item.status">{{ getStatusText(item.status) }}</text>
@@ -34,11 +34,11 @@
           </view>
           <view class="info-row">
             <text class="label">申请人：</text>
-            <text class="value">{{ item.applicant }} ({{ item.role }})</text>
+            <text class="value">{{ item.applicant }} ({{ item.role_label }})</text>
           </view>
           <view class="info-row">
             <text class="label">纠纷类型：</text>
-            <text class="value highlight">{{ item.reason }}</text>
+            <text class="value highlight">{{ item.reason_label }}</text>
           </view>
           <view class="info-row">
             <text class="label">详情描述：</text>
@@ -85,7 +85,7 @@
         <view class="panel-section">
           <text class="panel-label">纠纷摘要</text>
           <view class="panel-summary">
-            <text class="summary-text">{{ currentItem.reason }} — {{ currentItem.applicant }}({{ currentItem.role }}) 发起</text>
+            <text class="summary-text">{{ currentItem.reason_label }} — {{ currentItem.applicant }}({{ currentItem.role_label }}) 发起</text>
           </view>
         </view>
 
@@ -124,9 +124,12 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import request from '@/utils/request.js';
+import { roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 const showPanel = ref(false);
 const currentItem = ref({});
+const adminId = ref(null);
 
 const verdictForm = ref({
   party: '',
@@ -140,81 +143,84 @@ const partyLabels = {
   platform: '平台责任'
 };
 
-const arbitrationList = ref([
-  {
-    id: 'ARB20260225001',
-    order_no: 'ORD20260220001',
-    applicant: '张三',
-    role: '农户',
-    reason: '重量争议',
-    description: '实际称重与回收商记录不符，相差约50斤，农户要求按实际重量重新结算。',
-    status: 'pending',
-    created_at: '2026-02-25 10:00',
-    verdict_party: null,
-    verdict_opinion: null,
-    verdict_time: null
-  },
-  {
-    id: 'ARB20260224002',
-    order_no: 'ORD20260219005',
-    applicant: '李四',
-    role: '回收商',
-    reason: '品质不符',
-    description: '农户提供的柑肉含有大量杂质，不符合一级品收购标准，回收商要求降级处理。',
-    status: 'pending',
-    created_at: '2026-02-24 15:30',
-    verdict_party: null,
-    verdict_opinion: null,
-    verdict_time: null
-  },
-  {
-    id: 'ARB20260223003',
-    order_no: 'ORD20260218002',
-    applicant: '王五',
-    role: '农户',
-    reason: '付款延迟',
-    description: '确认收货后超过48小时未收到结算款项，农户生活困难请求紧急处理。',
-    status: 'urgent',
-    created_at: '2026-02-23 09:15',
-    verdict_party: null,
-    verdict_opinion: null,
-    verdict_time: null
-  },
-  {
-    id: 'ARB20260210004',
-    order_no: 'ORD20260205010',
-    applicant: '赵六',
-    role: '处理商',
-    reason: '合同违约',
-    description: '供应方未按合同约定时间交货，导致生产线停工。',
-    status: 'resolved',
-    created_at: '2026-02-10 08:00',
-    verdict_party: '被申请方责任',
-    verdict_opinion: '经核实，供应方确实延迟交货3日。裁定供应方赔偿停工损失2000元，并在5个工作日内完成交付。',
-    verdict_time: '2026-02-12 14:30'
-  }
-]);
+const arbitrationList = ref([]);
 
-const loadGlobalArbitrationList = () => {
-  const globalList = uni.getStorageSync('global_arbitration_list') || [];
-  if (Array.isArray(globalList) && globalList.length > 0) {
-    arbitrationList.value = globalList.map(item => ({
-      ...item,
-      reason: item.reason || item.dispute_type || '其他纠纷'
-    }));
-  }
+const reasonLabelMap = {
+  quality: '质量不符',
+  quantity: '重量争议',
+  payment: '货款纠纷',
+  delivery: '交付延迟',
+  fraud: '欺诈行为',
+  breach: '合同违约',
+  other: '其他'
 };
 
-onShow(() => {
-  loadGlobalArbitrationList();
+const roleLabelMap = {
+  admin: '管理员',
+  farmer: '农户',
+  recycler: '回收商',
+  merchant: '回收商',
+  processor: '处理商'
+};
+
+const formatDate = (value) => {
+  if (!value) return '--';
+  return String(value).replace('T', ' ').replace(/\.\d+Z$/, '');
+};
+
+const extractVerdictParty = (notes = '') => {
+  const matched = String(notes || '').match(/^责任判定：(.+)$/);
+  return matched ? matched[1] : '--';
+};
+
+const normalizeArbitration = (row = {}) => {
+  const roleRaw = row.applicant_role === 'recycler' ? 'merchant' : row.applicant_role;
+  return {
+    raw_id: row.id,
+    id: row.arbitration_no || `ARB-${row.id}`,
+    order_no: row.order_no || '--',
+    applicant: row.applicant_name || `用户#${row.applicant_id || '--'}`,
+    role_label: roleLabelMap[roleRaw] || roleRaw || '用户',
+    reason_label: reasonLabelMap[row.reason] || row.reason || '其他',
+    description: row.description || '',
+    status: row.status || 'pending',
+    created_at: formatDate(row.created_at),
+    verdict_party: extractVerdictParty(row.admin_notes),
+    verdict_opinion: row.decision || '',
+    verdict_time: formatDate(row.decided_at)
+  };
+};
+
+const loadArbitrations = async () => {
+  const rows = await request.get('/api/arbitration-requests/all?status=all');
+  arbitrationList.value = Array.isArray(rows) ? rows.map(normalizeArbitration) : [];
+};
+
+onShow(async () => {
+  try {
+    const me = await syncSessionFromServer();
+    if (!roleAllowed(me.role, 'admin', false)) {
+      uni.showToast({ title: '仅管理员可访问', icon: 'none' });
+      return uni.reLaunch({ url: '/pages/index/index' });
+    }
+    adminId.value = me.id;
+    await loadArbitrations();
+  } catch (err) {
+    arbitrationList.value = [];
+  }
 });
 
 const pendingCount = computed(() => arbitrationList.value.filter(i => i.status === 'pending').length);
-const urgentCount = computed(() => arbitrationList.value.filter(i => i.status === 'urgent').length);
+const investigatingCount = computed(() => arbitrationList.value.filter(i => i.status === 'investigating').length);
 const resolvedCount = computed(() => arbitrationList.value.filter(i => i.status === 'resolved').length);
 
 const getStatusText = (status) => {
-  const map = { pending: '待处理', urgent: '紧急', resolved: '已裁决' };
+  const map = {
+    pending: '待处理',
+    investigating: '调查中',
+    resolved: '已裁决',
+    rejected: '已驳回'
+  };
   return map[status] || status;
 };
 
@@ -228,7 +234,7 @@ const closePanel = () => {
   showPanel.value = false;
 };
 
-const submitVerdict = () => {
+const submitVerdict = async () => {
   if (!verdictForm.value.party) {
     uni.showToast({ title: '请选择责任方', icon: 'none' });
     return;
@@ -237,38 +243,22 @@ const submitVerdict = () => {
     uni.showToast({ title: '请输入仲裁意见', icon: 'none' });
     return;
   }
-  const target = arbitrationList.value.find(i => i.id === currentItem.value.id);
-  if (target) {
-    target.status = 'resolved';
-    target.verdict_party = partyLabels[verdictForm.value.party];
-    target.verdict_opinion = verdictForm.value.opinion;
-    target.verdict_time = new Date().toLocaleString('zh-CN').replace(/\//g, '-');
-    target.result = target.verdict_opinion;
+
+  try {
+    await request.patch(`/api/arbitration-requests/${currentItem.value.raw_id}`, {
+      status: 'resolved',
+      admin_notes: `责任判定：${partyLabels[verdictForm.value.party]}`,
+      decision: verdictForm.value.opinion.trim(),
+      decided_by: adminId.value,
+      decided_at: new Date().toISOString()
+    });
+
+    showPanel.value = false;
+    uni.showToast({ title: '裁决已生效', icon: 'success' });
+    await loadArbitrations();
+  } catch (err) {
+    // request.js 已统一提示
   }
-
-  const globalList = arbitrationList.value.map(item => ({ ...item }));
-  uni.setStorageSync('global_arbitration_list', globalList);
-
-  // Write verdict result back to the related order in global_order_list
-  if (target && target.order_no) {
-    const orderList = uni.getStorageSync('global_order_list') || [];
-    const orderIdx = orderList.findIndex(o => o.order_no === target.order_no || String(o.id) === target.order_no);
-    if (orderIdx !== -1) {
-      orderList[orderIdx].arbitration_verdict = partyLabels[verdictForm.value.party];
-      orderList[orderIdx].arbitration_opinion = verdictForm.value.opinion;
-      orderList[orderIdx].arbitration_time = target.verdict_time;
-      orderList[orderIdx].status = '仲裁完结';
-      orderList[orderIdx].timeline = orderList[orderIdx].timeline || [];
-      orderList[orderIdx].timeline.unshift({
-        time: target.verdict_time,
-        desc: '平台仲裁完成，责任方：' + partyLabels[verdictForm.value.party]
-      });
-      uni.setStorageSync('global_order_list', orderList);
-    }
-  }
-
-  showPanel.value = false;
-  uni.showToast({ title: '裁决已生效', icon: 'success' });
 };
 </script>
 
@@ -322,6 +312,7 @@ const submitVerdict = () => {
 }
 
 .text-red { color: #e74c3c; }
+.text-blue { color: #1565C0; }
 .text-green { color: #2E7D32; }
 
 .list-container {
@@ -359,8 +350,9 @@ const submitVerdict = () => {
 }
 
 .status-pending { background: #FFF3E0; color: #EF6C00; }
-.status-urgent { background: #FFEBEE; color: #e74c3c; }
+.status-investigating { background: #E3F2FD; color: #1565C0; }
 .status-resolved { background: #e8f5e9; color: #2E7D32; }
+.status-rejected { background: #ffebee; color: #c62828; }
 
 .card-body { margin-bottom: 0; }
 

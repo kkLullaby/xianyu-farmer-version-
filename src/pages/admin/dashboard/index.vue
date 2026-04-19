@@ -20,7 +20,7 @@
           <text class="card-title text-gold">📝 申报审核</text>
           <text class="card-desc">审核农户的处理申报，核实处理数据和文件</text>
         </view>
-        <view class="card border-light" @click="showToast('数据统计功能建设中')">
+        <view class="card border-light" @click="navigateTo('/pages/admin/statistics/index')">
           <text class="card-title text-light">📈 数据统计</text>
           <text class="card-desc">查看平台各类数据，处理量、用户活跃度等</text>
         </view>
