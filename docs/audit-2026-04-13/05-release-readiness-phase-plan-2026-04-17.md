@@ -64,10 +64,16 @@
 - 本文件维护阶段总体推进与规则。
 
 ## 6. 当前状态
-- 阶段状态：`Step 2 - In Progress`
-- 执行基线：`08-step2-entry-and-batch6-plan-2026-04-19.md`
-- 下一动作：按第六批最小交付清单先完成 `auth.js` 管理端仲裁收口首段 + 文档证据同步。
+- 阶段状态：`Step 6 - In Progress`
+- 当前执行文档：`24-step6-final-weekly-closure-report-2026-04-20.md`
+- 启动确认清单：`11-task-kickoff-checklist-2026-04-19.md`
+- 上一阶段收官文档：`19-step5-b2-gray-and-emergency-drill-2026-04-20.md`
+- 本轮进展：Step5 已收官（B1 + B2）；Step6-B1 已完成，Step6-B2 已完成 TODO-003 + TODO-002 + TODO-001 + TODO-009 收口，Step6 最终复扫与周收尾报告已完成。
+- 下一动作：在真实用户账号与短信注册能力接入后，执行 Step6 真实小流量窗口验证并记录放量/回滚决策。
 
 ## 7. 下一步（执行指令）
-1. 继续执行 Step 2：按批次清零 P0/P1 阻断项并补齐回归证据。
-2. 每批完成后同步更新 `04-rescan-and-progress-2026-04-17.md` 与 `07-remediation-batch-2026-04-19.md`。
+1. 持续将 `npm run test:gates`、`npm run test:release-drill`、`npm run test:gray-drill` 作为 Step6 决策前基线执行。
+2. 执行 Step6-B2：在真实小流量窗口采集观测数据并形成放量/回滚判定记录。
+3. 每轮完成后同步更新 `04-rescan-and-progress-2026-04-17.md`、`00-index.md`、`20-step6-entry-and-b1-canary-readiness-2026-04-20.md` 与证据台账（`evidence/README.md`）。
+4. Step6-B2 增量文档维护于 `21-step6-b2-auth-trust-boundary-hardening-2026-04-20.md`、`22-step6-b2-sms-runtime-guard-hardening-2026-04-20.md`，与 `20-step6-entry-and-b1-canary-readiness-2026-04-20.md` 并行归档。
+5. Step6 当前补充文档：`23-step6-b2-login-and-doc-alignment-2026-04-20.md`（登录收口与文档对齐）、`24-step6-final-weekly-closure-report-2026-04-20.md`（最终复扫与周收尾）。

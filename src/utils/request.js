@@ -10,6 +10,16 @@ const BASE_URL = process.env.NODE_ENV === 'development'
 
 // Token key in storage
 const TOKEN_KEY = 'agri_auth_token';
+const ROLE_KEY = 'current_role';
+const NAME_KEY = 'current_user_name';
+const PHONE_KEY = 'current_user_phone';
+
+const clearSessionCache = () => {
+  uni.removeStorageSync(TOKEN_KEY);
+  uni.removeStorageSync(ROLE_KEY);
+  uni.removeStorageSync(NAME_KEY);
+  uni.removeStorageSync(PHONE_KEY);
+};
 
 /**
  * Get token from storage (platform agnostic)
@@ -54,7 +64,7 @@ const request = (options = {}) => {
         // Handle HTTP status codes
         if (statusCode === 401) {
           // Unauthorized - clear token and redirect to login
-          uni.removeStorageSync(TOKEN_KEY);
+          clearSessionCache();
           uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' });
           
           setTimeout(() => {
@@ -135,7 +145,7 @@ Object.assign(request, {
         header: header,
         success: (res) => {
           if (res.statusCode === 401) {
-            uni.removeStorageSync(TOKEN_KEY);
+            clearSessionCache();
             uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' });
             setTimeout(() => {
               uni.reLaunch({ url: '/pages/login/index' });

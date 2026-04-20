@@ -449,3 +449,373 @@
 
 4. 状态判定
 - 第六批第十段已完成，求购页入口与表单按钮主路径内联事件模板已收敛为渲染后统一绑定。
+
+## 22. 本轮追加（2026-04-19，P1 第六批第十一段：auth.js 农户申报说明按钮与电话占位模板收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js`）
+- 农户申报页去最后一个内联事件：
+  - `showNewReportForm` 中品级说明切换按钮由内联 `onclick` 改为 `data-report-form-action="toggle-grade-info"`。
+  - 渲染后绑定按钮点击逻辑，统一处理 `grade-info` 展开/收起。
+- 电话占位模板去 `javascript:`：
+  - 供货列表、货源列表、订单列表与处理商订单列表中 4 处 `href="javascript:void(0)"` 电话占位链接改为无脚本占位元素，移除 `javascript:` 模板残留。
+
+3. 验证结果
+- `node --check auth.js`：通过。
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`data-report-form-action`、`toggle-grade-info` 已落地，`onclick="` 与 `javascript:void(0)` 在 `auth.js` 中已清零。
+
+4. 状态判定
+- 第六批第十一段已完成，`auth.js` 内联模板事件与 `javascript:` 占位模板进一步下降。
+
+## 23. 本轮追加（2026-04-19，P1 第六批第十二段：index/main_code/nearby 页面模板内联事件绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`index.html` / `main_code.js` / `farmer-nearby-recyclers.html`）
+- `index.html` 去内联事件：
+  - 公告翻页按钮、登录弹窗关闭/切换 tab/登录/注册按钮、意向弹窗关闭/提交按钮由内联 `onclick` 改为 `data-action`。
+  - 新增 `bindIndexTemplateActions()`，统一分发 `change-ann`、认证弹窗操作、意向弹窗操作。
+- `main_code.js` 去内联事件：
+  - `renderReportForm` 的“提交申报信息”按钮由内联 `onclick` 改为 `id` + 渲染后 `onclick` 绑定。
+- `farmer-nearby-recyclers.html` 去内联事件：
+  - 地图关闭按钮由内联 `onclick` 改为 `data-nearby-action`。
+  - 新增 `bindNearbyActions()` 并在 `init()` 入口绑定。
+
+3. 验证结果
+- `node --check main_code.js`：通过。
+- `get_errors index.html/main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`data-home-action`、`data-auth-ui-action`、`data-intention-action`、`bindIndexTemplateActions`、`data-nearby-action`、`bindNearbyActions`、`btn-submit-report` 均已落地。
+- 残留复查：`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html` 中 `onclick="` 与 `javascript:void(0)` 均已清零。
+
+4. 状态判定
+- 第六批第十二段已完成，旧 H5 入口页与周边页面的模板内联事件继续下降。
+
+## 24. 本轮追加（2026-04-19，P1 第六批第十三段：index.html 剩余 hover 内联事件收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`index.html`）
+- 页脚政策链接 hover 改色去内联事件：
+  - `隐私政策`、`服务协议` 两个链接由 `onmouseover/onmouseout` 改为 `footer-policy-link` + CSS `:hover`。
+- 首页动态卡片 hover 动效去内联事件：
+  - 案例卡片与广告卡片容器由 `onmouseover/onmouseout` 改为 `home-hover-card` + CSS `:hover`。
+
+3. 验证结果
+- `get_errors index.html/main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`footer-policy-link`、`home-hover-card` 均已落地。
+- 残留复查：`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html` 中 `onmouseover=`、`onmouseout=`、`onclick="` 与 `javascript:void(0)` 均已清零。
+
+4. 状态判定
+- 第六批第十三段已完成，`index.html` 剩余 hover 内联事件模板已收敛，旧 H5 入口模板事件治理继续推进。
+
+## 25. 本轮追加（2026-04-19，P1 第六批第十四段：index.html 动态图片 onerror 内联事件收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`index.html`）
+- 公告/案例/广告动态图片去内联错误回退：
+  - 公告大图、案例缩略图、案例 logo、广告图的 `onerror` 内联模板改为 `data-home-fallback` 标记。
+- 新增统一回退绑定：
+  - 新增 `createHomeFallbackNode(type)` 与 `bindHomeImageFallbacks(scope)`。
+  - 在 `renderAnnouncement` 与案例/广告渲染完成后统一绑定图片错误回退逻辑。
+
+3. 验证结果
+- `get_errors index.html/main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`data-home-fallback`、`createHomeFallbackNode`、`bindHomeImageFallbacks` 均已落地。
+- 残留复查：`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html` 中 `onerror=`、`onmouseover=`、`onmouseout=`、`onclick="` 与 `javascript:void(0)` 均已清零。
+
+4. 状态判定
+- 第六批第十四段已完成，`index.html` 动态图片回退链路的内联事件模板已收敛为渲染后统一绑定。
+
+## 26. 本轮追加（2026-04-19，P1 第六批第十五段：index.html onclick 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`index.html`）
+- 弹窗与协议入口点击绑定收口：
+  - `privacy-link`、`service-link`、`policy-modal-close`、`policy-modal` 由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- 首页模板统一分发绑定收口：
+  - `bindIndexTemplateActions()` 中 `data-home-action` / `data-auth-ui-action` / `data-intention-action` 三组节点由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+3. 验证结果
+- `get_errors index.html/main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`privacyLink.addEventListener`、`serviceLink.addEventListener`、`closeBtn.addEventListener`、`modal.addEventListener` 与 `bindIndexTemplateActions` 内三组 `addEventListener('click')` 均已落地。
+- 残留复查：`index.html` 中 `.onclick =` 已清零；`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html` 中 `onerror=`、`onmouseover=`、`onmouseout=`、`onclick="` 与 `javascript:void(0)` 均已清零。
+
+4. 状态判定
+- 第六批第十五段已完成，`index.html` 点击交互从 DOM 属性绑定进一步收敛为统一事件监听。
+
+## 27. 本轮追加（2026-04-19，P1 第六批第十六段：main_code/nearby onclick 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`main_code.js` / `farmer-nearby-recyclers.html`）
+- `main_code.js` 收口：
+  - `renderReportForm` 中 `btn-submit-report` 的 `submitBtn.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `farmer-nearby-recyclers.html` 收口：
+  - 加载失败重试按钮 `retryBtn.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - `bindNearbyActions()` 中 `data-nearby-action` 分发绑定由 `node.onclick = ...` 改为 `addEventListener('click', ...)`，并增加 `data-nearby-action-bound` 防重复绑定保护。
+
+3. 验证结果
+- `get_errors main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`submitBtn.addEventListener('click', ...)`、`retryBtn.addEventListener('click', ...)`、`bindNearbyActions` 内 `node.addEventListener('click', ...)` 均已落地。
+- 残留复查：`main_code.js` 与 `farmer-nearby-recyclers.html` 中 `.onclick =`、`onclick=`、`javascript:void(0)` 无残留。
+
+4. 状态判定
+- 第六批第十六段已完成，`main_code.js` 与 `farmer-nearby-recyclers.html` 点击交互绑定进一步统一为事件监听模式。
+
+## 28. 本轮追加（2026-04-19，P1 第六批第十七段：auth.js 求购列表 onclick 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js`）
+- 处理商求购列表按钮绑定收口：
+  - `loadProcessorDemands()` 内 `data-processor-demand-action` 的 `btn.onclick = ...` 改为 `addEventListener('click', ...)`。
+- 农户端求购大厅按钮绑定收口：
+  - `loadRecyclerDemands()` 内 `data-demand-action="intention"` 与 `data-processor-demand-action="intention"` 两组 `btn.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+3. 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`loadProcessorDemands()` 与 `loadRecyclerDemands()` 三组按钮均为 `btn.addEventListener('click', ...)` 绑定。
+- 残留复查（目标模块）：上述三组按钮分发绑定中 `.onclick =` 已清零，业务行为保持不变（接单/发起意向）。
+
+4. 状态判定
+- 第六批第十七段已完成，`auth.js` 求购相关列表点击交互继续向事件监听模式收敛。
+
+## 29. 本轮追加（2026-04-19，P1 第六批第十八段：auth.js 多簇 onclick 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js`，一次执行多步）
+- 农户申报表单收口：
+  - `showNewReportForm` 中 `gradeToggleBtn.onclick = ...` 与 `btn-save-draft` 的 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- 列表筛选按钮收口：
+  - `showMyReports` 与回收商订单页（`loadOrders`）中的 `.filter-btn` 点击绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- 订单/求购动作按钮收口：
+  - `loadProcessorOrders` 的 `data-processor-order-action`。
+  - `loadMyDemands` 的 `data-demand-action`。
+  - `bindRecyclerOrderActions` 的 `data-order-action`。
+  - 以上三组均由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+3. 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`gradeToggleBtn.addEventListener`、`saveDraftBtn.addEventListener`、两处 `.filter-btn` 的 `addEventListener('click')`，以及 `data-processor-order-action`/`data-demand-action`/`data-order-action` 三组分发绑定均已落地。
+- 残留复查（目标簇）：上述第十八段目标簇中的 `.onclick =` 已清零，业务行为保持不变。
+
+4. 状态判定
+- 第六批第十八段已完成，`auth.js` 农户申报与回收商订单/求购链路的点击绑定继续向事件监听模式收敛。
+
+## 30. 本轮追加（2026-04-19，P1 第六批第十九段：auth.js 供应/订单模块 onclick 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js`，多簇合并执行）
+- `showSupplySources`：
+  - `data-source-action` 按钮分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - `.supply-source-tab` 切换绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `showFarmerSupplies` / `bindSupplyActions`：
+  - 刷新按钮 `btn-refresh-supplies` 的 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - `data-supply-action` 分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `showRecyclerOrders`：
+  - `.tab-btn` 页签切换绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+3. 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`[data-source-action]`、`.supply-source-tab`、`#btn-refresh-supplies`、`[data-supply-action]`、`.tab-btn` 五组绑定均为 `addEventListener`。
+- 残留复查（目标簇）：第十九段目标簇中的 `.onclick =` 已清零，业务行为保持不变。
+
+4. 状态判定
+- 第六批第十九段已完成，`auth.js` 供应/订单链路的点击交互绑定继续向事件监听模式收敛。
+
+## 31. 本轮追加（2026-04-19，P1 第六批第二十段：auth.js 分发函数 onclick 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js`，多簇合并执行）
+- 分发函数统一收口：
+  - `bindProcessorOrderActions`：`[data-processor-action]` 分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - `bindReportActions`：`[data-action]` 分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - `bindDemandEntryActions`：`[data-demand-entry-action]` 分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - `bindDemandFormActions`：`[data-demand-form-action]` 分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+3. 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：以上四个分发函数的目标节点均改为 `addEventListener('click', ...)`。
+- 残留复查（目标簇）：第20段目标簇中的 `.onclick =` 已清零，业务行为保持不变。
+
+4. 状态判定
+- 第六批第二十段已完成，`auth.js` 分发函数层的点击绑定继续向事件监听模式收敛。
+
+## 32. 本轮追加（2026-04-19，P1 第六批第二十一段：auth.js 仲裁与证据上传链路 onclick 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js`，同域多簇合并执行）
+- `showArbitrationCenter`：
+  - 仲裁标签切换 `.arbitration-tab` 由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - 提交页动作分发 `data-arb-submit-action` 由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `setupFilePreview`：
+  - 文件选择 `input.onchange` 改为 `input.addEventListener('change', ...)`。
+  - 预览项删除按钮 `removeBtn.onclick` 改为 `removeBtn.addEventListener('click', ...)`。
+- `loadMyArbitrations`：
+  - 用户侧罚款入口 `data-my-arb-action` 由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `showArbitrationManagement` 与 `loadArbitrationRequests`：
+  - 筛选按钮 `.filter-btn` 与管理端动作分发 `data-arb-list-action` 由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+3. 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`.arbitration-tab`、`data-arb-submit-action`、`setupFilePreview`、`data-my-arb-action`、`.filter-btn`、`data-arb-list-action` 六组目标绑定均为 `addEventListener`。
+- 残留复查（目标簇）：第21段目标簇中的 `.onclick =` 与 `input.onchange =` 已清零，业务行为保持不变。
+
+4. 状态判定
+- 第六批第二十一段已完成，`auth.js` 仲裁与证据上传主链路交互继续向事件监听模式收敛。
+
+## 33. 本轮追加（2026-04-19，P1 第六批第二十二段：auth.js 仲裁详情与罚款弹窗链路 onclick/onchange 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js`，同域多簇合并执行）
+- `showArbitrationDetail`：
+  - 文件预览节点的 `mouseenter/mouseleave/click` 由属性绑定改为 `addEventListener(...)`。
+  - 详情区动作分发 `data-arb-detail-action` 由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - 详情加载失败回退按钮由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `viewFile`：
+  - 关闭按钮与背景点击关闭由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `setPenalty`：
+  - 遮罩点击关闭与 `data-set-penalty-action` 分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `payPenalty`：
+  - 遮罩点击关闭与 `data-pay-penalty-action` 分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+  - 支付凭证预览触发由 `proofInput.onchange = ...` 改为 `addEventListener('change', ...)`。
+
+3. 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`data-arb-detail-action`、`viewFile`、`data-set-penalty-action`、`data-pay-penalty-action`、`proofInput.addEventListener('change', ...)` 均已落地。
+- 残留复查（目标簇）：第22段目标簇中的 `.onclick =` 与 `.onchange =` 已清零，业务行为保持不变。
+
+4. 状态判定
+- 第六批第二十二段已完成，`auth.js` 仲裁详情与罚款弹窗主链路交互继续向事件监听模式收敛。
+
+## 34. 本轮追加（2026-04-19，P1 第六批第二十三段：auth.js 非仲裁残留 onclick/onchange 属性绑定收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js`，低风险多簇合并执行）
+- CMS 交互分发收口：
+  - `bindCmsTabActions`、`bindCmsFormActions`、`bindCmsListActions` 中分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- 工作台与侧边栏分发收口：
+  - `bindDashboardActions`、`bindSidebarActions` 中分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- 登录入口分发收口：
+  - `updateNavbar` 中登录按钮改为单次 `addEventListener('click', ...)` 绑定，结合 `data-auth-navbar-action` 分发登录/退出行为。
+- 意向列表弹窗分发收口：
+  - `viewIntentions` 中 `data-intention-action` 按钮分发由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- 同域 `change` 事件收口：
+  - `supply-sort`、两处 `demand-permanent`、`target-type` 单选切换由 `.onchange = ...` 改为 `addEventListener('change', ...)`。
+
+3. 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`bindCmsTabActions`、`bindDashboardActions`、`bindSidebarActions`、`updateNavbar`、`viewIntentions`、`supply-sort`、`demand-permanent`、`target-type` 相关 `addEventListener('click'/'change', ...)` 均已落地。
+- 残留复查（目标簇）：第23段目标簇中的 `.onclick =` 与 `.onchange =` 已清零，业务行为保持不变。
+
+4. 状态判定
+- 第六批第二十三段已完成，`auth.js` 非仲裁低风险交互簇继续向事件监听模式收敛。
+
+## 35. 本轮追加（2026-04-19，P1 第六批第二十四段：跨文件 on* 属性绑定清零收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 结论：P0/P1/P2 均通过，本轮未触发影响判定的登录限流噪声。
+
+2. 代码改动（`auth.js` / `userProfile.js`，跨文件低风险合并执行）
+- `auth.js` 提交事件收口：
+  - CMS 四个表单、农户申报表单、处理商求购表单、回收商双表单、仲裁提交表单由 `.onsubmit = ...` 改为 `addEventListener('submit', ...)`。
+- `userProfile.js` hover 模板收口：
+  - `renderListGroup` 列表项移除内联 `onmouseover/onmouseout`。
+  - 改为 `class="profile-list-item"` + CSS `:hover` 处理悬浮效果。
+
+3. 验证结果
+- `get_errors auth.js/userProfile.js`：无新增错误。
+- 全量复扫（核心旧 H5 + 个人中心）：`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html/userProfile.js` 中 `.onclick/.onchange/.onsubmit` 与 `onmouseover/onmouseout/onerror/onclick="..."/javascript:void(0)` 目标模式无命中。
+
+4. 状态判定
+- 第六批第二十四段已完成，跨文件 `on*` 属性绑定收口达到当前阶段清零目标。
+
+## 36. 本轮追加（2026-04-19，P1 第六批第二十五段：Step2 安全门禁项 TODO-020/021/022/023/024 收口）
+1. 自动化回归先行（按执行顺序）
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- `npm run test:p3`：通过（fresh server instance，覆盖 401/403 越权负向用例与审计日志落地校验）。
+
+2. 代码与文档改动（安全门禁同轮收口）
+- `server.js`：新增 `/api` 范围 401/403/429 结构化安全审计日志中间件，日志落地 `logs/security-audit.log`。
+- `server.js`：补齐全局安全响应头策略，新增 `Content-Security-Policy`、`Referrer-Policy`、`Permissions-Policy`，并将 HSTS 调整为 HTTPS 请求下发。
+- `server.js`：登录失败、缺失 Token、无效 Token、管理员越权访问等路径补充 `securityAuditReason`，提升审计可读性。
+- `tests/api_tests/test-p3-authz-negative.js`：新增角色权限负向自动化脚本。
+- `package.json`：新增 `npm run test:p3`。
+- `docs/security/SECURITY_BASELINE.md`：新增统一安全基线文档，覆盖上传安全、审计日志、CSP 与安全头。
+- `docs/README.md`：新增 Step2 安全门禁回归命令与放行条件。
+
+3. 验证结果
+- `node --check server.js` 与 `get_errors server.js` 均无新增错误。
+- 负向权限场景（缺失 token、无效 token、管理员越权、跨角色越权更新）均按预期返回 `401/403`。
+- 审计日志中已出现对应 `status=401/403` 的新增事件，包含路径与原因码。
+
+4. 状态判定
+- 第六批第二十五段已完成，Step2 门禁项 `TODO-020/021/022/023/024` 达成“实现 + 自动化 + 文档”闭环。
+
+## 37. 本轮追加（2026-04-19，Step2 收官签收）
+1. 收官回归（fresh server instance）
+- `BASE_URL=http://localhost:4304 npm run test:p0`：通过。
+- `BASE_URL=http://localhost:4301 npm run test:p1`：通过。
+- `BASE_URL=http://localhost:4302 npm run test:p2`：通过。
+- `BASE_URL=http://localhost:4303 npm run test:p3`：通过。
+
+2. 证据归档
+- 回归证据：`docs/audit-2026-04-13/evidence/regression/2026-04-19_step2-final-gates_kk.md`
+- 安全证据：`docs/audit-2026-04-13/evidence/security/2026-04-19_step2-authz-audit-log_kk.md`
+- 收官报告：`docs/audit-2026-04-13/09-step2-closure-2026-04-19.md`
+
+3. 判定
+- Step2（本批次定义范围）状态由 `In Progress` 变更为 `Closed`，下一阶段切换到 Step3（鲁棒性专项）。

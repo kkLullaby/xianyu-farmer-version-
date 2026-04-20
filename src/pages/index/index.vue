@@ -137,6 +137,7 @@
 <script setup>
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import { clearSessionStorage, roleAllowed, syncSessionFromServer } from '@/utils/session';
 
 // ===== 默认 Mock 数据 =====
 const DEFAULT_ANNOUNCEMENTS = [
@@ -187,14 +188,6 @@ const footerContact = ref({
   email: 'contact@xunguohs.com',
   address: '广东省江门市新会区陈皮产业园'
 });
-
-const normalizeClientRole = (role) => role === 'recycler' ? 'merchant' : role;
-
-const isRoleAllowed = (actualRole, expectedRole) => {
-  const normalizedActual = normalizeClientRole(actualRole);
-  const normalizedExpected = normalizeClientRole(expectedRole);
-  return normalizedActual === 'admin' || normalizedActual === normalizedExpected;
-};
 
 // ===== onShow：每次进入页面均从缓存拉取最新数据 =====
 onShow(() => {
@@ -252,46 +245,11 @@ onShow(() => {
 });
 
 const syncAuthenticatedUser = async () => {
-  const token = uni.getStorageSync('agri_auth_token');
-  if (!token) {
-    uni.removeStorageSync('current_role');
-    uni.removeStorageSync('current_user_name');
-    uni.removeStorageSync('current_user_phone');
-    return null;
-  }
-
   try {
-    const base = process.env.NODE_ENV === 'development' ? 'http://localhost:4000' : 'https://api.yourdomain.com';
-    const me = await new Promise((resolve, reject) => {
-      uni.request({
-        url: `${base}/api/me`,
-        method: 'GET',
-        header: { Authorization: `Bearer ${token}` },
-        success: (res) => {
-          const data = res.data || {};
-          if (res.statusCode === 200 && data.code === 200 && data.data) {
-            resolve(data.data);
-          } else {
-            reject(new Error('unauthorized'));
-          }
-        },
-        fail: reject
-      });
-    });
-
-    if (me && me.role) {
-      const normalizedRole = normalizeClientRole(me.role);
-      uni.setStorageSync('current_role', normalizedRole);
-      uni.setStorageSync('current_user_name', me.full_name || me.username || '用户');
-      uni.setStorageSync('current_user_phone', me.phone || '');
-      return { ...me, role: normalizedRole };
-    }
+    return await syncSessionFromServer();
   } catch (e) {
-    // 未登录或 token 失效时，清空角色缓存，避免伪造残留
-    uni.removeStorageSync('agri_auth_token');
-    uni.removeStorageSync('current_role');
-    uni.removeStorageSync('current_user_name');
-    uni.removeStorageSync('current_user_phone');
+    // 未登录或 token 失效时，清空会话缓存，避免伪造残留
+    clearSessionStorage();
   }
   return null;
 };
@@ -314,7 +272,7 @@ const navigateTo = async (url, role) => {
     return uni.navigateTo({ url: '/pages/login/index' });
   }
 
-  if (role && !isRoleAllowed(me.role, role)) {
+  if (role && !roleAllowed(me.role, role)) {
     uni.showToast({ title: '无权进入该工作台', icon: 'none' });
     return;
   }
@@ -334,7 +292,7 @@ const navigateToProcessor = async (role) => {
     uni.showToast({ title: '请先登录', icon: 'none' });
     return uni.navigateTo({ url: '/pages/login/index' });
   }
-  if (role && !isRoleAllowed(me.role, role)) {
+  if (role && !roleAllowed(me.role, role)) {
     uni.showToast({ title: '无权进入处理商工作台', icon: 'none' });
     return;
   }

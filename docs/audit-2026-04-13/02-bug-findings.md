@@ -10,6 +10,7 @@
 - 现象：接口更新 `recycler_id`，但表定义缺失该列。
 - 影响：回收商接单接口直接失败。
 - 建议：统一数据模型（新增列或改业务逻辑）。
+- 状态：已完成（2026-04-20，见 `test:p8` 与 Step6-B1 回归证据）。
 
 ### BUG-002 processor_requests 字段命名不一致
 - 严重级别：P0
@@ -20,6 +21,7 @@
 - 现象：接口使用 `citrus_variety/address`，schema 定义为 `citrus_type/location_address`。
 - 影响：更新或查询映射混乱，导致数据读写异常。
 - 建议：统一字段命名并补迁移脚本。
+- 状态：已完成（2026-04-20，字段映射与生命周期链路已回归）。
 
 ### BUG-003 登录页为占位页，认证入口未实现
 - 严重级别：P0
@@ -27,15 +29,18 @@
   - [src/pages/login/index.vue](../../src/pages/login/index.vue#L3)
 - 影响：真实用户无法正常完成登录流程。
 - 建议：实现正式登录页并接入后端接口。
+- 状态：已完成（2026-04-20，见 `test:p11` 与 Step6-B2 收口证据）。
 
 ### BUG-004 认证实现与文档结论冲突
 - 严重级别：P0
 - 证据：
-  - [docs/ai_logs/INTEGRATION_TEST_REPORT.md](../../docs/ai_logs/INTEGRATION_TEST_REPORT.md#L303)
-  - [src/pages/index/index.vue](../../src/pages/index/index.vue#L257)
-- 现象：文档称已替换本地 mock 认证，但源码仍存在大量角色 mock 写入。
+  - [docs/ai_logs/INTEGRATION_TEST_REPORT.md](../../docs/ai_logs/INTEGRATION_TEST_REPORT.md)
+  - [src/pages/index/index.vue](../../src/pages/index/index.vue#L140)
+  - [src/utils/session.js](../../src/utils/session.js#L22)
+- 现象：代码侧已收敛为服务端会话同步，但验收文档仍存在历史描述，导致结论与现状不一致。
 - 影响：测试通过结论与真实状态不一致，易误导上线判断。
 - 建议：修正文档或完成代码对齐。
+- 状态：已完成（2026-04-20，文档已重写对齐当前实现口径）。
 
 ## B. P1 / 中等
 
@@ -84,9 +89,12 @@
 ### BUG-010 短信服务未接真实供应商
 - 严重级别：P1
 - 证据：
-  - [smsClient.js](../../smsClient.js#L8)
+  - [smsClient.js](../../smsClient.js#L14)
+  - [server.js](../../server.js#L20)
+  - [tests/api_tests/test-p10-sms-runtime-guard.js](../../tests/api_tests/test-p10-sms-runtime-guard.js)
 - 影响：验证码流程在生产不可用。
 - 建议：接阿里云 SDK，补错误重试和可观测日志。
+- 状态：已完成（2026-04-20，生产环境 Mock 通道启动已硬阻断，见 Step6-B2 证据）。
 
 ## C. P2 / 低
 
@@ -99,6 +107,6 @@
 - 建议：按当前 uni-app 架构重写文档。
 
 ## D. 复测建议
-1. 针对 `processor_requests` 增加接口集成测试：发布、查询、接单、撤销。
+1. `processor_requests` 生命周期集成测试已补齐：`tests/api_tests/test-p8-processor-request-lifecycle.js`（发布、更新、查询映射、接单、防重复接单、状态流转）。
 2. 针对登录链路增加端到端测试：手机号 + 验证码 + token 刷新。
 3. 对越权场景做负向测试：A 用户无法查询 B 用户数据。

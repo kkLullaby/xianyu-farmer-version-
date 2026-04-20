@@ -1,376 +1,64 @@
-# 前后端集成测试报告
+# 前后端集成测试报告（当前口径）
 
-## 📅 测试时间
-生成时间: 最近更新
+## 1. 文档状态
+- 状态：`Current`
+- 更新时间：2026-04-20
+- 说明：本文件用于替换旧版 H5 流程结论。历史 `index.html/auth.js` 流程记录不再作为当前上线验收依据。
 
-## 🎯 测试目标
-验证前端认证系统与后端 API 的完整集成，确保登录、注册和数据查询功能正常工作。
+## 2. 当前系统口径
+1. 前端主体：`uni-app`（`src/pages/**`）。
+2. 登录入口：`src/pages/login/index.vue`。
+3. 登录接口：`POST /api/login`。
+4. 手机号注册接口：`POST /api/auth/register-phone`（需 OTP）。
+5. 会话一致性：
+- 请求层：`src/utils/request.js`（401 统一清理会话缓存）。
+- 页面层：`src/utils/session.js`（`syncSessionFromServer + roleAllowed`）。
 
-## 🏗️ 测试环境
+## 3. 认证与短信口径
+1. 认证边界：前端 `current_role` 仅作展示缓存，最终权限判断依赖服务端会话回源（`/api/me`）。
+2. 短信通道：生产环境禁止 Mock，启动阶段执行短信门禁校验。
+3. 运行态观测：`/api/admin/settings/runtime` 提供 `sms_runtime_ready/sms_runtime_block_reason`。
 
-### 后端服务
-- **框架**: Node.js + Express
-- **端口**: 4000
-- **数据库**: SQLite (data/agri.db)
-- **认证**: bcrypt 密码哈希
-- **状态**: ✅ 运行中
+## 4. 当前自动化验收基线（2026-04-20）
 
-### 前端服务
-- **服务器**: Python HTTP Server
-- **端口**: 8080
-- **访问地址**: http://127.0.0.1:8080
-- **状态**: ✅ 运行中
-
-## 🔧 测试方法
-
-### 1. 命令行 API 测试
-使用 `wget` 直接测试后端 API 端点
-
-### 2. Web 界面测试
-通过浏览器访问测试页面：http://127.0.0.1:8080/test-integration.html
-
-## ✅ 测试结果
-
-### Test 1: 管理员登录
-**测试账号**: admin001 / admin123
-
-**执行命令**:
+### 4.1 核心门禁
 ```bash
-wget -qO- --post-data='{"username":"admin001","password":"admin123"}' \
-  --header='Content-Type:application/json' \
-  http://localhost:4000/api/login
+npm run test:gates
 ```
+- 覆盖：`test:p0~test:p5`
+- 最近结论：通过
 
-**返回结果**:
-```json
-{
-  "id": 1,
-  "username": "admin001",
-  "full_name": "系统管理员",
-  "role": "admin"
-}
-```
-
-**状态**: ✅ **通过**
-- 登录成功
-- 角色正确识别为 admin
-- 返回完整用户信息
-
----
-
-### Test 2: 农户登录
-**测试账号**: farmer001 / farmer123
-
-**执行命令**:
+### 4.2 发布与回滚演练
 ```bash
-wget -qO- --post-data='{"username":"farmer001","password":"farmer123"}' \
-  --header='Content-Type:application/json' \
-  http://localhost:4000/api/login
+npm run test:release-drill
+npm run test:gray-drill
 ```
+- 覆盖：迁移/回滚、灰度检查点与应急回滚链路
+- 最近结论：通过
 
-**返回结果**:
-```json
-{
-  "id": 2,
-  "username": "farmer001",
-  "full_name": "李农户",
-  "role": "farmer"
-}
-```
-
-**状态**: ✅ **通过**
-- 登录成功
-- 角色正确识别为 farmer
-- 返回完整用户信息
-
----
-
-### Test 3: 回收商登录
-**测试账号**: recycler001 / recycler123
-
-**执行命令**:
+### 4.3 专项回归
 ```bash
-wget -qO- --post-data='{"username":"recycler001","password":"recycler123"}' \
-  --header='Content-Type:application/json' \
-  http://localhost:4000/api/login
+npm run test:processor-lifecycle
+npm run test:auth-boundary
+npm run test:sms-runtime
+npm run test:login-readiness
 ```
+- 覆盖：
+  - `test:processor-lifecycle`：`processor_requests` 生命周期
+  - `test:auth-boundary`：认证信任边界防回退
+  - `test:sms-runtime`：短信运行态门禁（生产禁止 Mock）
+  - `test:login-readiness`：登录页非占位 + 账号登录可用
+- 最近结论：通过
 
-**返回结果**:
-```json
-{
-  "id": 3,
-  "username": "recycler001",
-  "full_name": "王回收商",
-  "role": "recycler"
-}
-```
+## 5. 相关执行文档
+1. `docs/audit-2026-04-13/21-step6-b2-auth-trust-boundary-hardening-2026-04-20.md`
+2. `docs/audit-2026-04-13/22-step6-b2-sms-runtime-guard-hardening-2026-04-20.md`
+3. `docs/audit-2026-04-13/23-step6-b2-login-and-doc-alignment-2026-04-20.md`
+4. `docs/audit-2026-04-13/evidence/regression/2026-04-20_step6-b2-auth-trust-boundary_kk.md`
+5. `docs/audit-2026-04-13/evidence/security/2026-04-20_step6-b2-sms-runtime-guard_kk.md`
+6. `docs/audit-2026-04-13/evidence/regression/2026-04-20_step6-b2-login-readiness-and-doc-alignment_kk.md`
 
-**状态**: ✅ **通过**
-- 登录成功
-- 角色正确识别为 recycler
-- 返回完整用户信息
-
----
-
-### Test 4: 用户注册
-**测试数据**: 新用户 newfarmer / test123
-
-**执行命令**:
-```bash
-wget -qO- --post-data='{"username":"newfarmer","password":"test123","role":"farmer","full_name":"测试农户"}' \
-  --header='Content-Type:application/json' \
-  http://localhost:4000/api/register
-```
-
-**返回结果**:
-```json
-{
-  "id": 7,
-  "username": "newfarmer"
-}
-```
-
-**状态**: ✅ **通过**
-- 注册成功
-- 返回新用户 ID
-- 密码已加密存储
-
----
-
-### Test 5: 新用户登录验证
-**测试账号**: newfarmer / test123 (刚注册的用户)
-
-**执行命令**:
-```bash
-wget -qO- --post-data='{"username":"newfarmer","password":"test123"}' \
-  --header='Content-Type:application/json' \
-  http://localhost:4000/api/login
-```
-
-**返回结果**:
-```json
-{
-  "id": 7,
-  "username": "newfarmer",
-  "full_name": "测试农户",
-  "role": "farmer"
-}
-```
-
-**状态**: ✅ **通过**
-- 新注册用户立即可以登录
-- 角色正确分配
-- 数据持久化成功
-
----
-
-### Test 6: 错误登录拦截
-**测试数据**: wronguser / wrongpass (不存在的账号)
-
-**执行命令**:
-```bash
-wget -qO- --post-data='{"username":"wronguser","password":"wrongpass"}' \
-  --header='Content-Type:application/json' \
-  http://localhost:4000/api/login
-```
-
-**返回结果**:
-```
-HTTP 401 Unauthorized
-{"error":"用户名或密码错误"}
-```
-
-**状态**: ✅ **通过**
-- 正确拒绝无效登录
-- 返回适当的 HTTP 状态码
-- 错误信息清晰
-
----
-
-### Test 7: 健康检查
-**端点**: GET /health
-
-**执行命令**:
-```bash
-wget -qO- http://localhost:4000/health
-```
-
-**返回结果**:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-01-XX XX:XX:XX"
-}
-```
-
-**状态**: ✅ **通过**
-- 服务响应正常
-- 端点可访问
-
----
-
-### Test 8: 查询地点列表
-**端点**: GET /api/locations
-
-**执行命令**:
-```bash
-wget -qO- http://localhost:4000/api/locations
-```
-
-**返回结果**:
-```json
-[
-  {
-    "id": 1,
-    "name": "北京市朝阳区农场",
-    "latitude": 39.9042,
-    "longitude": 116.4074
-  },
-  {
-    "id": 2,
-    "name": "上海市浦东新区回收中心",
-    "latitude": 31.2304,
-    "longitude": 121.4737
-  },
-  {
-    "id": 3,
-    "name": "广州市天河区分拣站",
-    "latitude": 23.1291,
-    "longitude": 113.2644
-  }
-]
-```
-
-**状态**: ✅ **通过**
-- 返回所有地点
-- 数据格式正确
-- 包含坐标信息
-
----
-
-### Test 9: 查询订单列表
-**端点**: GET /api/orders
-
-**执行命令**:
-```bash
-wget -qO- http://localhost:4000/api/orders
-```
-
-**返回结果**:
-```json
-[
-  {
-    "id": 1,
-    "farmer_id": 2,
-    "recycler_id": 3,
-    "material_type": "秸秆",
-    "quantity": 500.5,
-    "pickup_location_id": 1,
-    "delivery_location_id": 2,
-    "status": "待处理",
-    "created_at": "2024-01-15 10:30:00"
-  }
-]
-```
-
-**状态**: ✅ **通过**
-- 返回订单列表
-- 数据结构完整
-- 包含关联的位置和用户 ID
-
----
-
-## 📊 测试统计
-
-| 测试项 | 结果 |
-|--------|------|
-| 管理员登录 | ✅ 通过 |
-| 农户登录 | ✅ 通过 |
-| 回收商登录 | ✅ 通过 |
-| 用户注册 | ✅ 通过 |
-| 新用户登录 | ✅ 通过 |
-| 错误登录拦截 | ✅ 通过 |
-| 健康检查 | ✅ 通过 |
-| 地点查询 | ✅ 通过 |
-| 订单查询 | ✅ 通过 |
-
-**总计**: 9/9 通过
-**通过率**: 100%
-
-## 🔐 认证流程验证
-
-### 前端 auth.js 修改确认
-✅ 已将本地 mock 认证改为调用后端 API
-- `handleLogin()` 现在调用 `POST /api/login`
-- `handleRegister()` 现在调用 `POST /api/register`
-- 使用 `fetch()` API 进行异步请求
-- 添加了错误处理和网络异常处理
-
-### 密码安全性
-✅ 使用 bcrypt 加密存储
-- 成本因子: 8
-- 密码不以明文存储
-- 登录时进行哈希比对
-
-### 会话管理
-✅ 使用 sessionStorage 存储登录状态
-- 用户信息在前端临时存储
-- 页面刷新时保持登录状态
-- 登出时清除会话数据
-
-## 🌐 浏览器测试指南
-
-### 方法 1: 使用自动化测试页面
-1. 打开浏览器访问: http://127.0.0.1:8080/test-integration.html
-2. 点击各个测试按钮
-3. 查看测试结果
-
-### 方法 2: 测试实际登录界面
-1. 打开浏览器访问: http://127.0.0.1:8080/index.html
-2. 点击"登录"按钮打开登录模态框
-3. 输入测试账号:
-   - 管理员: admin001 / admin123
-   - 农户: farmer001 / farmer123
-   - 回收商: recycler001 / recycler123
-4. 验证登录后跳转到对应角色的仪表板
-
-### 方法 3: 测试注册流程
-1. 在登录模态框点击"立即注册"
-2. 填写注册信息:
-   - 用户名: testuser[随机数字]
-   - 密码: test123
-   - 姓名: 测试用户
-   - 角色: 选择一个角色
-3. 点击注册按钮
-4. 使用新账号登录验证
-
-## 🐛 已知问题
-无
-
-## 📝 改进建议
-1. ✅ 前后端已完全打通
-2. ✅ 所有 API 端点工作正常
-3. ✅ 认证流程完整且安全
-4. 建议未来添加 JWT token 进行状态管理
-5. 建议添加刷新令牌机制
-
-## 🎉 结论
-**前后端集成测试全部通过！**
-
-所有核心功能验证成功：
-- ✅ 三种角色登录功能正常
-- ✅ 用户注册流程完整
-- ✅ 密码加密存储安全
-- ✅ 错误处理机制有效
-- ✅ 数据查询接口正常
-- ✅ 前端成功调用后端 API
-
-**项目已准备好进行下一步开发！**
-
----
-
-## 🔗 相关文档
-- [数据库文档](README_DB.md)
-- [快速开始指南](QUICKSTART.md)
-- [项目架构](ARCHITECTURE.md)
-- [测试指南](TEST_GUIDE.md)
+## 6. 结论
+1. 旧版“前端本地 mock 认证已全部替换”的描述风险已消除，文档口径与当前实现一致。
+2. 当前可在不依赖真实手机号账号的前提下完成主要上线收口验证。
+3. 引入真实用户账号与短信注册功能前，建议继续以本文件中的自动化基线作为回归门禁。

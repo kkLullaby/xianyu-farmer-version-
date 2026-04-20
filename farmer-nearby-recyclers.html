@@ -336,7 +336,7 @@
         <div id="map-container" class="map-container" style="display: none;">
             <div class="map-header">
                 <h2 id="route-title">查看路线</h2>
-                <button class="close-map-btn" onclick="closeMap()">关闭地图</button>
+                <button class="close-map-btn" data-nearby-action="close-map">关闭地图</button>
             </div>
             <div id="map"></div>
             <div id="route-info" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;"></div>
@@ -558,7 +558,7 @@
             retryBtn.style.border = 'none';
             retryBtn.style.borderRadius = '5px';
             retryBtn.style.cursor = 'pointer';
-            retryBtn.onclick = () => location.reload();
+            retryBtn.addEventListener('click', () => location.reload());
 
             content.appendChild(title);
             content.appendChild(message);
@@ -699,6 +699,21 @@
             document.getElementById('map-container').style.display = 'none';
         }
 
+        function bindNearbyActions() {
+            document.querySelectorAll('[data-nearby-action]').forEach(node => {
+                const action = node.getAttribute('data-nearby-action') || '';
+                if (node.dataset.nearbyActionBound === '1') return;
+                node.dataset.nearbyActionBound = '1';
+
+                node.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    if (action === 'close-map') {
+                        closeMap();
+                    }
+                });
+            });
+        }
+
         // 初始化高德地图
         async function initMap(destination) {
             const mapLoaded = await ensureAmapLoaded();
@@ -767,6 +782,7 @@
         async function init() {
             const statusDiv = document.getElementById('location-status');
             currentUser = getCurrentUser();
+            bindNearbyActions();
 
             try {
                 // 获取用户位置

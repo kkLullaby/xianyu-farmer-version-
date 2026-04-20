@@ -142,3 +142,28 @@
 
 5. **访问系统**
    打开浏览器并访问：[http://localhost:4000](http://localhost:4000)
+
+---
+
+## 🧪 Step2 安全门禁回归（2026-04-19）
+
+### 回归命令
+
+```bash
+npm run test:p0
+npm run test:p1
+npm run test:p2
+npm run test:p3
+```
+
+- `test:p3`：角色权限负向用例（未登录、无效 token、管理员接口越权、跨角色越权操作）+ 审计日志落地校验。
+
+### 安全基线文档
+
+- 统一策略文档：`docs/security/SECURITY_BASELINE.md`
+- 覆盖项：上传安全（TODO-020）、鉴权失败/越权审计日志（TODO-021）、CSP 与安全响应头（TODO-022）。
+
+### 里程碑固化
+
+- Step2 门禁项 `TODO-020/021/022/023/024` 已进入“实现 + 测试 + 文档”统一交付轨道。
+- 后续发布以 `test:p0/p1/p2/p3` 全通过作为最小放行条件。

@@ -298,32 +298,40 @@ const authSystem = {
         this.loadCmsSiteInfo();
 
         const annForm = container.querySelector('#cms-ann-form');
-        if (annForm) annForm.onsubmit = (e) => {
-            e.preventDefault();
-            this.saveCmsAnnouncement();
-        };
+        if (annForm) {
+            annForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveCmsAnnouncement();
+            });
+        }
         const caseForm = container.querySelector('#cms-case-form');
-        if (caseForm) caseForm.onsubmit = (e) => {
-            e.preventDefault();
-            this.saveCmsCase();
-        };
+        if (caseForm) {
+            caseForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveCmsCase();
+            });
+        }
         const adForm = container.querySelector('#cms-ad-form');
-        if (adForm) adForm.onsubmit = (e) => {
-            e.preventDefault();
-            this.saveCmsAd();
-        };
+        if (adForm) {
+            adForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveCmsAd();
+            });
+        }
         const infoForm = container.querySelector('#cms-info-form');
-        if (infoForm) infoForm.onsubmit = (e) => {
-            e.preventDefault();
-            this.saveCmsSiteInfo();
-        };
+        if (infoForm) {
+            infoForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveCmsSiteInfo();
+            });
+        }
     },
 
     bindCmsTabActions(container) {
         if (!container) return;
 
         container.querySelectorAll('.cms-tab').forEach(btn => {
-            btn.onclick = () => {
+            btn.addEventListener('click', () => {
                 container.querySelectorAll('.cms-tab').forEach(tabButton => {
                     tabButton.classList.remove('active');
                     tabButton.style.borderBottom = '3px solid transparent';
@@ -339,7 +347,7 @@ const authSystem = {
                     const panel = container.querySelector(`#cms-panel-${panelType}`);
                     if (panel) panel.style.display = panelType === tab ? 'block' : 'none';
                 });
-            };
+            });
         });
     },
 
@@ -348,7 +356,7 @@ const authSystem = {
 
         container.querySelectorAll('[data-cms-form-action]').forEach(node => {
             const action = node.getAttribute('data-cms-form-action') || '';
-            node.onclick = () => {
+            node.addEventListener('click', () => {
                 if (action === 'upload-image') {
                     const fileInputId = node.getAttribute('data-file-input-id') || '';
                     const targetInputId = node.getAttribute('data-target-input-id') || '';
@@ -371,7 +379,7 @@ const authSystem = {
                     }
                     this.cmsResetForm(formType);
                 }
-            };
+            });
         });
     },
 
@@ -380,7 +388,7 @@ const authSystem = {
 
         listContainer.querySelectorAll('[data-cms-list-action]').forEach(node => {
             const action = node.getAttribute('data-cms-list-action') || '';
-            node.onclick = () => {
+            node.addEventListener('click', () => {
                 const actionId = Number(node.getAttribute('data-cms-id') || '0');
                 if (!Number.isInteger(actionId) || actionId <= 0) {
                     this.showAlert('CMS 记录 ID 无效', 'warning');
@@ -410,7 +418,7 @@ const authSystem = {
                 if (action === 'delete-ad') {
                     this.deleteCmsAd(actionId);
                 }
-            };
+            });
         });
     },
 
@@ -1650,16 +1658,28 @@ const authSystem = {
     updateNavbar() {
         const loginBtn = document.querySelector('.btn-login');
         const authButtons = document.querySelector('.auth-buttons');
+
+        if (loginBtn && loginBtn.dataset.authNavbarBound !== '1') {
+            loginBtn.dataset.authNavbarBound = '1';
+            loginBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const action = loginBtn.dataset.authNavbarAction || '';
+                if (action === 'logout') {
+                    this.logout();
+                    return;
+                }
+                if (action === 'open-login') {
+                    this.openLoginModal();
+                }
+            });
+        }
         
         if (this.currentUser) {
             // 已登录状态
             loginBtn.textContent = `👤 ${this.currentUser.name}`;
             loginBtn.style.color = '#1abc9c';
             loginBtn.style.border = '1px solid #1abc9c';
-            loginBtn.onclick = (e) => {
-                e.preventDefault();
-                this.logout();
-            };
+            loginBtn.dataset.authNavbarAction = 'logout';
             
             // 隐藏注册按钮
             const signupBtn = document.querySelector('.btn-signup');
@@ -1669,10 +1689,7 @@ const authSystem = {
             loginBtn.textContent = '登录';
             loginBtn.style.color = '#1abc9c';
             loginBtn.style.border = '1px solid #1abc9c';
-            loginBtn.onclick = (e) => {
-                e.preventDefault();
-                this.openLoginModal();
-            };
+            loginBtn.dataset.authNavbarAction = 'open-login';
             
             // 显示注册按钮
             const signupBtn = document.querySelector('.btn-signup');
@@ -1685,7 +1702,7 @@ const authSystem = {
 
         container.querySelectorAll('[data-dashboard-action]').forEach(node => {
             const action = node.getAttribute('data-dashboard-action') || '';
-            node.onclick = (event) => {
+            node.addEventListener('click', (event) => {
                 event.preventDefault();
 
                 if (action === 'navigate') {
@@ -1697,7 +1714,7 @@ const authSystem = {
                 if (action === 'open-nearby') {
                     window.location.href = 'farmer-nearby-recyclers.html';
                 }
-            };
+            });
         });
     },
 
@@ -1706,7 +1723,7 @@ const authSystem = {
 
         navList.querySelectorAll('[data-nav-action]').forEach(node => {
             const action = node.getAttribute('data-nav-action') || '';
-            node.onclick = (event) => {
+            node.addEventListener('click', (event) => {
                 event.preventDefault();
 
                 if (action === 'navigate') {
@@ -1718,7 +1735,7 @@ const authSystem = {
                 if (action === 'logout') {
                     this.logout();
                 }
-            };
+            });
         });
     },
     
@@ -1949,7 +1966,7 @@ const authSystem = {
                                 <option value="grade3" ${report && report.grade === 'grade3' ? 'selected' : ''}>三级品柑肉</option>
                                 <option value="offgrade" ${report && report.grade === 'offgrade' ? 'selected' : ''}>等外品（残次/边角料）</option>
                             </select>
-                            <button type="button" style="padding:16px; border:1px solid #ddd; background:white; border-radius:12px; cursor:pointer;" onclick="const d = document.getElementById('grade-info'); d.style.display = d.style.display === 'none' ? 'block' : 'none';">
+                            <button type="button" data-report-form-action="toggle-grade-info" style="padding:16px; border:1px solid #ddd; background:white; border-radius:12px; cursor:pointer;">
                                 ℹ️
                             </button>
                         </div>
@@ -2016,13 +2033,27 @@ const authSystem = {
             Promise.all(readers).then(urls => renderPreview(urls));
         });
 
-        document.getElementById('farmer-report-form').onsubmit = (e) => {
-            e.preventDefault();
-            this.submitFarmerReport('pending', report ? report.id : null, defaultPhotos);
-        };
-        document.getElementById('btn-save-draft').onclick = () => {
-            this.submitFarmerReport('draft', report ? report.id : null, defaultPhotos);
-        };
+        const gradeInfo = document.getElementById('grade-info');
+        const gradeToggleBtn = container.querySelector('[data-report-form-action="toggle-grade-info"]');
+        if (gradeToggleBtn && gradeInfo) {
+            gradeToggleBtn.addEventListener('click', () => {
+                gradeInfo.style.display = gradeInfo.style.display === 'none' ? 'block' : 'none';
+            });
+        }
+
+        const farmerReportForm = document.getElementById('farmer-report-form');
+        if (farmerReportForm) {
+            farmerReportForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.submitFarmerReport('pending', report ? report.id : null, defaultPhotos);
+            });
+        }
+        const saveDraftBtn = document.getElementById('btn-save-draft');
+        if (saveDraftBtn) {
+            saveDraftBtn.addEventListener('click', () => {
+                this.submitFarmerReport('draft', report ? report.id : null, defaultPhotos);
+            });
+        }
     },
 
     // 提交农户申报（草稿/发布）
@@ -2145,11 +2176,11 @@ const authSystem = {
         };
 
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.onclick = () => {
+            btn.addEventListener('click', () => {
                 document.querySelectorAll('.filter-btn').forEach(b => b.style.opacity = '0.6');
                 btn.style.opacity = '1';
                 loadReports(btn.dataset.status);
-            };
+            });
         });
         loadReports('all');
     },
@@ -2251,7 +2282,7 @@ const authSystem = {
                             </div>
                             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
                                 ${safeRecordId ? `<button data-source-action="intention" data-id="${safeRecordId}" data-uid="${safeUserId}" data-type="${r.source_type}" style="background:${borderColor};color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">💬 联系${isFarmer ? '农户' : '回收商'}</button>` : ''}
-                                <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;text-decoration:none;">📞 电话</a>
+                                <span style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;">📞 电话</span>
                                 ${isFarmer && r.status === 'pending' && safeRecordId ? `<button data-source-action="accept" data-id="${safeRecordId}" data-type="farmer" style="background:#2ecc71;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;">✅ 接单</button>` : ''}
                             </div>
                         </div>
@@ -2260,7 +2291,7 @@ const authSystem = {
                 
                 // 绑定按钮事件
                 document.querySelectorAll('[data-source-action]').forEach(btn => {
-                    btn.onclick = async () => {
+                    btn.addEventListener('click', async () => {
                         const action = btn.dataset.sourceAction;
                         const id = btn.dataset.id;
                         const type = btn.dataset.type;
@@ -2282,7 +2313,7 @@ const authSystem = {
                                 this.showAlert(err.message, 'error');
                             }
                         }
-                    };
+                    });
                 });
                 
             } catch (err) {
@@ -2292,7 +2323,7 @@ const authSystem = {
         
         // 绑定Tab切换
         document.querySelectorAll('.supply-source-tab').forEach(tab => {
-            tab.onclick = () => {
+            tab.addEventListener('click', () => {
                 document.querySelectorAll('.supply-source-tab').forEach(t => {
                     t.classList.remove('active');
                     t.style.background = 'white';
@@ -2302,7 +2333,7 @@ const authSystem = {
                 tab.style.background = tab.dataset.source === 'farmer' ? 'var(--citrus-orange)' : (tab.dataset.source === 'recycler' ? 'var(--primary-light)' : 'var(--primary-green)');
                 tab.style.color = 'white';
                 loadSources(tab.dataset.source);
-            };
+            });
         });
         
         loadSources('all');
@@ -2378,7 +2409,7 @@ const authSystem = {
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
                             ${r.status === 'accepted' && idAttr && uidAttr ? `<button data-supply-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>`:''}
                             ${r.status === 'pending' && idAttr ? `<button data-supply-action="accept" data-id="${idAttr}" style="background:var(--primary-green);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">接单</button>` : `<span style='color:#2ecc71;font-weight:bold;'>✔ 已接单</span>`}
-                            <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
+                            <span style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;">📞 电话</span>
                         </div>
                     </div>
                 `;
@@ -2389,14 +2420,14 @@ const authSystem = {
             }
         };
 
-        document.getElementById('btn-refresh-supplies').onclick = loadSupplies;
-        document.getElementById('supply-sort').onchange = loadSupplies;
+        document.getElementById('btn-refresh-supplies').addEventListener('click', loadSupplies);
+        document.getElementById('supply-sort').addEventListener('change', loadSupplies);
         loadSupplies();
     },
 
     bindSupplyActions(list) {
         document.querySelectorAll('[data-supply-action]').forEach(btn => {
-            btn.onclick = async () => {
+            btn.addEventListener('click', async () => {
                 const action = btn.dataset.supplyAction;
                 const id = btn.dataset.id;
                 const item = list.find(r => String(r.id) === String(id));
@@ -2417,7 +2448,7 @@ const authSystem = {
                 } else if (action === 'chat' || action === 'intention') {
                     this.openIntentionModal({ target_type: 'farmer_report', target_id: id, target_no: '', target_name: '农户供货' });
                 }
-            };
+            });
         });
     },
 
@@ -2465,7 +2496,7 @@ const authSystem = {
 
         // 标签页切换
         document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.onclick = () => {
+            btn.addEventListener('click', () => {
                 const tab = btn.dataset.tab;
                 
                 // 更新按钮样式
@@ -2491,7 +2522,7 @@ const authSystem = {
                 } else if (tab === 'demands') {
                     loadMyDemands();
                 }
-            };
+            });
         });
 
         const loadOrders = async (status = 'all') => {
@@ -2545,7 +2576,7 @@ const authSystem = {
                              ${r.status === 'completed' && idAttr && uidAttr ? `
                                  <button data-order-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" style="background:var(--citrus-orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">💬 历史消息</button>
                              ` : ''}
-                             <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
+                             <span style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;">📞 电话</span>
                         </div>
                     </div>
                 `;
@@ -2612,7 +2643,7 @@ const authSystem = {
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
                             ${idAttr && uidAttr ? `<button data-processor-order-action="intention" data-id="${idAttr}" data-uid="${uidAttr}" style="background:#9b59b6;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;">📋 发起意向</button>` : ''}
-                            <a href="javascript:void(0)" style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;text-decoration:none;">📞 电话</a>
+                            <span style="background:#74b9ff;color:#fff;border:none;border-radius:6px;padding:6px 14px;">📞 电话</span>
                         </div>
                     </div>
                 `;
@@ -2620,14 +2651,14 @@ const authSystem = {
                 
                 // 绑定处理商订单操作
                 listDiv.querySelectorAll('[data-processor-order-action]').forEach(btn => {
-                    btn.onclick = () => {
+                    btn.addEventListener('click', () => {
                         const action = btn.dataset.processorOrderAction;
                         const id = btn.dataset.id;
                         const uid = btn.dataset.uid;
                         if (action === 'chat' || action === 'intention') {
                             this.openIntentionModal({ target_type: 'processor_request', target_id: id, target_no: '', target_name: '处理商求购' });
                         }
-                    };
+                    });
                 });
             } catch (err) {
                 listDiv.innerHTML = `<p style="color:#e74c3c;">${this.escapeHtml(err.message || '加载失败')}</p>`;
@@ -2722,7 +2753,7 @@ const authSystem = {
 
                 // 绑定求购操作按钮 - 只绑定my-demands-list中的按钮
                 listDiv.querySelectorAll('[data-demand-action]').forEach(btn => {
-                    btn.onclick = async () => {
+                    btn.addEventListener('click', async () => {
                         const action = btn.dataset.demandAction;
                         const id = btn.dataset.id;
                         
@@ -2754,7 +2785,7 @@ const authSystem = {
                                 this.showAlert(err.message, 'error');
                             }
                         }
-                    };
+                    });
                 });
 
             } catch (err) {
@@ -2763,11 +2794,11 @@ const authSystem = {
         };
         
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.onclick = () => {
+            btn.addEventListener('click', () => {
                  document.querySelectorAll('.filter-btn').forEach(b => b.style.opacity = '0.6');
                  btn.style.opacity = '1';
                  loadOrders(btn.dataset.status);
-            };
+            });
         });
         
         loadOrders('all');
@@ -2775,7 +2806,7 @@ const authSystem = {
 
     bindRecyclerOrderActions(list, refreshCb, currentStatus) {
         document.querySelectorAll('[data-order-action]').forEach(btn => {
-            btn.onclick = async () => {
+            btn.addEventListener('click', async () => {
                 const action = btn.dataset.orderAction;
                 const id = btn.dataset.id;
                 const item = list.find(r => String(r.id) === String(id));
@@ -2796,7 +2827,7 @@ const authSystem = {
                         this.showAlert(e.message, 'error');
                     }
                 }
-            };
+            });
         });
     },
     
@@ -2893,7 +2924,7 @@ const authSystem = {
     
     bindProcessorOrderActions() {
         document.getElementById('processor-orders-list')?.querySelectorAll('[data-processor-action]').forEach(btn => {
-            btn.onclick = async () => {
+            btn.addEventListener('click', async () => {
                 const action = btn.dataset.processorAction;
                 const id = btn.dataset.id;
                 
@@ -2930,13 +2961,13 @@ const authSystem = {
                         this.loadProcessorOrders();
                     } catch (err) { this.showAlert(err.message, 'error'); }
                 }
-            };
+            });
         });
     },
 
     bindReportActions(reportList) {
         document.querySelectorAll('[data-action]')?.forEach(btn => {
-            btn.onclick = async () => {
+            btn.addEventListener('click', async () => {
                 const action = btn.dataset.action;
                 const id = btn.dataset.id;
                 const report = reportList.find(r => String(r.id) === String(id));
@@ -2966,7 +2997,7 @@ const authSystem = {
                         this.showAlert(err.message, 'error');
                     }
                 }
-            };
+            });
         });
     },
     
@@ -3152,18 +3183,21 @@ const authSystem = {
             this.bindDemandFormActions(container);
             
             // 绑定表单提交
-            document.getElementById('processor-demand-form').onsubmit = async (e) => {
-                e.preventDefault();
-                await this.saveProcessorDemand('active', editData?.id);
-            };
+            const processorDemandForm = document.getElementById('processor-demand-form');
+            if (processorDemandForm) {
+                processorDemandForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await this.saveProcessorDemand('active', editData?.id);
+                });
+            }
             
             // 长期有效复选框逻辑
             const permanentCheckbox = document.getElementById('demand-permanent');
             const dateInput = document.getElementById('demand-valid-until');
-            permanentCheckbox.onchange = () => {
+            permanentCheckbox.addEventListener('change', () => {
                 dateInput.disabled = permanentCheckbox.checked;
                 if (permanentCheckbox.checked) dateInput.value = '';
-            };
+            });
             if (permanentCheckbox.checked) dateInput.disabled = true;
             
         } else {
@@ -3336,7 +3370,7 @@ const authSystem = {
             const processorLabel = document.getElementById('target-processor-label');
             
             targetRadios.forEach(radio => {
-                radio.onchange = () => {
+                radio.addEventListener('change', () => {
                     if (radio.value === 'farmer') {
                         farmerForm.style.display = 'block';
                         processorForm.style.display = 'none';
@@ -3348,36 +3382,42 @@ const authSystem = {
                         farmerLabel.style.background = 'white';
                         processorLabel.style.background = '#f3e5f5';
                     }
-                };
+                });
             });
             
             // 初始化样式
             farmerLabel.style.background = '#fff3e0';
 
             // 绑定农户表单提交事件
-            document.getElementById('demand-form-farmer').onsubmit = async (e) => {
-                e.preventDefault();
-                await this.saveDemand('active', editData?.id);
-            };
+            const demandFormFarmer = document.getElementById('demand-form-farmer');
+            if (demandFormFarmer) {
+                demandFormFarmer.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await this.saveDemand('active', editData?.id);
+                });
+            }
             
             // 绑定处理商表单提交事件
-            document.getElementById('demand-form-processor').onsubmit = async (e) => {
-                e.preventDefault();
-                await this.saveRecyclerSupply('active');
-            };
+            const demandFormProcessor = document.getElementById('demand-form-processor');
+            if (demandFormProcessor) {
+                demandFormProcessor.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await this.saveRecyclerSupply('active');
+                });
+            }
 
             // 长期有效复选框逻辑（农户表单）
             const permanentCheckbox = document.getElementById('demand-permanent');
             const dateInput = document.getElementById('demand-valid-until');
             
-            permanentCheckbox.onchange = () => {
+            permanentCheckbox.addEventListener('change', () => {
                 if (permanentCheckbox.checked) {
                     dateInput.value = '';
                     dateInput.disabled = true;
                 } else {
                     dateInput.disabled = false;
                 }
-            };
+            });
             
             if (permanentCheckbox.checked) {
                 dateInput.disabled = true;
@@ -3390,14 +3430,14 @@ const authSystem = {
 
         scope.querySelectorAll('[data-demand-entry-action]').forEach(node => {
             const action = node.getAttribute('data-demand-entry-action') || '';
-            node.onclick = (event) => {
+            node.addEventListener('click', (event) => {
                 event.preventDefault();
 
                 if (action === 'navigate') {
                     const page = node.getAttribute('data-demand-entry-page') || '';
                     if (page) this.navigateTo(page);
                 }
-            };
+            });
         });
     },
 
@@ -3406,7 +3446,7 @@ const authSystem = {
 
         scope.querySelectorAll('[data-demand-form-action]').forEach(node => {
             const action = node.getAttribute('data-demand-form-action') || '';
-            node.onclick = async (event) => {
+            node.addEventListener('click', async (event) => {
                 event.preventDefault();
 
                 const status = node.getAttribute('data-demand-status') || 'draft';
@@ -3433,7 +3473,7 @@ const authSystem = {
                 if (action === 'save-recycler-supply') {
                     await this.saveRecyclerSupply(status);
                 }
-            };
+            });
         });
     },
     
@@ -3717,7 +3757,7 @@ const authSystem = {
 
             // 绑定按钮事件
             listDiv.querySelectorAll('[data-processor-demand-action]').forEach(btn => {
-                btn.onclick = async () => {
+                btn.addEventListener('click', async () => {
                     const action = btn.dataset.processorDemandAction;
                     const id = btn.dataset.id;
                     const uid = btn.dataset.uid;
@@ -3737,7 +3777,7 @@ const authSystem = {
                             this.showAlert(err.message, 'error');
                         }
                     }
-                };
+                });
             });
             
         } catch (err) {
@@ -3928,18 +3968,18 @@ const authSystem = {
 
             // 绑定回收商按钮事件
             listDiv.querySelectorAll('[data-demand-action="intention"]').forEach(btn => {
-                btn.onclick = () => {
+                btn.addEventListener('click', () => {
                     const id = btn.dataset.id;
                     this.openIntentionModal({ target_type: 'recycler_request', target_id: id, target_no: '', target_name: '回收商求购' });
-                };
+                });
             });
             
             // 绑定处理商按钮事件
             listDiv.querySelectorAll('[data-processor-demand-action="intention"]').forEach(btn => {
-                btn.onclick = () => {
+                btn.addEventListener('click', () => {
                     const id = btn.dataset.id;
                     this.openIntentionModal({ target_type: 'processor_request', target_id: id, target_no: '', target_name: '处理商求购' });
-                };
+                });
             });
             
         } catch (err) {
@@ -4130,7 +4170,7 @@ const authSystem = {
         
         // 标签页切换
         document.querySelectorAll('.arbitration-tab').forEach(btn => {
-            btn.onclick = () => {
+            btn.addEventListener('click', () => {
                 const tab = btn.dataset.tab;
                 
                 // 更新按钮样式
@@ -4151,22 +4191,25 @@ const authSystem = {
                 if (tab === 'progress') {
                     this.loadMyArbitrations();
                 }
-            };
+            });
         });
         
         // 绑定表单提交
-        document.getElementById('arbitration-form').onsubmit = (e) => {
-            e.preventDefault();
-            this.submitArbitration();
-        };
+        const arbitrationForm = document.getElementById('arbitration-form');
+        if (arbitrationForm) {
+            arbitrationForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.submitArbitration();
+            });
+        }
 
         container.querySelectorAll('[data-arb-submit-action]').forEach(node => {
             const action = node.getAttribute('data-arb-submit-action') || '';
-            node.onclick = () => {
+            node.addEventListener('click', () => {
                 if (action === 'cancel-submit') {
                     this.navigateTo('dashboard');
                 }
-            };
+            });
         });
         
         // 为文件输入添加预览功能
@@ -4183,7 +4226,7 @@ const authSystem = {
         
         if (!input || !preview) return;
         
-        input.onchange = () => {
+        input.addEventListener('change', () => {
             preview.innerHTML = '';
             const files = Array.from(input.files);
             
@@ -4204,17 +4247,17 @@ const authSystem = {
                 removeBtn.type = 'button';
                 removeBtn.textContent = '×';
                 removeBtn.style.cssText = 'background: #e74c3c; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; margin-left: 5px;';
-                removeBtn.onclick = () => {
+                removeBtn.addEventListener('click', () => {
                     item.remove();
                     input.value = '';
-                };
+                });
 
                 item.appendChild(iconEl);
                 item.appendChild(nameEl);
                 item.appendChild(removeBtn);
                 preview.appendChild(item);
             });
-        };
+        });
     },
     
     loadMyArbitrations() {
@@ -4346,7 +4389,7 @@ const authSystem = {
 
                 listDiv.querySelectorAll('[data-my-arb-action]').forEach(node => {
                     const action = node.getAttribute('data-my-arb-action') || '';
-                    node.onclick = () => {
+                    node.addEventListener('click', () => {
                         if (action !== 'pay-penalty') return;
 
                         const actionId = Number(node.getAttribute('data-arb-id') || '0');
@@ -4356,7 +4399,7 @@ const authSystem = {
                         }
 
                         this.payPenalty(actionId);
-                    };
+                    });
                 });
             })
             .catch(err => {
@@ -4547,11 +4590,11 @@ const authSystem = {
         
         // 筛选按钮事件
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.onclick = () => {
+            btn.addEventListener('click', () => {
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.loadArbitrationRequests(btn.dataset.status);
-            };
+            });
         });
         
         // 加载仲裁请求
@@ -4726,7 +4769,7 @@ const authSystem = {
 
                 listDiv.querySelectorAll('[data-arb-list-action]').forEach(node => {
                     const action = node.getAttribute('data-arb-list-action') || '';
-                    node.onclick = (event) => {
+                    node.addEventListener('click', (event) => {
                         const actionId = Number(node.getAttribute('data-arb-id') || '0');
                         if (!Number.isInteger(actionId) || actionId <= 0) {
                             this.showAlert('仲裁记录 ID 无效', 'warning');
@@ -4756,7 +4799,7 @@ const authSystem = {
                         if (action === 'add-note') {
                             this.addArbitrationNote(actionId);
                         }
-                    };
+                    });
                 });
             })
             .catch(err => {
@@ -5191,20 +5234,20 @@ const authSystem = {
                     const fileMeta = filePreviewRegistry.get(previewKey);
                     if (!fileMeta) return;
 
-                    node.onmouseenter = () => {
+                    node.addEventListener('mouseenter', () => {
                         node.style.transform = 'scale(1.05)';
-                    };
-                    node.onmouseleave = () => {
+                    });
+                    node.addEventListener('mouseleave', () => {
                         node.style.transform = 'scale(1)';
-                    };
-                    node.onclick = () => {
+                    });
+                    node.addEventListener('click', () => {
                         this.viewFile(fileMeta.filePath, fileMeta.fileName, fileMeta.isImage);
-                    };
+                    });
                 });
 
                 container.querySelectorAll('[data-arb-detail-action]').forEach(node => {
                     const action = node.getAttribute('data-arb-detail-action') || '';
-                    node.onclick = () => {
+                    node.addEventListener('click', () => {
                         if (action === 'back-list') {
                             this.navigateTo('arbitration-management');
                             return;
@@ -5250,7 +5293,7 @@ const authSystem = {
                         if (action === 'add-note') {
                             this.addArbitrationNote(actionId);
                         }
-                    };
+                    });
                 });
             })
             .catch(err => {
@@ -5266,9 +5309,9 @@ const authSystem = {
 
                 const backButton = container.querySelector('[data-arb-detail-error-action="back-list"]');
                 if (backButton) {
-                    backButton.onclick = () => {
+                    backButton.addEventListener('click', () => {
                         this.navigateTo('arbitration-management');
-                    };
+                    });
                 }
             });
     },
@@ -5297,7 +5340,7 @@ const authSystem = {
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '✕ 关闭';
         closeBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 12px 24px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; z-index: 10001;';
-        closeBtn.onclick = cleanupAndRemove;
+        closeBtn.addEventListener('click', cleanupAndRemove);
         
         const title = document.createElement('div');
         title.style.cssText = 'position: absolute; top: 20px; left: 20px; color: white; font-size: 18px; font-weight: bold; z-index: 10001; max-width: calc(100% - 180px);';
@@ -5345,9 +5388,9 @@ const authSystem = {
         modal.appendChild(contentWrapper);
         
         // 点击背景关闭
-        modal.onclick = (e) => {
+        modal.addEventListener('click', (e) => {
             if (e.target === modal) cleanupAndRemove();
-        };
+        });
         
         document.body.appendChild(modal);
     },
@@ -5415,16 +5458,16 @@ const authSystem = {
             </div>
         `;
         
-        container.onclick = (e) => {
+        container.addEventListener('click', (e) => {
             if (e.target === container) this.closeModalByType('set-penalty');
-        };
+        });
 
         const orderAmountInput = container.querySelector('#order-amount');
         const penaltyAmountInput = container.querySelector('#penalty-amount');
 
         container.querySelectorAll('[data-set-penalty-action]').forEach(node => {
             const action = node.getAttribute('data-set-penalty-action') || '';
-            node.onclick = () => {
+            node.addEventListener('click', () => {
                 if (action === 'calc-20pct') {
                     const amount = Number(orderAmountInput?.value || '0');
                     const calcAmount = Number.isFinite(amount) && amount > 0 ? amount * 0.2 : 0;
@@ -5447,7 +5490,7 @@ const authSystem = {
                     }
                     this.submitPenalty(actionId);
                 }
-            };
+            });
         });
         
         document.body.appendChild(container);
@@ -5531,13 +5574,13 @@ const authSystem = {
             </div>
         `;
         
-        container.onclick = (e) => {
+        container.addEventListener('click', (e) => {
             if (e.target === container) this.closeModalByType('pay-penalty');
-        };
+        });
 
         container.querySelectorAll('[data-pay-penalty-action]').forEach(node => {
             const action = node.getAttribute('data-pay-penalty-action') || '';
-            node.onclick = () => {
+            node.addEventListener('click', () => {
                 if (action === 'cancel') {
                     this.closeModalByType('pay-penalty');
                     return;
@@ -5551,14 +5594,14 @@ const authSystem = {
                     }
                     this.submitPenaltyPayment(actionId);
                 }
-            };
+            });
         });
         
         document.body.appendChild(container);
         
         // 文件预览
         const proofInput = container.querySelector('#penalty-proof');
-        proofInput.onchange = (e) => {
+        proofInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const preview = container.querySelector('#proof-preview');
@@ -5581,7 +5624,7 @@ const authSystem = {
                     preview.appendChild(text);
                 }
             }
-        };
+        });
     },
     
     // 提交罚款支付
@@ -5730,7 +5773,7 @@ const authSystem = {
 
             body.querySelectorAll('[data-intention-action]').forEach(node => {
                 const action = node.getAttribute('data-intention-action') || '';
-                node.onclick = () => {
+                node.addEventListener('click', () => {
                     const intentionId = Number(node.getAttribute('data-intention-id') || '0');
                     if (!Number.isInteger(intentionId) || intentionId <= 0) {
                         this.showAlert('意向记录 ID 无效', 'warning');
@@ -5740,7 +5783,7 @@ const authSystem = {
                     if (action === 'accepted' || action === 'rejected') {
                         this.updateIntentionStatus(intentionId, action, node);
                     }
-                };
+                });
             });
         } catch (err) {
             body.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:20px;">${this.escapeHtml(err.message || '加载失败')}</p>`;

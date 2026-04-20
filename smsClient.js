@@ -13,18 +13,22 @@ function normalizeProvider(value) {
     return 'auto';
 }
 
+function isProductionEnv(env = process.env) {
+    return String(env.NODE_ENV || '').trim().toLowerCase() === 'production';
+}
+
 function maskPhone(phone) {
     const value = String(phone || '').trim();
     if (value.length < 7) return '***';
     return `${value.slice(0, 3)}****${value.slice(-4)}`;
 }
 
-function getAliyunConfig() {
+function getAliyunConfig(env = process.env) {
     return {
-        accessKeyId: process.env.ALIYUN_ACCESS_KEY_ID,
-        accessKeySecret: process.env.ALIYUN_ACCESS_KEY_SECRET,
-        signName: process.env.ALIYUN_SMS_SIGN,
-        templateCode: process.env.ALIYUN_SMS_TEMPLATE,
+        accessKeyId: env.ALIYUN_ACCESS_KEY_ID,
+        accessKeySecret: env.ALIYUN_ACCESS_KEY_SECRET,
+        signName: env.ALIYUN_SMS_SIGN,
+        templateCode: env.ALIYUN_SMS_TEMPLATE,
     };
 }
 
@@ -55,10 +59,46 @@ function createAliyunClient(config, OpenApi, Dysmsapi20170525) {
     return new Dysmsapi20170525.default(openApiConfig);
 }
 
-function resolveProvider(config) {
-    const provider = normalizeProvider(process.env.SMS_PROVIDER);
-    if (provider === 'aliyun' || provider === 'mock') return provider;
-    return hasAliyunConfig(config) ? 'aliyun' : 'mock';
+function getSmsRuntimeStatus(env = process.env) {
+    const providerConfigured = normalizeProvider(env.SMS_PROVIDER);
+    const aliyunConfig = getAliyunConfig(env);
+    const aliyunConfigured = hasAliyunConfig(aliyunConfig);
+    const providerResolved = providerConfigured === 'auto'
+        ? (aliyunConfigured ? 'aliyun' : 'mock')
+        : providerConfigured;
+    const production = isProductionEnv(env);
+    const mockMode = providerResolved === 'mock';
+    const canFallbackToMock = !production && providerConfigured === 'auto';
+
+    let runtimeReady = true;
+    let blockReason = '';
+
+    if (production && mockMode) {
+        runtimeReady = false;
+        blockReason = '生产环境禁止使用 Mock 短信通道，请配置阿里云短信。';
+    } else if (production && !aliyunConfigured) {
+        runtimeReady = false;
+        blockReason = '生产环境短信配置不完整，请设置 ALIYUN_ACCESS_KEY_ID/ALIYUN_ACCESS_KEY_SECRET/ALIYUN_SMS_SIGN/ALIYUN_SMS_TEMPLATE。';
+    }
+
+    return {
+        providerConfigured,
+        providerResolved,
+        aliyunConfigured,
+        mockMode,
+        production,
+        canFallbackToMock,
+        runtimeReady,
+        blockReason,
+    };
+}
+
+function ensureSmsRuntimeReady(env = process.env) {
+    const status = getSmsRuntimeStatus(env);
+    if (!status.runtimeReady) {
+        throw new Error(status.blockReason || '短信通道运行态校验失败');
+    }
+    return status;
 }
 
 async function sendOtpSmsByAliyun(phone, otpCode, config) {
@@ -100,7 +140,7 @@ async function sendOtpSmsByAliyun(phone, otpCode, config) {
 }
 
 function sendOtpSmsByMock(phone) {
-    if (process.env.NODE_ENV === 'production') {
+    if (isProductionEnv(process.env)) {
         throw new Error('生产环境禁止使用 Mock 短信通道，请配置 Aliyun SMS');
     }
     console.warn(`[SMS][MOCK] 已模拟发送验证码到 ${maskPhone(phone)}`);
@@ -108,8 +148,9 @@ function sendOtpSmsByMock(phone) {
 }
 
 async function sendOtpSms(phone, code) {
-    const aliyunConfig = getAliyunConfig();
-    const provider = resolveProvider(aliyunConfig);
+    const runtimeStatus = getSmsRuntimeStatus(process.env);
+    const aliyunConfig = getAliyunConfig(process.env);
+    const provider = runtimeStatus.providerResolved;
 
     if (provider === 'mock') {
         return sendOtpSmsByMock(phone);
@@ -118,8 +159,7 @@ async function sendOtpSms(phone, code) {
     try {
         return await sendOtpSmsByAliyun(phone, code, aliyunConfig);
     } catch (err) {
-        const configuredProvider = normalizeProvider(process.env.SMS_PROVIDER);
-        const canFallbackToMock = process.env.NODE_ENV !== 'production' && configuredProvider === 'auto';
+        const canFallbackToMock = runtimeStatus.canFallbackToMock;
         if (canFallbackToMock) {
             console.warn(`[SMS] Aliyun 发送失败，开发环境自动降级为 Mock: ${err.message}`);
             return sendOtpSmsByMock(phone);
@@ -129,5 +169,7 @@ async function sendOtpSms(phone, code) {
 }
 
 module.exports = {
-    sendOtpSms
+    sendOtpSms,
+    getSmsRuntimeStatus,
+    ensureSmsRuntimeReady,
 };

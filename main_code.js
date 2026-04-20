@@ -88,7 +88,7 @@ function renderReportForm() {
                     <textarea id="note" rows="3" style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
                 </label>
                 
-                <button type="button" onclick="submitReport()" style="
+                <button type="button" id="btn-submit-report" style="
                     background: #1abc9c; color: white; border: none; 
                     padding: 12px; cursor: pointer; border-radius: 4px; font-weight: bold;">
                     提交申报信息
@@ -102,6 +102,11 @@ function renderReportForm() {
             }
         </style>
     `;
+
+    const submitBtn = document.getElementById('btn-submit-report');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', () => submitReport());
+    }
 }
 
 /**

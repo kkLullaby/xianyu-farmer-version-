@@ -102,12 +102,12 @@
 | BUG-001 processor_requests 接单字段不存在 | 已修复 | 字段与迁移已补齐。 |
 | BUG-002 processor_requests 字段不一致 | 已修复 | 命名已统一并做兼容迁移。 |
 | BUG-003 登录页占位 | 已修复 | 已替换为可用登录/注册页。 |
-| BUG-004 认证与文档冲突 | 部分修复 | 认证实现前进，但文档与旧 H5 仍有偏差。 |
+| BUG-004 认证与文档冲突 | 已修复 | 集成测试报告已重写为当前 uni-app + 服务端会话回源口径。 |
 | BUG-005 哈希策略不一致 | 已修复 | register / register-phone / seed 已统一。 |
 | BUG-006 查询越权可能 | 基本修复 | 抽样接口已绑定主体；需负向回归测试闭环。 |
 | BUG-007 OTP 防刷不足 | 已修复 | 限流 + 冷却 +尝试次数已覆盖。 |
-| BUG-008 多页面依赖 Mock | 未修复 | 多个业务页仍混入 Mock。 |
-| BUG-009 管理后台入口无功能 | 未修复 | settings/statistics/users 仍占位。 |
+| BUG-008 多页面依赖 Mock | 已修复 | 关键业务页已完成后端化，保留持续回归。 |
+| BUG-009 管理后台入口无功能 | 已修复 | settings/statistics/users 已完成基础可用版。 |
 | BUG-010 短信服务 Mock | 已修复 | `smsClient.js` 已接阿里云模式并支持环境控制。 |
 | BUG-011 架构文档偏离代码 | 未修复 | `docs/ARCHITECTURE.md` 未同步到 uni 主体。 |
 
@@ -118,21 +118,20 @@
 |---|---|---|
 | TODO-001 登录占位 | 已完成 |
 | TODO-002 短信 Mock | 已完成 |
-| TODO-003 认证信任边界前端化 | 部分完成 |
+| TODO-003 认证信任边界前端化 | 已完成 |
 | TODO-004 processor_requests 未收敛 | 已完成 |
-| TODO-005 管理设置占位 | 未完成 |
-| TODO-006 管理统计占位 | 未完成 |
-| TODO-007 用户管理占位 | 未完成 |
-| TODO-008 关键业务依赖 Mock | 未完成 |
-| TODO-009 文档未对齐 | 未完成 |
+| TODO-005 管理设置占位 | 已完成 |
+| TODO-006 管理统计占位 | 已完成 |
+| TODO-007 用户管理占位 | 已完成 |
+| TODO-008 关键业务依赖 Mock | 已完成 |
+| TODO-009 文档未对齐 | 已完成 |
 
 ---
 
 ## 7. 建议下一批修复优先级
-1. **立即修复 P0**：收紧静态资源暴露范围（禁止项目根目录直出，按白名单发布静态目录）。
-2. **并行修复 P1**：旧 H5 `innerHTML` 高风险点收敛（至少先覆盖登录、仲裁、列表渲染主链路）。
-3. **清理阻断 Bug**：完成 admin settings/statistics/users 基本可用版本，移除业务页 Mock 回退。
-4. **补文档与自动化负测**：统一架构文档到 uni 主体；新增越权与匿名访问负向测试。
+1. **转入下一阶段能力**：引入真实用户账号与短信注册真实链路（当前阶段按“不依赖真实手机号”范围已收口）。
+2. **持续压实安全基线**：继续执行 `test:gates` + `test:p9` + `test:p10` + `test:p11`，防止认证与登录链路回退。
+3. **补齐文档治理**：同步 `docs/ARCHITECTURE.md` 到 uni-app 主体事实。
 
 ---
 
@@ -730,3 +729,831 @@
 
 ### 33.3 状态结论
 - P1 第六批第十段已完成，求购页入口与表单按钮主路径内联点击模板继续下降。
+
+## 34. 增量修复记录（2026-04-19，P1 第六批第十一段：农户申报说明按钮与电话占位模板收口）
+
+### 34.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. 农户申报与电话占位模板第十一段收口（`auth.js`）
+- `showNewReportForm` 的品级说明按钮由内联 `onclick` 改为 `data-report-form-action`，并改为渲染后绑定切换 `grade-info` 显示状态。
+- 供货列表/货源列表/订单列表/处理商订单列表的 4 处 `href="javascript:void(0)"` 电话占位链接改为无脚本占位元素。
+
+### 34.2 验证结果
+- `node --check auth.js`：通过。
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`data-report-form-action`、`toggle-grade-info` 存在，`onclick="` 与 `javascript:void(0)` 在 `auth.js` 中无残留。
+
+### 34.3 状态结论
+- P1 第六批第十一段已完成，`auth.js` 历史内联模板与 `javascript:` 占位模板进一步下降。
+
+## 35. 增量修复记录（2026-04-19，P1 第六批第十二段：index/main_code/nearby 页面模板内联事件绑定收口）
+
+### 35.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. 入口页与周边页面第十二段收口（`index.html` / `main_code.js` / `farmer-nearby-recyclers.html`）
+- `index.html` 的公告翻页、登录弹窗、意向弹窗按钮由内联 `onclick` 改为 `data-action`，新增 `bindIndexTemplateActions()` 统一分发。
+- `main_code.js` 的提交按钮由内联 `onclick` 改为渲染后绑定。
+- `farmer-nearby-recyclers.html` 的地图关闭按钮由内联 `onclick` 改为 `data-nearby-action`，新增 `bindNearbyActions()`。
+
+### 35.2 验证结果
+- `node --check main_code.js`：通过。
+- `get_errors index.html/main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`data-home-action`、`data-auth-ui-action`、`data-intention-action`、`bindIndexTemplateActions`、`data-nearby-action`、`bindNearbyActions`、`btn-submit-report` 均存在。
+- 残留复查：`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html` 中 `onclick="` 与 `javascript:void(0)` 均无残留。
+
+### 35.3 状态结论
+- P1 第六批第十二段已完成，旧 H5 入口页与周边页面模板内联事件继续下降。
+
+## 36. 增量修复记录（2026-04-19，P1 第六批第十三段：index 页面 hover 内联事件收口）
+
+### 36.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `index.html` hover 交互第十三段收口
+- 页脚“隐私政策/服务协议”链接由内联 `onmouseover/onmouseout` 改为 `footer-policy-link` + CSS `:hover`。
+- 首页动态“案例卡片/广告卡片”容器由内联 `onmouseover/onmouseout` 改为 `home-hover-card` + CSS `:hover`。
+
+### 36.2 验证结果
+- `get_errors index.html/main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`footer-policy-link`、`home-hover-card` 均存在。
+- 残留复查：`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html` 中 `onmouseover=`、`onmouseout=`、`onclick="` 与 `javascript:void(0)` 均无残留。
+
+### 36.3 状态结论
+- P1 第六批第十三段已完成，`index.html` 剩余 hover 内联事件模板完成收口。
+
+## 37. 增量修复记录（2026-04-19，P1 第六批第十四段：index 动态图片 onerror 内联事件收口）
+
+### 37.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `index.html` 动态图片回退第十四段收口
+- 公告大图、案例缩略图、案例 logo、广告图的内联 `onerror` 模板改为 `data-home-fallback` 标记。
+- 新增 `createHomeFallbackNode(type)` 与 `bindHomeImageFallbacks(scope)`，在渲染后统一绑定错误回退逻辑。
+
+### 37.2 验证结果
+- `get_errors index.html/main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`data-home-fallback`、`createHomeFallbackNode`、`bindHomeImageFallbacks` 均存在。
+- 残留复查：`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html` 中 `onerror=`、`onmouseover=`、`onmouseout=`、`onclick="` 与 `javascript:void(0)` 均无残留。
+
+### 37.3 状态结论
+- P1 第六批第十四段已完成，`index.html` 动态图片错误回退链路内联事件完成收口。
+
+## 38. 增量修复记录（2026-04-19，P1 第六批第十五段：index onclick 属性绑定收口）
+
+### 38.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `index.html` 点击绑定第十五段收口
+- 协议弹窗相关节点（隐私/服务链接、关闭按钮、蒙层点击关闭）由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `bindIndexTemplateActions()` 中公告翻页、认证弹窗、意向弹窗三组分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+### 38.2 验证结果
+- `get_errors index.html/main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`privacyLink.addEventListener`、`serviceLink.addEventListener`、`closeBtn.addEventListener`、`modal.addEventListener`、`bindIndexTemplateActions` 内三组 `addEventListener('click')` 均存在。
+- 残留复查：`index.html` 中 `.onclick =` 无残留；`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html` 中 `onerror=`、`onmouseover=`、`onmouseout=`、`onclick="` 与 `javascript:void(0)` 均无残留。
+
+### 38.3 状态结论
+- P1 第六批第十五段已完成，`index.html` 点击交互绑定进一步统一为事件监听模式。
+
+## 39. 增量修复记录（2026-04-19，P1 第六批第十六段：main_code/nearby onclick 属性绑定收口）
+
+### 39.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `main_code.js` / `farmer-nearby-recyclers.html` 点击绑定第十六段收口
+- `main_code.js` 中 `submitBtn.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `farmer-nearby-recyclers.html` 中 `retryBtn.onclick = ...` 与 `bindNearbyActions` 内 `node.onclick = ...` 改为 `addEventListener('click', ...)`。
+- 为 `bindNearbyActions` 新增 `data-nearby-action-bound` 防重复绑定保护，避免重复注册监听。
+
+### 39.2 验证结果
+- `get_errors main_code.js/farmer-nearby-recyclers.html`：无新增错误。
+- 关键锚点复查：`submitBtn.addEventListener('click', ...)`、`retryBtn.addEventListener('click', ...)`、`node.addEventListener('click', ...)`（`bindNearbyActions`）均存在。
+- 残留复查：`main_code.js` 与 `farmer-nearby-recyclers.html` 中 `.onclick =`、`onclick=`、`javascript:void(0)` 均无残留。
+
+### 39.3 状态结论
+- P1 第六批第十六段已完成，旧 H5 周边页面点击交互绑定继续向事件监听模式收敛。
+
+## 40. 增量修复记录（2026-04-19，P1 第六批第十七段：auth 求购列表 onclick 属性绑定收口）
+
+### 40.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `auth.js` 求购列表点击绑定第十七段收口
+- `loadProcessorDemands()` 中 `data-processor-demand-action` 分发绑定由 `btn.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `loadRecyclerDemands()` 中 `data-demand-action="intention"` 与 `data-processor-demand-action="intention"` 两组分发绑定由 `btn.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+### 40.2 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：三组按钮分发绑定均为 `btn.addEventListener('click', ...)`。
+- 残留复查（目标模块）：上述三组分发绑定中的 `.onclick =` 无残留。
+
+### 40.3 状态结论
+- P1 第六批第十七段已完成，`auth.js` 求购链路列表交互绑定继续向事件监听模式收敛。
+
+## 41. 增量修复记录（2026-04-19，P1 第六批第十八段：auth 多簇 onclick 属性绑定收口）
+
+### 41.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `auth.js` 第十八段多簇点击绑定收口（一次执行多步）
+- `showNewReportForm`：`gradeToggleBtn` 与 `btn-save-draft` 的 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `showMyReports` 与回收商订单页 `loadOrders`：`.filter-btn` 点击绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `loadProcessorOrders`、`loadMyDemands`、`bindRecyclerOrderActions`：三组分发按钮绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+### 41.2 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`gradeToggleBtn.addEventListener`、`saveDraftBtn.addEventListener`、两处 `.filter-btn` 的 `addEventListener('click')` 与三组动作按钮分发绑定均存在。
+- 残留复查（目标簇）：第十八段目标簇中的 `.onclick =` 无残留。
+
+### 41.3 状态结论
+- P1 第六批第十八段已完成，`auth.js` 多个低风险点击交互簇在单轮内完成事件监听模式收口。
+
+## 42. 增量修复记录（2026-04-19，P1 第六批第十九段：auth 供应/订单模块 onclick 属性绑定收口）
+
+### 42.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `auth.js` 第十九段多簇点击绑定收口（一次执行多步）
+- `showSupplySources`：`data-source-action` 与 `.supply-source-tab` 绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `showFarmerSupplies` 与 `bindSupplyActions`：刷新按钮与 `data-supply-action` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `showRecyclerOrders`：`.tab-btn` 页签切换绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+### 42.2 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：五组目标绑定均为 `addEventListener('click', ...)`。
+- 残留复查（目标簇）：第十九段目标簇中的 `.onclick =` 无残留。
+
+### 42.3 状态结论
+- P1 第六批第十九段已完成，`auth.js` 供应与订单链路在单轮多簇改造后保持稳定。
+
+## 43. 增量修复记录（2026-04-19，P1 第六批第二十段：auth 分发函数 onclick 属性绑定收口）
+
+### 43.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `auth.js` 第20段分发函数收口（一次执行多步）
+- `bindProcessorOrderActions`：`[data-processor-action]` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `bindReportActions`：`[data-action]` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `bindDemandEntryActions`：`[data-demand-entry-action]` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `bindDemandFormActions`：`[data-demand-form-action]` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+### 43.2 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：四个分发函数的目标节点均为 `addEventListener('click', ...)`。
+- 残留复查（目标簇）：第20段目标簇中的 `.onclick =` 无残留。
+
+### 43.3 状态结论
+- P1 第六批第20段已完成，`auth.js` 分发函数层交互绑定在单轮内完成集中收口。
+
+## 44. 增量修复记录（2026-04-19，P1 第六批第二十一段：auth 仲裁与证据上传链路 onclick 属性绑定收口）
+
+### 44.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `auth.js` 第21段同域多簇收口（一次执行多步）
+- `showArbitrationCenter`：`.arbitration-tab` 与 `data-arb-submit-action` 两组绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `setupFilePreview`：`input.onchange` 改为 `input.addEventListener('change', ...)`，删除按钮 `removeBtn.onclick` 改为 `addEventListener('click', ...)`。
+- `loadMyArbitrations`：`data-my-arb-action` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `showArbitrationManagement` / `loadArbitrationRequests`：`.filter-btn` 与 `data-arb-list-action` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+
+### 44.2 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`.arbitration-tab`、`data-arb-submit-action`、`setupFilePreview`、`data-my-arb-action`、`.filter-btn`、`data-arb-list-action` 六组目标绑定均为 `addEventListener`。
+- 残留复查（目标簇）：第21段目标簇中的 `.onclick =` 与 `input.onchange =` 无残留。
+
+### 44.3 状态结论
+- P1 第六批第21段已完成，`auth.js` 仲裁中心与证据上传链路交互绑定继续向事件监听模式收敛。
+
+## 45. 增量修复记录（2026-04-19，P1 第六批第二十二段：auth 仲裁详情与罚款弹窗链路 onclick/onchange 属性绑定收口）
+
+### 45.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `auth.js` 第22段同域多簇收口（一次执行多步）
+- `showArbitrationDetail`：文件预览节点与 `data-arb-detail-action` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`，加载失败回退按钮同步改造。
+- `viewFile`：关闭按钮与背景点击关闭由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `setPenalty`：遮罩点击关闭与 `data-set-penalty-action` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `payPenalty`：遮罩点击关闭与 `data-pay-penalty-action` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`，`proofInput.onchange` 改为 `addEventListener('change', ...)`。
+
+### 45.2 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`data-arb-detail-action`、`viewFile`、`data-set-penalty-action`、`data-pay-penalty-action`、`proofInput.addEventListener('change', ...)` 均存在。
+- 残留复查（目标簇）：第22段目标簇中的 `.onclick =` 与 `.onchange =` 无残留。
+
+### 45.3 状态结论
+- P1 第六批第22段已完成，`auth.js` 仲裁详情与罚款弹窗主链路交互绑定继续向事件监听模式收敛。
+
+## 46. 增量修复记录（2026-04-19，P1 第六批第二十三段：auth 非仲裁残留 onclick/onchange 属性绑定收口）
+
+### 46.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. `auth.js` 第23段低风险多簇收口（一次执行多步）
+- `bindCmsTabActions` / `bindCmsFormActions` / `bindCmsListActions`：分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `bindDashboardActions` / `bindSidebarActions`：分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `updateNavbar`：登录按钮由 `.onclick = ...` 改为单次 `addEventListener('click', ...)` 绑定 + `data-auth-navbar-action` 分发。
+- `viewIntentions`：`data-intention-action` 分发绑定由 `.onclick = ...` 改为 `addEventListener('click', ...)`。
+- `supply-sort`、两处 `demand-permanent`、`target-type`：由 `.onchange = ...` 改为 `addEventListener('change', ...)`。
+
+### 46.2 验证结果
+- `get_errors auth.js`：无新增错误。
+- 关键锚点复查：`bindCmsTabActions`、`bindDashboardActions`、`bindSidebarActions`、`updateNavbar`、`viewIntentions`、`supply-sort`、`demand-permanent`、`target-type` 相关 `addEventListener('click'/'change', ...)` 均存在。
+- 残留复查（目标簇）：第23段目标簇中的 `.onclick =` 与 `.onchange =` 无残留。
+
+### 46.3 状态结论
+- P1 第六批第23段已完成，`auth.js` 非仲裁低风险交互簇在单轮内完成集中收口。
+
+## 47. 增量修复记录（2026-04-19，P1 第六批第二十四段：跨文件 on* 属性绑定清零收口）
+
+### 47.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- 判定：P0/P1/P2 均通过，未出现影响结论的限流噪声。
+
+2. 跨文件低风险合并收口
+- `auth.js`：剩余 `.onsubmit = ...` 绑定改为 `addEventListener('submit', ...)`，覆盖 CMS、申报、求购/供应、仲裁提交表单。
+- `userProfile.js`：`renderListGroup` 列表项移除内联 `onmouseover/onmouseout`，改为 class + CSS `:hover`。
+
+### 47.2 验证结果
+- `get_errors auth.js/userProfile.js`：无新增错误。
+- 关键锚点复查：`addEventListener('submit', ...)`、`profile-list-item` 与 `.profile-list-item:hover` 均存在。
+- 全量残留复扫：`auth.js/index.html/main_code.js/farmer-nearby-recyclers.html/userProfile.js` 中目标 `on*` 模式无命中。
+
+### 47.3 状态结论
+- P1 第六批第24段已完成，跨文件事件属性绑定在当前阶段完成清零收口。
+
+## 48. 增量修复记录（2026-04-19，P1 第六批第二十五段：Step2 安全门禁项收口）
+
+### 48.1 本轮完成项
+1. 自动化回归先行
+- `npm run test:p0`：通过（fresh server instance）。
+- `npm run test:p1`：通过（fresh server instance）。
+- `npm run test:p2`：通过（fresh server instance）。
+- `npm run test:p3`：通过（fresh server instance，包含 401/403 角色权限负向链路与审计日志校验）。
+
+2. 安全门禁代码收口（一次执行多步）
+- `server.js`：新增 `/api` 安全审计中间件，统一记录 `401/403/429` 到 `logs/security-audit.log`。
+- `server.js`：新增全局 `Content-Security-Policy`、`Referrer-Policy`、`Permissions-Policy`，并按 HTTPS 条件下发 HSTS。
+- `server.js`：鉴权失败与越权关键路径补充 `securityAuditReason`（`AUTH_HEADER_MISSING`、`AUTH_TOKEN_INVALID`、`LOGIN_BAD_CREDENTIALS`、`ADMIN_ROLE_REQUIRED`）。
+- `tests/api_tests/test-p3-authz-negative.js`：新增负向权限自动化脚本并接入 `package.json` 的 `test:p3`。
+
+3. 文档门禁收口
+- 新增 `docs/security/SECURITY_BASELINE.md`：统一上传安全、审计日志、CSP/安全头规范（TODO-020/021/022）。
+- 更新 `docs/README.md`：固化 Step2 安全回归命令与里程碑放行条件（TODO-024）。
+
+### 48.2 验证结果
+- `node --check server.js`：通过。
+- `get_errors server.js`：无新增错误。
+- 负向权限接口返回与日志增量一致：`401/403` 响应与审计日志事件可对应。
+
+### 48.3 状态结论
+- P1 第六批第25段已完成，Step2 门禁项 TODO-020/021/022/023/024 在本轮达成闭环。
+
+## 49. 增量修复记录（2026-04-19，Step2 收官复扫与签收）
+
+### 49.1 本轮完成项
+1. 最终回归复扫
+- `BASE_URL=http://localhost:4304 npm run test:p0`：通过。
+- `BASE_URL=http://localhost:4301 npm run test:p1`：通过。
+- `BASE_URL=http://localhost:4302 npm run test:p2`：通过。
+- `BASE_URL=http://localhost:4303 npm run test:p3`：通过。
+
+2. 证据台账登记
+- `evidence/regression/2026-04-19_step2-final-gates_kk.md`
+- `evidence/security/2026-04-19_step2-authz-audit-log_kk.md`
+
+3. 收官文档登记
+- 新增 `09-step2-closure-2026-04-19.md`，完成 Step2 收官判定与 Step3 移交。
+
+### 49.2 验证结果
+- 关键门禁命令连续通过，无新增阻断异常。
+- 审计日志中 `401/403` 事件可与负向权限用例对应。
+- `00/03/05/07/08/09` 与 `evidence/README.md` 状态一致。
+
+### 49.3 状态结论
+- Step2（第六批与安全门禁子范围）已完成收官签收，可进入 Step3（鲁棒性专项）。
+
+## 50. 增量修复记录（2026-04-20，Step3-B1 第一段：审计日志轮转与留存上限）
+
+### 50.1 本轮完成项
+1. `server.js` 审计日志增强
+- 新增 `SECURITY_AUDIT_LOG_MAX_MB` 与 `SECURITY_AUDIT_LOG_MAX_FILES` 配置解析。
+- 新增 `rotateSecurityAuditLogsIfNeeded` 轮转函数：超过阈值时归档为 `.1/.2...`。
+- 管理端运行时安全快照新增轮转状态与阈值字段。
+
+2. 轮转功能验证
+- 启动参数：`PORT=4310 SECURITY_AUDIT_LOG_MAX_MB=0.01 SECURITY_AUDIT_LOG_MAX_FILES=2`。
+- 连续触发未授权请求后，`logs/security-audit.log.1` 生成，轮转生效。
+
+3. 回归验证
+- `BASE_URL=http://localhost:4311 npm run test:p3`：通过。
+
+### 50.2 验证结果
+- `node --check server.js`：通过。
+- `get_errors server.js`：无新增错误。
+- 低阈值轮转验证 + `test:p3` 回归均通过。
+
+### 50.3 状态结论
+- Step3-B1 第一段完成，审计日志可靠性从“单文件增长”提升为“可控轮转归档”。
+
+## 51. 增量修复记录（2026-04-20，Step3-B1 第二段：失败路径矩阵 V1 + 负向异常用例）
+
+### 51.1 本轮完成项
+1. 失败路径矩阵 V1 建立
+- 新增 `12-step3-failure-path-matrix-v1-2026-04-20.md`，统一编号并登记场景状态（FP-001~FP-007）。
+
+2. 自动化负向脚本落地
+- 新增 `tests/api_tests/test-p4-failure-paths.js`，覆盖：
+  - 资源不可用（不存在仲裁文件 -> 404）
+  - 依赖不可用（地图配置缺失 -> 503）
+  - 并发冲突（同一意向并发受理 -> 200/409）
+  - 登录限流（连续错误登录 -> 429）
+- `package.json` 已新增命令 `npm run test:p4`。
+
+3. 证据归档
+- 新增 `evidence/regression/2026-04-20_step3-failure-paths-v1_kk.md`。
+
+### 51.2 验证结果
+- `node --check tests/api_tests/test-p4-failure-paths.js`：通过。
+- `BASE_URL=http://localhost:4312 npm run test:p4`：通过。
+- 输出摘要：`[P4] Failure-path tests passed.`，`amap=unavailable-503`，`loginStatuses=401,401,429,429,429,429`。
+
+### 51.3 状态结论
+- Step3-B1 第二段完成：失败路径矩阵 V1 与首批自动化负向用例已形成闭环。
+- Step3-B1 第三段入口：补齐超时失败路径自动化（矩阵项 FP-005）。
+
+## 52. 增量修复记录（2026-04-20，Step3-B1 第三段：FP-005 超时失败路径补齐）
+
+### 52.1 本轮完成项
+1. 超时路径代码支撑
+- `server.js`：`GET /api/admin/settings/runtime` 增加非生产可控延迟模拟（`simulate_delay_ms`，带上限保护）。
+
+2. 自动化脚本补齐
+- `tests/api_tests/test-p4-failure-paths.js` 新增超时失败路径断言：
+  - 请求 `GET /api/admin/settings/runtime?simulate_delay_ms=1500`
+  - 客户端 `timeoutMs=300`，通过 `AbortController` 触发超时中止
+  - 断言 `timeout=true`
+
+3. 证据归档
+- 新增 `evidence/regression/2026-04-20_step3-timeout-failure-path_kk.md`。
+
+### 52.2 验证结果
+- `node --check server.js`：通过。
+- `node --check tests/api_tests/test-p4-failure-paths.js`：通过。
+- `BASE_URL=http://localhost:4313 npm run test:p4`：通过。
+- 输出摘要：`[P4] Failure-path tests passed.`，`timeout=true`。
+
+### 52.3 状态结论
+- Step3-B1 第三段完成，FP-005（超时）已纳入自动化。
+- 失败路径矩阵 V1（FP-001~FP-007）当前全部完成。
+- 下一入口：Step3-B1 第四段（重试/降级路径扩展，预留 FP-008/FP-009）。
+
+## 53. 增量修复记录（2026-04-20，Step3-B1 第四段：FP-008/FP-009 重试与降级路径）
+
+### 53.1 本轮完成项
+1. 降级触发能力补齐
+- `server.js`：`GET /api/config/amap` 增加非生产强制依赖不可用开关（`force_unavailable=1`）。
+
+2. 自动化脚本扩展
+- `tests/api_tests/test-p4-failure-paths.js` 新增：
+  - FP-008 重试恢复：首次超时后立即重试返回 `200`。
+  - FP-009 降级回退：强制地图依赖 `503` 时，核心管理接口仍可用。
+
+3. 证据归档
+- 新增 `evidence/regression/2026-04-20_step3-retry-degrade-failure-path_kk.md`。
+
+### 53.2 验证结果
+- `node --check server.js`：通过。
+- `node --check tests/api_tests/test-p4-failure-paths.js`：通过。
+- `BASE_URL=http://localhost:4314 npm run test:p4`：通过。
+- 输出摘要：`degrade=forced-503-core-ok`，`retry=timeout-then-success`。
+
+### 53.3 状态结论
+- Step3-B1 第四段完成，FP-008/FP-009 已纳入自动化。
+- `test:p4` 当前覆盖：资源不可用、依赖不可用、并发冲突、超时、重试、降级、限流。
+- 下一入口：Step3-B2（门禁合并执行与执行手册固化）。
+
+## 54. 增量修复记录（2026-04-20，Step3-B2：门禁合并执行与执行手册固化）
+
+### 54.1 本轮完成项
+1. 合并门禁执行器落地
+- 新增 `tests/api_tests/run-step3-b2-gates.js`。
+- 顺序执行 `test:p0 -> test:p1 -> test:p2 -> test:p3 -> test:p4`。
+- 每个脚本使用 fresh server instance（独立端口 `4320~4324`）。
+
+2. 命令入口统一
+- `package.json` 新增 `npm run test:gates`，作为 Step3-B2 合并门禁入口。
+
+3. 执行手册与证据固化
+- 新增执行手册：`13-step3-b2-merged-gates-runbook-2026-04-20.md`。
+- 新增回归证据：`evidence/regression/2026-04-20_step3-b2-merged-gates_kk.md`。
+
+### 54.2 验证结果
+- `npm run test:gates`：通过。
+- 输出摘要：`test:p0~test:p4` 全部 `PASS`，汇总结论 `Step3-B2 合并门禁通过`。
+
+### 54.3 状态结论
+- Step3-B2 已完成“合并门禁执行 + 手册固化”闭环。
+- 下一入口：Step3-B3（跨端降级场景扩展与可观测告警联动评估）。
+
+## 55. 增量修复记录（2026-04-20，Step3-B3：跨端降级契约与可观测告警联动）
+
+### 55.1 本轮完成项
+1. 跨端降级契约补齐
+- `server.js`：`GET /api/config/amap` 在不可用场景下返回标准结构化降级信息：
+  - `data.error_code=AMAP_UNAVAILABLE`
+  - `data.reason`（区分强制降级与未配置）
+  - `data.degrade.fallback=manual-address`
+
+2. 可观测告警快照落地
+- `server.js`：`GET /api/admin/settings/runtime` 新增 `observability`：
+  - `recent_security_events`（最近窗口 `401/403/429` 统计）
+  - `active_alerts`（按阈值计算的活跃告警）
+  - `dependency_health`（依赖健康摘要）
+
+3. 自动化断言扩展
+- `tests/api_tests/test-p4-failure-paths.js` 新增：
+  - 地图降级契约字段断言（`error_code` + `degrade.fallback`）
+  - 可观测告警联动断言（`status_429` 计数 + `SECURITY_RATE_LIMIT_SPIKE`）
+
+### 55.2 验证结果
+- `npm run test:gates`：通过。
+- 输出摘要：`test:p0~test:p4` 全部 `PASS`。
+- `test:p4` 摘要新增：`observability=rate-limit-alert-linked`。
+
+### 55.3 状态结论
+- Step3-B3 已完成“跨端降级契约 + 可观测告警联动 + 自动化验证”闭环。
+- 下一入口：Step3-B4（告警演练脚本与可观测门禁模板固化）。
+
+## 56. 增量修复记录（2026-04-20，Step3-B4：告警演练脚本与可观测门禁模板固化）
+
+### 56.1 本轮完成项
+1. 告警演练脚本落地
+- 新增 `tests/api_tests/test-p5-observability-alert-drill.js`。
+- 覆盖 `401/403/429` 三类事件触发与 `active_alerts` 三类告警码断言。
+
+2. 合并门禁扩展
+- `tests/api_tests/run-step3-b2-gates.js` 扩展到 `test:p5`。
+- p5 场景注入低阈值环境变量：`SECURITY_ALERT_AUTHN_THRESHOLD=5`、`SECURITY_ALERT_AUTHZ_THRESHOLD=4`、`SECURITY_ALERT_RATE_LIMIT_THRESHOLD=2`。
+
+3. 文档与证据模板固化
+- 更新执行手册 `13-step3-b2-merged-gates-runbook-2026-04-20.md`，纳入 `p0~p5`。
+- 新增执行文档 `15-step3-b4-observability-drill-and-gate-template-2026-04-20.md`。
+- 新增证据 `evidence/observability/2026-04-20_step3-b4-observability-alert-drill_kk.md`。
+
+### 56.2 验证结果
+- `node --check tests/api_tests/test-p5-observability-alert-drill.js`：通过。
+- `node --check tests/api_tests/run-step3-b2-gates.js`：通过。
+- `npm run test:gates`：通过（`test:p0~test:p5` 全部 `PASS`）。
+- `test:p5` 输出摘要：
+  - `alerts=SECURITY_RATE_LIMIT_SPIKE,SECURITY_AUTHN_DENIED_SPIKE,SECURITY_AUTHZ_DENIED_SPIKE`
+  - `recent401=26, recent403=22, recent429=18`
+
+### 56.3 状态结论
+- Step3-B4 已完成“告警演练脚本 + 合并门禁纳管 + 证据模板”闭环。
+- 下一入口：Step4-B1（可观测性补齐：指标面板与值班告警说明）。
+
+## 57. 增量修复记录（2026-04-20，Step4-B1：可观测性基线与值班模板）
+
+### 57.1 本轮完成项
+1. Step4 进入文档落地
+- 新增 `16-step4-entry-and-b1-observability-baseline-2026-04-20.md`。
+- 已固化指标面板映射、告警分级与值班响应模板。
+
+2. 证据归档落地
+- 新增 `evidence/observability/2026-04-20_step4-b1-observability-baseline_kk.md`。
+- 记录 `test:p5` 告警演练摘要与基线统计值。
+
+3. 阶段状态同步
+- `00-index.md` 已切换到 Step4 In Progress。
+- `05-release-readiness-phase-plan-2026-04-17.md` 已同步 Step4-B1 完成状态。
+- `10-step3-entry-and-workplan-2026-04-19.md` 已完成 Step3 收官判定。
+- `evidence/README.md` 已纳入 Step4-B1 可观测证据。
+
+### 57.2 验证结果
+- `npm run test:gates`：通过（`test:p0~test:p5` 全部 `PASS`）。
+- `test:p5` 摘要：
+  - `alerts=SECURITY_RATE_LIMIT_SPIKE,SECURITY_AUTHN_DENIED_SPIKE,SECURITY_AUTHZ_DENIED_SPIKE`
+  - `recent401=26, recent403=22, recent429=18`
+
+### 57.3 状态结论
+- Step4-B1 已完成“可观测基线定义 + 告警分级 + 值班响应模板 + 证据归档”闭环。
+- 下一入口：Step4-B2（告警路由演练与值班交接演习）。
+
+## 58. 增量修复记录（2026-04-20，Step4-B2：告警路由与值班交接演练）
+
+### 58.1 本轮完成项
+1. 演练文档落地
+- 新增 `17-step4-b2-alert-routing-and-handover-drill-2026-04-20.md`。
+- 固化告警路由规则、值班交接动作与 Step4 收官判定。
+
+2. 证据归档
+- 新增 `evidence/observability/2026-04-20_step4-b2-alert-routing-and-handover_kk.md`。
+- 记录值班模板实填与升级链路演练。
+
+3. 阶段状态同步
+- `00-index.md`、`05-release-readiness-phase-plan-2026-04-17.md`、`evidence/README.md` 已纳入 Step4-B2 结果。
+
+### 58.2 验证结果
+- `npm run test:gates`：通过（`test:p0~test:p5` 全部 `PASS`）。
+- `test:p5` 摘要：
+  - `alerts=SECURITY_RATE_LIMIT_SPIKE,SECURITY_AUTHN_DENIED_SPIKE,SECURITY_AUTHZ_DENIED_SPIKE`
+  - `recent401=39, recent403=33, recent429=27`
+
+### 58.3 状态结论
+- Step4-B2 已完成“告警路由演练 + 值班交接演练 + 证据归档”闭环。
+- Step4 阶段收官，下一入口：Step5-B1（迁移与回滚演练自动化）。
+
+## 59. 增量修复记录（2026-04-20，Step5-B1：迁移与回滚演练自动化）
+
+### 59.1 本轮完成项
+1. 自动化脚本落地
+- 新增 `tests/api_tests/test-p6-release-drill.js`。
+- 覆盖：数据库备份 -> `--init` 迁移演练 -> 备份回滚 -> 回滚后健康检查。
+
+2. 命令入口统一
+- `package.json` 新增 `test:p6` 与 `test:release-drill`。
+
+3. 文档与证据归档
+- 新增 `18-step5-entry-and-b1-release-drill-2026-04-20.md`。
+- 新增 `evidence/release-drill/2026-04-20_step5-b1-migration-rollback-drill_kk.md`。
+
+### 59.2 验证结果
+- `node --check tests/api_tests/test-p6-release-drill.js`：通过。
+- `npm run test:p6`：通过。
+- `npm run test:gates`：通过（`test:p0~test:p5` 全部 `PASS`）。
+- `test:p6` 哈希摘要：
+  - `before=7abaa0acd52f`
+  - `afterInit=d750040ff702`
+  - `afterRollback=7abaa0acd52f`
+
+### 59.3 状态结论
+- Step5-B1 已完成“迁移演练 + 回滚演练 + 健康校验 + 文档证据”闭环。
+- 下一入口：Step5-B2（灰度与应急流程联合演练）。
+
+## 60. 增量修复记录（2026-04-20，Step5-B2：灰度与应急流程联合演练）
+
+### 60.1 本轮完成项
+1. 联合演练脚本落地
+- 新增 `tests/api_tests/test-p7-gray-rollback-drill.js`。
+- 覆盖：10%/30%/50% 灰度检查点 + 应急回滚决策链路演练。
+
+2. 命令入口补齐
+- `package.json` 新增 `test:p7` 与 `test:gray-drill`。
+
+3. 文档与证据归档
+- 新增 `19-step5-b2-gray-and-emergency-drill-2026-04-20.md`。
+- 新增 `evidence/release-drill/2026-04-20_step5-b2-gray-emergency-drill_kk.md`。
+
+### 60.2 验证结果
+- `node --check tests/api_tests/test-p7-gray-rollback-drill.js`：通过。
+- `npm run test:p7`：通过。
+- 灰度检查点：
+  - 10%：PASS（3.4s）
+  - 30%：PASS（3.7s）
+  - 50%：PASS（4.3s）
+- 回滚演练：PASS（2.9s，`scheduled-drill-after-50%`）。
+- 回滚内部 `test:p6` 哈希摘要：
+  - `before=4584b1256434`
+  - `afterInit=b1b5dd7ac050`
+  - `afterRollback=4584b1256434`
+- `test:p5` 本轮统计：`recent401=39, recent403=31, recent429=27`。
+
+### 60.3 状态结论
+- Step5-B2 已完成“灰度检查点 + 应急回滚链路 + 证据归档”闭环。
+- Step5 阶段收官，下一入口：Step6-B1（小流量准备与门槛确认）。
+
+## 61. 增量修复记录（2026-04-20，Step6-B1：小流量准备与门槛确认）
+
+### 61.1 本轮完成项
+1. 阶段入口文档落地
+- 新增 `20-step6-entry-and-b1-canary-readiness-2026-04-20.md`。
+
+2. 小流量门槛固化
+- 已定义 10%/30%/50% 观察窗口目标。
+- 已定义阻断故障、连续 SEV-2 告警、门禁失败三类回滚触发阈值。
+
+### 61.2 状态结论
+- Step6-B1 已完成启动基线，进入 Step6-B2（真实小流量窗口执行与决策记录）。
+
+## 62. 增量修复记录（2026-04-20，Step6-B1：TODO-004 processor_requests 收口）
+
+### 62.1 本轮完成项
+1. 生命周期回归脚本落地
+- 新增 `tests/api_tests/test-p8-processor-request-lifecycle.js`。
+- 覆盖：创建、更新、字段映射、接单、防重复接单、状态流转与市场列表可见性。
+
+2. 命令入口补齐
+- `package.json` 新增 `test:p8` 与 `test:processor-lifecycle`。
+
+3. 证据归档
+- 新增 `evidence/regression/2026-04-20_step6-b1-processor-request-lifecycle_kk.md`。
+
+### 62.2 验证结果
+- `node --check tests/api_tests/test-p8-processor-request-lifecycle.js`：通过。
+- `npm run test:processor-lifecycle`：通过（fresh server 自动拉起）。
+- 输出摘要：`requestId=56, recyclerId=3, secondAcceptStatus=400`。
+- `npm run test:gates`：通过（`test:p0~test:p5` 全部 `PASS`）。
+
+### 62.3 状态结论
+- TODO-004 对应的 BUG-001/BUG-002 已完成“模型收敛 + 生命周期回归”闭环。
+- Step6 下一入口保持：Step6-B2（真实小流量窗口执行与决策记录）。
+
+## 63. 增量修复记录（2026-04-20，Step6-B2：TODO-003 认证信任边界收敛）
+
+### 63.1 本轮完成项
+1. 首页认证入口统一
+- `src/pages/index/index.vue` 移除手写 `/api/me` 请求与本地角色判定，统一复用 `src/utils/session.js` 的 `syncSessionFromServer + roleAllowed`。
+
+2. 会话失效清理补齐
+- `src/utils/request.js` 在 401 分支统一清理 `agri_auth_token/current_role/current_user_name/current_user_phone`，避免失效会话残留。
+
+3. 自动化防回退落地
+- 新增 `tests/api_tests/test-p9-auth-trust-boundary.js`。
+- `package.json` 新增 `test:p9` 与 `test:auth-boundary`。
+
+4. 文档与证据归档
+- 新增 `21-step6-b2-auth-trust-boundary-hardening-2026-04-20.md`。
+- 新增 `evidence/regression/2026-04-20_step6-b2-auth-trust-boundary_kk.md`。
+
+### 63.2 验证结果
+- `node --check tests/api_tests/test-p9-auth-trust-boundary.js`：通过。
+- `npm run test:p9`：通过。
+- `npm run test:gates`：通过（`test:p0~test:p5` 全部 `PASS`）。
+- 本轮观测摘要：
+  - `test:p4`: `intentionId=59, loginStatuses=401,401,429,429,429,429`
+  - `test:p5`: `recent401=26, recent403=24, recent429=18`
+
+### 63.3 状态结论
+- TODO-003 已完成“前端角色缓存去信任化 + 统一服务端会话同步 + 自动化防回退”闭环。
+- 下一修复入口：TODO-001（登录页占位）与 TODO-002（短信通道真实化）。
+
+## 64. 增量修复记录（2026-04-20，Step6-B2：TODO-002 短信运行态门禁收敛）
+
+### 64.1 本轮完成项
+1. 短信门禁能力补齐
+- `smsClient.js` 新增 `getSmsRuntimeStatus` 与 `ensureSmsRuntimeReady`，统一短信通道解析与运行态判定。
+
+2. 启动硬阻断落地
+- `server.js` 启动阶段接入短信运行态校验：生产环境命中 Mock 或阿里云配置缺失时，服务直接拒绝启动。
+
+3. 运行态可观测增强
+- `/api/admin/settings/runtime` 复用短信运行态状态，新增 `sms_provider_configured/sms_runtime_ready/sms_runtime_block_reason`。
+
+4. 自动化防回退落地
+- 新增 `tests/api_tests/test-p10-sms-runtime-guard.js`。
+- `package.json` 新增 `test:p10` 与 `test:sms-runtime`。
+
+5. 文档与证据归档
+- 新增 `22-step6-b2-sms-runtime-guard-hardening-2026-04-20.md`。
+- 新增 `evidence/security/2026-04-20_step6-b2-sms-runtime-guard_kk.md`。
+
+### 64.2 验证结果
+- `node --check tests/api_tests/test-p10-sms-runtime-guard.js`：通过。
+- `npm run test:p10`：通过。
+- `npm run test:gates`：通过（`test:p0~test:p5` 全部 `PASS`）。
+- 本轮观测摘要：
+  - `test:p4`: `intentionId=61, loginStatuses=401,401,429,429,429,429`
+  - `test:p5`: `recent401=26, recent403=22, recent429=18`
+
+### 64.3 状态结论
+- TODO-002 已完成“生产环境短信通道 Mock 禁止 + 启动硬阻断 + 自动化防回退”闭环。
+
+## 65. 增量修复记录（2026-04-20，Step6-B2：TODO-001/TODO-009 收口 + 上线收口测试）
+
+### 65.1 本轮完成项
+1. 登录收口自动化补齐
+- 新增 `tests/api_tests/test-p11-login-readiness.js`。
+- `package.json` 新增 `test:p11` 与 `test:login-readiness`。
+- 覆盖：登录页静态非占位、`/api/login`、`/api/me`、错误密码 `401`。
+
+2. 认证验收文档对齐
+- `docs/ai_logs/INTEGRATION_TEST_REPORT.md` 已重写为当前 uni-app + 服务端会话回源口径。
+- 旧 H5（`index.html/auth.js`）历史结论不再作为当前上线验收依据。
+
+3. 台账与索引同步
+- `03-unfinished-items.md`：TODO-001、TODO-009 已更新为“已完成”。
+- `02-bug-findings.md`：BUG-003、BUG-004 已更新为“已完成”。
+- `00-index.md`、`05-release-readiness-phase-plan-2026-04-17.md`、`evidence/README.md` 已同步。
+- 新增执行文档 `23-step6-b2-login-and-doc-alignment-2026-04-20.md`。
+
+4. 证据归档
+- 新增 `evidence/regression/2026-04-20_step6-b2-login-readiness-and-doc-alignment_kk.md`。
+
+### 65.2 验证结果
+- `node --check tests/api_tests/test-p11-login-readiness.js`：通过。
+- `npm run test:p11`：通过（`[P11] userId=2, role=farmer`）。
+- 收口上线测试（不依赖真实手机号）全通过：
+  - `npm run test:gray-drill`：通过（灰度 10%/30%/50% + 回滚演练通过）。
+  - `npm run test:processor-lifecycle`：通过。
+  - `npm run test:auth-boundary`：通过。
+  - `npm run test:sms-runtime`：通过。
+  - `npm run test:login-readiness`：通过。
+  - `npm run test:gates`：通过（`test:p0~test:p5` 全部 PASS）。
+- 本轮观测摘要：
+  - `gray-drill -> test:p4`: `intentionId=65`
+  - `gray-drill -> test:p5`: `recent401=31, recent403=26, recent429=22`
+  - `test:gates -> test:p4`: `intentionId=67, loginStatuses=401,401,429,429,429,429`
+  - `test:gates -> test:p5`: `recent401=45, recent403=38, recent429=31`
+
+### 65.3 状态结论
+- TODO-001 已完成：登录页收口可复跑，阻断风险解除。
+- TODO-009 已完成：认证实现与验收文档口径一致。
+- 当前“不依赖真实手机号鉴权”的收口目标已完成。
+- 下一入口：引入真实用户账号与短信注册真实链路后，执行 Step6 真实小流量窗口验证。
+- 下一入口文档：`24-step6-final-weekly-closure-report-2026-04-20.md`。
+
+## 66. 最终复扫记录（2026-04-20，Step6 收尾周报）
+
+### 66.1 本轮完成项
+1. 全量门禁与演练复验
+- `npm run test:gates`：通过（`test:p0~test:p5` 全绿）。
+- `npm run test:release-drill`：通过（迁移与回滚哈希一致）。
+- `npm run test:gray-drill`：通过（10%/30%/50% + 应急回滚）。
+- `npm run test:processor-lifecycle`：通过。
+- `npm run test:auth-boundary`：通过。
+- `npm run test:sms-runtime`：通过。
+- `npm run test:login-readiness`：通过。
+
+2. 安全动态探测复验
+- 临时服务探测：`/server.js`、`/data/agri.db`、`/db/schema.sql` 均返回 `404`，根目录静态暴露未回归。
+- 兼容入口探测：`/auth.js`、`/main_code.js`、`/index.html` 返回 `200`，旧 H5 入口仍对外可达（历史兼容）。
+
+3. 静态复扫补充
+- 未检出 `query.token`、`?token=`、`getTokenFromRequest` 路径。
+- 安全头仍在：`X-Content-Type-Options`、`X-Frame-Options`、`Content-Security-Policy`、`Referrer-Policy`、`Permissions-Policy`、HTTPS 条件 HSTS。
+- 旧 H5 渲染残余计数：`innerHTML =` 命中 `auth.js:95`、`index.html:6`、`main_code.js:1`、`userProfile.js:9`。
+- 内联 HTML 事件属性（`onclick="..."` 等）未命中，`javascript:void(0)` 未命中。
+
+4. 周收尾文档与证据归档
+- 新增收尾报告：`24-step6-final-weekly-closure-report-2026-04-20.md`。
+- 新增证据：`evidence/regression/2026-04-20_step6-final-rescan-and-weekly-closure_kk.md`。
+
+### 66.2 本轮观测摘要
+- `test:gates -> test:p4`：`intentionId=71, loginStatuses=401,401,429,429,429,429`
+- `test:gates -> test:p5`：`recent401=26, recent403=22, recent429=18`
+- `test:release-drill`：`before=e347dc476341, afterInit=3a3c5b70c8ca, afterRollback=e347dc476341`
+- `test:gray-drill -> test:p5`：`recent401=39, recent403=32, recent429=27`
+- `test:p8`：`requestId=67, recyclerId=3, secondAcceptStatus=400`
+- `test:p11`：`userId=2, role=farmer`
+
+### 66.3 状态结论
+- Step6 在“非真实手机号链路”范围内已达到上线测试收尾条件。
+- 本周工作完成“修复 + 自动化 + 文档 + 证据”闭环，可进入下一窗口上线测试。
+- 风险余额主要为旧 H5 历史渲染残余与文档台账漂移（非当前范围阻断）。

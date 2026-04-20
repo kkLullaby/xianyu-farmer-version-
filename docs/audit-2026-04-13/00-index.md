@@ -32,20 +32,42 @@
 - [06-step1-release-gates-2026-04-17.md](./06-step1-release-gates-2026-04-17.md)
 - [07-remediation-batch-2026-04-19.md](./07-remediation-batch-2026-04-19.md)
 - [08-step2-entry-and-batch6-plan-2026-04-19.md](./08-step2-entry-and-batch6-plan-2026-04-19.md)
+- [09-step2-closure-2026-04-19.md](./09-step2-closure-2026-04-19.md)
+- [10-step3-entry-and-workplan-2026-04-19.md](./10-step3-entry-and-workplan-2026-04-19.md)
+- [11-task-kickoff-checklist-2026-04-19.md](./11-task-kickoff-checklist-2026-04-19.md)
+- [12-step3-failure-path-matrix-v1-2026-04-20.md](./12-step3-failure-path-matrix-v1-2026-04-20.md)
+- [13-step3-b2-merged-gates-runbook-2026-04-20.md](./13-step3-b2-merged-gates-runbook-2026-04-20.md)
+- [14-step3-b3-observability-alert-linkage-2026-04-20.md](./14-step3-b3-observability-alert-linkage-2026-04-20.md)
+- [15-step3-b4-observability-drill-and-gate-template-2026-04-20.md](./15-step3-b4-observability-drill-and-gate-template-2026-04-20.md)
+- [16-step4-entry-and-b1-observability-baseline-2026-04-20.md](./16-step4-entry-and-b1-observability-baseline-2026-04-20.md)
+- [17-step4-b2-alert-routing-and-handover-drill-2026-04-20.md](./17-step4-b2-alert-routing-and-handover-drill-2026-04-20.md)
+- [18-step5-entry-and-b1-release-drill-2026-04-20.md](./18-step5-entry-and-b1-release-drill-2026-04-20.md)
+- [19-step5-b2-gray-and-emergency-drill-2026-04-20.md](./19-step5-b2-gray-and-emergency-drill-2026-04-20.md)
+- [20-step6-entry-and-b1-canary-readiness-2026-04-20.md](./20-step6-entry-and-b1-canary-readiness-2026-04-20.md)
+- [21-step6-b2-auth-trust-boundary-hardening-2026-04-20.md](./21-step6-b2-auth-trust-boundary-hardening-2026-04-20.md)
+- [22-step6-b2-sms-runtime-guard-hardening-2026-04-20.md](./22-step6-b2-sms-runtime-guard-hardening-2026-04-20.md)
+- [23-step6-b2-login-and-doc-alignment-2026-04-20.md](./23-step6-b2-login-and-doc-alignment-2026-04-20.md)
+- [24-step6-final-weekly-closure-report-2026-04-20.md](./24-step6-final-weekly-closure-report-2026-04-20.md)
+- [archive/step2/README.md](./archive/step2/README.md)
 
 ## 6. 最高优先级修复路线（建议）
-1. 修复认证与授权边界（前端存储不可作为信任源）。
-2. 修复 `processor_requests` 表结构/接口字段错配。
+1. 修复认证与授权边界（前端存储不可作为信任源，TODO-003 已收口）。
+2. 修复登录入口占位与短信验证码真实化闭环（TODO-001/002 均已收口）。
 3. 移除硬编码密钥，改为环境变量与密钥轮换。
 4. 收紧 CORS、补齐接口限流与鉴权校验。
-5. 下线 Mock 登录与 Mock 短信，完成真实登录闭环。
+5. 收敛认证实现与验收文档偏差，避免结论漂移。
 
 ## 7. 复核建议
 1. 先处理 P0，再处理 P1；P2 可并行排期。
 2. 每个修复项必须配套最小复测：接口用例 + 页面回归。
 3. 统一更新 `docs/ARCHITECTURE.md` 与 `docs/README.md`，避免文档继续漂移。
 
-## 8. 阶段状态（2026-04-19）
-- 当前阶段：`Step 2 - 阻断项清零（In Progress）`
+## 8. 阶段状态（2026-04-20）
+- 当前阶段：`Step 6 - 小流量上线测试（In Progress）`
+- 上一阶段：`Step 5 - 预发布演练（Closed）`
 - 阶段文档：`05-release-readiness-phase-plan-2026-04-17.md`
-- 当前执行文档：`08-step2-entry-and-batch6-plan-2026-04-19.md`
+- 当前执行文档：`24-step6-final-weekly-closure-report-2026-04-20.md`
+- 启动确认清单：`11-task-kickoff-checklist-2026-04-19.md`
+- 上一阶段收官文档：`19-step5-b2-gray-and-emergency-drill-2026-04-20.md`
+- 当前进展：Step6-B1 已完成；Step6-B2 已完成 TODO-003 + TODO-002 + TODO-001 + TODO-009 收口；Step6 最终复扫与一周收尾报告已完成。
+- 下一焦点：引入真实用户账号与短信注册真实链路，执行下一窗口的小流量验证与放量决策。

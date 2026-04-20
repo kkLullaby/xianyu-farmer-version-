@@ -9,7 +9,7 @@ const rateLimit = require('express-rate-limit');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { sendOtpSms } = require('./smsClient');
+const { sendOtpSms, getSmsRuntimeStatus, ensureSmsRuntimeReady } = require('./smsClient');
 const multer = require('multer');
 
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -20,7 +20,263 @@ const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('he
 if (!process.env.JWT_SECRET) {
     console.warn('[Security] JWT_SECRET 未配置，当前使用进程级临时密钥（重启后失效）。');
 }
+
+const smsRuntimeBootStatus = ensureSmsRuntimeReady(process.env);
+if (smsRuntimeBootStatus.mockMode) {
+    console.warn('[SMS] 当前使用 Mock 短信通道（非生产环境）。');
+}
+
 const AMAP_WEB_KEY = process.env.AMAP_WEB_KEY || '';
+const LOG_DIR = path.join(__dirname, 'logs');
+const SECURITY_AUDIT_LOG_PATH = path.join(LOG_DIR, 'security-audit.log');
+const ENABLE_RUNTIME_DELAY_SIMULATION = process.env.NODE_ENV !== 'production';
+const RUNTIME_DELAY_MAX_MS = 5000;
+
+function parseRuntimeDelayMs(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        return 0;
+    }
+    return Math.min(RUNTIME_DELAY_MAX_MS, Math.floor(parsed));
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function resolveAuditLogMaxMb(value) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed >= 0.01 && parsed <= 1024) {
+        return parsed;
+    }
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+        console.warn(`[Security] SECURITY_AUDIT_LOG_MAX_MB 配置无效（${value}），已回退默认值 20MB`);
+    }
+    return 20;
+}
+
+function resolveAuditLogMaxFiles(value) {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 30) {
+        return parsed;
+    }
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+        console.warn(`[Security] SECURITY_AUDIT_LOG_MAX_FILES 配置无效（${value}），已回退默认值 7`);
+    }
+    return 7;
+}
+
+const SECURITY_AUDIT_LOG_MAX_MB = resolveAuditLogMaxMb(process.env.SECURITY_AUDIT_LOG_MAX_MB);
+const SECURITY_AUDIT_LOG_MAX_BYTES = Math.max(1, Math.floor(SECURITY_AUDIT_LOG_MAX_MB * 1024 * 1024));
+const SECURITY_AUDIT_LOG_MAX_FILES = resolveAuditLogMaxFiles(process.env.SECURITY_AUDIT_LOG_MAX_FILES);
+
+function resolveAlertWindowMinutes(value) {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 120) {
+        return parsed;
+    }
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+        console.warn(`[Observability] SECURITY_ALERT_WINDOW_MINUTES 配置无效（${value}），已回退默认值 15`);
+    }
+    return 15;
+}
+
+function resolveAlertThreshold(value, fallback, envName) {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000) {
+        return parsed;
+    }
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+        console.warn(`[Observability] ${envName} 配置无效（${value}），已回退默认值 ${fallback}`);
+    }
+    return fallback;
+}
+
+const SECURITY_ALERT_WINDOW_MINUTES = resolveAlertWindowMinutes(process.env.SECURITY_ALERT_WINDOW_MINUTES);
+const SECURITY_ALERT_AUTHN_THRESHOLD = resolveAlertThreshold(
+    process.env.SECURITY_ALERT_AUTHN_THRESHOLD,
+    12,
+    'SECURITY_ALERT_AUTHN_THRESHOLD'
+);
+const SECURITY_ALERT_AUTHZ_THRESHOLD = resolveAlertThreshold(
+    process.env.SECURITY_ALERT_AUTHZ_THRESHOLD,
+    8,
+    'SECURITY_ALERT_AUTHZ_THRESHOLD'
+);
+const SECURITY_ALERT_RATE_LIMIT_THRESHOLD = resolveAlertThreshold(
+    process.env.SECURITY_ALERT_RATE_LIMIT_THRESHOLD,
+    3,
+    'SECURITY_ALERT_RATE_LIMIT_THRESHOLD'
+);
+const SECURITY_ALERT_SCAN_ROLLED_FILES = 1;
+
+const CONTENT_SECURITY_POLICY = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://*.amap.com https://webapi.amap.com",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://*.amap.com https://restapi.amap.com",
+    "media-src 'self' data: blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+].join('; ');
+
+const REFERRER_POLICY = 'strict-origin-when-cross-origin';
+const PERMISSIONS_POLICY = 'geolocation=(self), camera=(), microphone=()';
+
+function ensureLogDir() {
+    if (!fs.existsSync(LOG_DIR)) {
+        fs.mkdirSync(LOG_DIR, { recursive: true });
+    }
+}
+
+function getClientIp(req) {
+    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    return forwarded || req.ip || (req.socket && req.socket.remoteAddress) || '';
+}
+
+function defaultAuditReason(statusCode) {
+    if (statusCode === 401) return 'AUTHENTICATION_FAILED';
+    if (statusCode === 403) return 'AUTHORIZATION_DENIED';
+    if (statusCode === 429) return 'RATE_LIMIT_EXCEEDED';
+    return 'SECURITY_EVENT';
+}
+
+function safeAuditReason(reason, statusCode) {
+    const normalized = String(reason || '').trim();
+    if (!normalized) return defaultAuditReason(statusCode);
+    return normalized.slice(0, 64).replace(/[^A-Z0-9_\-]/gi, '_');
+}
+
+function rotateSecurityAuditLogsIfNeeded() {
+    if (!fs.existsSync(SECURITY_AUDIT_LOG_PATH)) return;
+
+    const stat = fs.statSync(SECURITY_AUDIT_LOG_PATH);
+    if (stat.size < SECURITY_AUDIT_LOG_MAX_BYTES) return;
+
+    const maxFiles = SECURITY_AUDIT_LOG_MAX_FILES;
+    const oldest = `${SECURITY_AUDIT_LOG_PATH}.${maxFiles}`;
+    if (fs.existsSync(oldest)) {
+        fs.unlinkSync(oldest);
+    }
+
+    for (let i = maxFiles - 1; i >= 1; i -= 1) {
+        const src = `${SECURITY_AUDIT_LOG_PATH}.${i}`;
+        const dest = `${SECURITY_AUDIT_LOG_PATH}.${i + 1}`;
+        if (fs.existsSync(src)) {
+            fs.renameSync(src, dest);
+        }
+    }
+
+    fs.renameSync(SECURITY_AUDIT_LOG_PATH, `${SECURITY_AUDIT_LOG_PATH}.1`);
+}
+
+function writeSecurityAuditLog(entry) {
+    try {
+        ensureLogDir();
+        rotateSecurityAuditLogsIfNeeded();
+        fs.appendFileSync(SECURITY_AUDIT_LOG_PATH, `${JSON.stringify(entry)}\n`, 'utf8');
+    } catch (err) {
+        console.warn('[SecurityAudit] 写入失败:', err.message);
+    }
+}
+
+function readSecurityAuditEventsFromFile(filePath) {
+    if (!fs.existsSync(filePath)) return [];
+
+    try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        if (!content) return [];
+
+        return content
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => {
+                try {
+                    return JSON.parse(line);
+                } catch (err) {
+                    return null;
+                }
+            })
+            .filter(Boolean);
+    } catch (err) {
+        console.warn('[Observability] 读取审计日志失败:', err.message);
+        return [];
+    }
+}
+
+function collectRecentSecurityAuditStats(windowMinutes) {
+    const nowMs = Date.now();
+    const windowMs = Math.max(1, Number(windowMinutes || 1)) * 60 * 1000;
+    const filePaths = [SECURITY_AUDIT_LOG_PATH];
+
+    for (let i = 1; i <= SECURITY_ALERT_SCAN_ROLLED_FILES; i += 1) {
+        filePaths.push(`${SECURITY_AUDIT_LOG_PATH}.${i}`);
+    }
+
+    const stats = {
+        total: 0,
+        status_401: 0,
+        status_403: 0,
+        status_429: 0,
+    };
+
+    for (const filePath of filePaths) {
+        const events = readSecurityAuditEventsFromFile(filePath);
+        for (const event of events) {
+            const tsMs = Date.parse(String(event.ts || ''));
+            if (!Number.isFinite(tsMs)) continue;
+            if (nowMs - tsMs > windowMs) continue;
+
+            stats.total += 1;
+            if (Number(event.status) === 401) stats.status_401 += 1;
+            if (Number(event.status) === 403) stats.status_403 += 1;
+            if (Number(event.status) === 429) stats.status_429 += 1;
+        }
+    }
+
+    return stats;
+}
+
+function buildSecurityAlertSnapshot(stats) {
+    const alerts = [];
+
+    if (Number(stats.status_429 || 0) >= SECURITY_ALERT_RATE_LIMIT_THRESHOLD) {
+        alerts.push({
+            code: 'SECURITY_RATE_LIMIT_SPIKE',
+            level: 'warning',
+            metric: 'status_429',
+            count: Number(stats.status_429 || 0),
+            threshold: SECURITY_ALERT_RATE_LIMIT_THRESHOLD,
+        });
+    }
+
+    if (Number(stats.status_401 || 0) >= SECURITY_ALERT_AUTHN_THRESHOLD) {
+        alerts.push({
+            code: 'SECURITY_AUTHN_DENIED_SPIKE',
+            level: 'warning',
+            metric: 'status_401',
+            count: Number(stats.status_401 || 0),
+            threshold: SECURITY_ALERT_AUTHN_THRESHOLD,
+        });
+    }
+
+    if (Number(stats.status_403 || 0) >= SECURITY_ALERT_AUTHZ_THRESHOLD) {
+        alerts.push({
+            code: 'SECURITY_AUTHZ_DENIED_SPIKE',
+            level: 'warning',
+            metric: 'status_403',
+            count: Number(stats.status_403 || 0),
+            threshold: SECURITY_ALERT_AUTHZ_THRESHOLD,
+        });
+    }
+
+    return alerts;
+}
 
 function resolveBcryptRounds(value) {
     const parsed = Number(value);
@@ -114,6 +370,7 @@ function isProcessorActor(req) {
 
 function requireAdmin(req, res) {
     if (!isAdmin(req)) {
+        res.locals.securityAuditReason = 'ADMIN_ROLE_REQUIRED';
         res.status(403).json({ error: '仅管理员可操作' });
         return false;
     }
@@ -307,8 +564,19 @@ app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     // Prevent clickjacking
     res.setHeader('X-Frame-Options', 'DENY');
+    // Mitigate XSS/data exfiltration with baseline CSP policy.
+    res.setHeader('Content-Security-Policy', CONTENT_SECURITY_POLICY);
+    res.setHeader('Referrer-Policy', REFERRER_POLICY);
+    res.setHeader('Permissions-Policy', PERMISSIONS_POLICY);
     // Disable client-side caching for sensitive content
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+
+    // HSTS should only be sent on HTTPS requests.
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+    if (req.secure || forwardedProto === 'https') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+
     next();
 });
 
@@ -370,6 +638,46 @@ const otpLimiter = rateLimit({
     keyGenerator: (req) => req.body.phone || rateLimit.ipKeyGenerator(req.ip), // Rate limit by phone number
 });
 
+// 审计中间件：统一记录 /api 下 401/403/429 安全事件。
+app.use('/api', (req, res, next) => {
+    const startedAt = Date.now();
+    let emitted = false;
+
+    const emit = () => {
+        if (emitted) return;
+        emitted = true;
+
+        const statusCode = Number(res.statusCode || 0);
+        if (![401, 403, 429].includes(statusCode)) return;
+
+        const actorId = getActorId(req);
+        const role = req && req.user && req.user.role ? String(req.user.role) : 'anonymous';
+        const userAgent = String(req.headers['user-agent'] || '');
+        const reason = safeAuditReason(res.locals.securityAuditReason, statusCode);
+        const eventType = statusCode === 401
+            ? 'AUTHN_DENIED'
+            : (statusCode === 403 ? 'AUTHZ_DENIED' : 'RATE_LIMITED');
+
+        writeSecurityAuditLog({
+            ts: new Date().toISOString(),
+            event_type: eventType,
+            reason,
+            status: statusCode,
+            method: req.method,
+            path: req.originalUrl || req.url,
+            actor_id: actorId || null,
+            role,
+            ip: getClientIp(req),
+            user_agent_hash: userAgent ? crypto.createHash('sha256').update(userAgent).digest('hex').slice(0, 16) : '',
+            duration_ms: Math.max(0, Date.now() - startedAt),
+        });
+    };
+
+    res.on('finish', emit);
+    res.on('close', emit);
+    next();
+});
+
 // JWT 鉴权中间件
 // ⚠️ 注意：此中间件通过 app.use('/api', ...) 挂载，
 //    Express 会自动剥离 /api 前缀，所以 req.path 里不含 /api！
@@ -396,6 +704,7 @@ const authMiddleware = (req, res, next) => {
     }
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.locals.securityAuditReason = 'AUTH_HEADER_MISSING';
         console.warn(`[Auth] 401 拒绝: ${req.method} ${req.originalUrl} (req.path=${req.path}, 无 Bearer Token)`);
         return res.status(401).json({ error: '未授权，请先登录' });
     }
@@ -404,10 +713,9 @@ const authMiddleware = (req, res, next) => {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
-        // SEC-014: Add security header for HSTS (enforce HTTPS)
-        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         next();
     } catch (err) {
+        res.locals.securityAuditReason = 'AUTH_TOKEN_INVALID';
         console.warn(`[Auth] 401 Token无效: ${req.method} ${req.originalUrl}`);
         return res.status(401).json({ error: 'Token 无效或已过期' });
     }
@@ -796,8 +1104,22 @@ app.use('/uploads/cms', express.static(path.join(__dirname, 'uploads', 'cms'), {
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.get('/api/config/amap', (req, res) => {
-    if (!AMAP_WEB_KEY) {
-        return res.status(503).json({ error: '地图服务未配置，请联系管理员' });
+    const forceUnavailable = ENABLE_RUNTIME_DELAY_SIMULATION
+        && String(req.query.force_unavailable || '').trim() === '1';
+
+    if (forceUnavailable || !AMAP_WEB_KEY) {
+        return res.status(503).json({
+            code: 503,
+            msg: '地图服务未配置，请联系管理员',
+            data: {
+                error_code: 'AMAP_UNAVAILABLE',
+                reason: forceUnavailable ? 'FORCED_DEPENDENCY_UNAVAILABLE' : 'AMAP_KEY_NOT_CONFIGURED',
+                degrade: {
+                    fallback: 'manual-address',
+                    message: '地图服务暂不可用，请切换文字地址输入。',
+                },
+            },
+        });
     }
     return res.json({
         key: AMAP_WEB_KEY,
@@ -969,20 +1291,25 @@ app.get('/api/admin/statistics/overview', adminOnly, (req, res) => {
 });
 
 // Admin runtime/security settings snapshot
-app.get('/api/admin/settings/runtime', adminOnly, (req, res) => {
+app.get('/api/admin/settings/runtime', adminOnly, async (req, res) => {
+    if (ENABLE_RUNTIME_DELAY_SIMULATION) {
+        const simulatedDelayMs = parseRuntimeDelayMs(req.query.simulate_delay_ms);
+        if (simulatedDelayMs > 0) {
+            await sleep(simulatedDelayMs);
+        }
+    }
+
     const allowedOriginsList = (allowedOrigins || []).map((item) => String(item).trim()).filter(Boolean);
-    const smsProvider = String(process.env.SMS_PROVIDER || 'auto').trim().toLowerCase() || 'auto';
-    const aliyunConfigured = Boolean(
-        process.env.ALIYUN_ACCESS_KEY_ID
-        && process.env.ALIYUN_ACCESS_KEY_SECRET
-        && process.env.ALIYUN_SMS_SIGN
-        && process.env.ALIYUN_SMS_TEMPLATE
-    );
+    const smsRuntimeStatus = getSmsRuntimeStatus(process.env);
+    const recentSecurityStats = collectRecentSecurityAuditStats(SECURITY_ALERT_WINDOW_MINUTES);
+    const activeSecurityAlerts = buildSecurityAlertSnapshot(recentSecurityStats);
 
     return res.json({
         runtime: {
             node_env: process.env.NODE_ENV || 'development',
             port: Number(process.env.PORT || 4000),
+            runtime_delay_simulation_enabled: ENABLE_RUNTIME_DELAY_SIMULATION,
+            runtime_delay_max_ms: RUNTIME_DELAY_MAX_MS,
         },
         security: {
             jwt_from_env: Boolean(process.env.JWT_SECRET),
@@ -993,15 +1320,37 @@ app.get('/api/admin/settings/runtime', adminOnly, (req, res) => {
             x_content_type_options: true,
             x_frame_options: true,
             cache_control_no_store: true,
-            csp_configured: false,
-            referrer_policy_configured: false,
-            permissions_policy_configured: false,
+            csp_configured: true,
+            referrer_policy_configured: true,
+            permissions_policy_configured: true,
+            security_audit_log_enabled: true,
+            security_audit_log_file: 'logs/security-audit.log',
+            security_audit_log_rotation_enabled: true,
+            security_audit_log_max_mb: SECURITY_AUDIT_LOG_MAX_MB,
+            security_audit_log_max_files: SECURITY_AUDIT_LOG_MAX_FILES,
         },
         integrations: {
             amap_configured: Boolean(AMAP_WEB_KEY),
-            sms_provider: smsProvider,
-            sms_aliyun_configured: aliyunConfigured,
-            sms_mock_mode: smsProvider === 'mock' || (!aliyunConfigured && smsProvider === 'auto'),
+            sms_provider: smsRuntimeStatus.providerResolved,
+            sms_provider_configured: smsRuntimeStatus.providerConfigured,
+            sms_aliyun_configured: smsRuntimeStatus.aliyunConfigured,
+            sms_mock_mode: smsRuntimeStatus.mockMode,
+            sms_runtime_ready: smsRuntimeStatus.runtimeReady,
+            sms_runtime_block_reason: smsRuntimeStatus.blockReason || '',
+        },
+        observability: {
+            security_alert_window_minutes: SECURITY_ALERT_WINDOW_MINUTES,
+            security_alert_thresholds: {
+                status_401: SECURITY_ALERT_AUTHN_THRESHOLD,
+                status_403: SECURITY_ALERT_AUTHZ_THRESHOLD,
+                status_429: SECURITY_ALERT_RATE_LIMIT_THRESHOLD,
+            },
+            recent_security_events: recentSecurityStats,
+            active_alert_count: activeSecurityAlerts.length,
+            active_alerts: activeSecurityAlerts,
+            dependency_health: {
+                amap: AMAP_WEB_KEY ? 'up' : 'degraded-unconfigured',
+            },
         },
     });
 });
@@ -1214,10 +1563,16 @@ app.post('/api/login', loginLimiter, (req, res) => {
     db.get(`SELECT u.id,u.username,u.phone,u.password_hash,u.full_name,r.name as role FROM users u JOIN roles r ON u.role_id=r.id WHERE u.username = ? OR u.phone = ?`, [username, username], (err, row) => {
         db.close();
         if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(401).json({ error: '用户名或密码错误' });
+        if (!row) {
+            res.locals.securityAuditReason = 'LOGIN_BAD_CREDENTIALS';
+            return res.status(401).json({ error: '用户名或密码错误' });
+        }
 
         const ok = bcrypt.compareSync(password, row.password_hash);
-        if (!ok) return res.status(401).json({ error: '用户名或密码错误' });
+        if (!ok) {
+            res.locals.securityAuditReason = 'LOGIN_BAD_CREDENTIALS';
+            return res.status(401).json({ error: '用户名或密码错误' });
+        }
 
         const userPayload = { id: row.id, username: row.username, phone: row.phone, full_name: row.full_name, role: row.role };
         const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '2h' });

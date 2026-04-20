@@ -182,7 +182,7 @@ class UserProfileManager {
     // 辅助生成标准业务分类列表
     renderListGroup(items) {
         const renderItem = (item) => `
-            <div data-action="${item.action}" data-payload="${item.payload || ''}" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid #F0F0F0; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#fafafa'" onmouseout="this.style.backgroundColor='transparent'">
+            <div data-action="${item.action}" data-payload="${item.payload || ''}" class="profile-list-item" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid #F0F0F0; cursor: pointer; transition: background-color 0.2s;">
                 <div style="display: flex; flex-direction: column;">
                     <span style="font-size: 15px; color: #333333; font-weight: 500; margin-bottom: 4px;">${item.icon} ${item.title}</span>
                     <span style="font-size: 12px; color: #999999;">${item.desc}</span>
@@ -298,6 +298,11 @@ class UserProfileManager {
 
         // 构建内部骨架
         container.innerHTML = `
+            <style>
+                .profile-list-item:hover {
+                    background-color: #fafafa;
+                }
+            </style>
             <div style="animation: fadeIn 0.4s ease-out; padding-bottom: 60px;">
                 ${this.renderHeader(userInfo)}
                 ${this.renderWallet(userInfo)}
